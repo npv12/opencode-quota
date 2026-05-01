@@ -20,8 +20,11 @@ import { createLoadConfigMeta, loadConfig } from "../src/lib/config.js";
 
 describe("loadConfig", () => {
   let isolatedCwd: string;
+  let savedConfigDir: string | undefined;
 
   beforeEach(() => {
+    savedConfigDir = process.env.OPENCODE_CONFIG_DIR;
+    delete process.env.OPENCODE_CONFIG_DIR;
     isolatedCwd = mkdtempSync(join(tmpdir(), "opencode-quota-config-sdk-"));
     runtimeDirs.value = {
       dataDirs: [],
@@ -32,6 +35,8 @@ describe("loadConfig", () => {
   });
 
   afterEach(() => {
+    if (savedConfigDir !== undefined) process.env.OPENCODE_CONFIG_DIR = savedConfigDir;
+    else delete process.env.OPENCODE_CONFIG_DIR;
     rmSync(isolatedCwd, { recursive: true, force: true });
   });
 
@@ -96,6 +101,24 @@ describe("loadConfig", () => {
       opencodeGoWindows: "client.config.get",
     });
     expect(explicit.meta.networkSettingSources).toEqual({});
+  });
+
+  it("resolves relative OPENCODE_CONFIG_DIR against cwd for file loading", async () => {
+    process.env.OPENCODE_CONFIG_DIR = ".opencode";
+    mkdirSync(join(isolatedCwd, ".opencode"), { recursive: true });
+    writeFileSync(
+      join(isolatedCwd, ".opencode", "opencode.json"),
+      JSON.stringify({ experimental: { quotaToast: { enabled: false } } }),
+      "utf8",
+    );
+
+    const meta = createLoadConfigMeta();
+    const config = await loadConfig(undefined, meta, { cwd: isolatedCwd });
+
+    expect(config.enabled).toBe(false);
+    expect(meta.paths).toContain(
+      `${join(isolatedCwd, ".opencode", "opencode.json")} (experimental.quotaToast)`,
+    );
   });
 
   it("ignores invalid OpenCode Go windows without recording a setting source", async () => {

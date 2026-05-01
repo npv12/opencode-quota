@@ -112,6 +112,7 @@ describe("quota surface parity regressions", () => {
     process.env.XDG_DATA_HOME = join(tempDir, "xdg-data");
     process.env.XDG_CACHE_HOME = join(tempDir, "xdg-cache");
     process.env.XDG_STATE_HOME = join(tempDir, "xdg-state");
+    delete process.env.OPENCODE_CONFIG_DIR;
 
     process.chdir(worktreeDir);
   });
@@ -221,6 +222,83 @@ describe("quota surface parity regressions", () => {
     expect(panel.status).toBe("ready");
     expect(panel.lines.join("\n")).toContain("64% left");
     expect(syntheticProvider.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("resolves relative OPENCODE_CONFIG_DIR from the worktree root for plugin commands", async () => {
+    const syntheticProvider = {
+      id: "synthetic",
+      isAvailable: vi.fn().mockResolvedValue(true),
+      fetch: vi.fn().mockResolvedValue({
+        attempted: true,
+        entries: [
+          {
+            name: "Synthetic Weekly",
+            group: "Synthetic",
+            label: "Weekly:",
+            percentRemaining: 64,
+            right: "$16/$24",
+            resetTimeIso: "2099-01-08T00:00:00.000Z",
+          },
+        ],
+        errors: [],
+      }),
+    };
+    mockProviders.push(syntheticProvider);
+
+    mkdirSync(join(worktreeDir, ".git"));
+    mkdirSync(join(worktreeDir, ".opencode"), { recursive: true });
+    mkdirSync(join(nestedDir, ".opencode"), { recursive: true });
+    process.env.OPENCODE_CONFIG_DIR = ".opencode";
+
+    writeFileSync(
+      join(worktreeDir, ".opencode", "opencode.json"),
+      JSON.stringify({
+        experimental: {
+          quotaToast: {
+            enabled: false,
+          },
+        },
+      }),
+      "utf8",
+    );
+    writeFileSync(
+      join(nestedDir, ".opencode", "opencode.json"),
+      JSON.stringify({
+        experimental: {
+          quotaToast: {
+            enabled: true,
+            enabledProviders: ["synthetic"],
+            formatStyle: "allWindows",
+            showOnQuestion: false,
+            showSessionTokens: false,
+            minIntervalMs: 60_000,
+          },
+        },
+      }),
+      "utf8",
+    );
+
+    process.chdir(nestedDir);
+
+    const client = createClient({
+      config: {
+        enabled: false,
+        enabledProviders: [],
+      },
+      sessionMeta: { modelID: "synthetic/default", providerID: "synthetic" },
+    });
+
+    const { QuotaToastPlugin } = await import("../src/plugin.js");
+    const hooks = await QuotaToastPlugin({ client } as any);
+    await expect(
+      hooks["command.execute.before"]?.({
+        command: "quota",
+        sessionID: "session-relative-config-root",
+      } as any),
+    ).rejects.toThrow(COMMAND_HANDLED_SENTINEL);
+
+    expect(getPromptText(client)).toBe("");
+    expect(syntheticProvider.fetch).not.toHaveBeenCalled();
   });
 
   it("keeps workspace overrides for formerly global-authoritative settings aligned between plugin and sidebar", async () => {

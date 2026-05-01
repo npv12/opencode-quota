@@ -5,7 +5,7 @@ import type { QuotaToastConfig } from "./types.js";
 
 import { formatQuotaRows } from "./format.js";
 import { getQuotaProviderShape } from "./provider-metadata.js";
-import { findGitWorktreeRoot } from "./config-file-utils.js";
+import { findGitWorktreeRoot, getEffectiveConfigRoot } from "./config-file-utils.js";
 import {
   loadConfiguredOpenCodeConfig,
   loadConfiguredProviderIds,
@@ -101,9 +101,10 @@ function cloneCliConfig(config: QuotaToastConfig): QuotaToastConfig {
 function resolveCliRoots(cwd: string): { workspaceRoot: string; configRoot: string; fallbackDirectory: string } {
   const fallbackDirectory = resolve(cwd);
   const worktreeRoot = findGitWorktreeRoot(fallbackDirectory) ?? fallbackDirectory;
+  const configRoot = getEffectiveConfigRoot(worktreeRoot);
   return {
     workspaceRoot: worktreeRoot,
-    configRoot: worktreeRoot,
+    configRoot,
     fallbackDirectory,
   };
 }

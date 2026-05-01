@@ -51,8 +51,11 @@ describe("runCliShowCommand", () => {
   let tempDir: string;
   let globalConfigDir: string;
   let workspaceDir: string;
+  let savedConfigDir: string | undefined;
 
   beforeEach(() => {
+    savedConfigDir = process.env.OPENCODE_CONFIG_DIR;
+    delete process.env.OPENCODE_CONFIG_DIR;
     tempDir = mkdtempSync(join(tmpdir(), "opencode-quota-cli-show-"));
     globalConfigDir = join(tempDir, "global-config", "opencode");
     workspaceDir = join(tempDir, "workspace");
@@ -69,6 +72,8 @@ describe("runCliShowCommand", () => {
   });
 
   afterEach(() => {
+    if (savedConfigDir !== undefined) process.env.OPENCODE_CONFIG_DIR = savedConfigDir;
+    else delete process.env.OPENCODE_CONFIG_DIR;
     mockProviders.length = 0;
     __resetQuotaStateForTests();
     rmSync(tempDir, { recursive: true, force: true });
@@ -266,6 +271,39 @@ describe("runCliShowCommand", () => {
     expect(code).toBe(1);
     expect(stdout.output).toBe("");
     expect(stderr.output).toContain("Quota disabled in config");
+  });
+
+  it("resolves relative OPENCODE_CONFIG_DIR from the worktree root", async () => {
+    const nestedDir = join(workspaceDir, "packages", "app");
+    const provider = {
+      id: "synthetic",
+      isAvailable: vi.fn().mockResolvedValue(true),
+      fetch: vi.fn(),
+    };
+    mockProviders.push(provider);
+    mkdirSync(nestedDir, { recursive: true });
+    mkdirSync(join(workspaceDir, ".git"));
+    mkdirSync(join(workspaceDir, ".opencode"), { recursive: true });
+    process.env.OPENCODE_CONFIG_DIR = ".opencode";
+    writeFileSync(
+      join(workspaceDir, ".opencode", "opencode.json"),
+      JSON.stringify({ experimental: { quotaToast: { enabled: false } } }),
+      "utf8",
+    );
+    const stdout = createCaptureStream();
+    const stderr = createCaptureStream();
+
+    const code = await runCliShowCommand({
+      argv: [],
+      cwd: nestedDir,
+      stdout: stdout.stream as any,
+      stderr: stderr.stream as any,
+    });
+
+    expect(code).toBe(1);
+    expect(stdout.output).toBe("");
+    expect(stderr.output).toContain("Quota disabled in config");
+    expect(provider.fetch).not.toHaveBeenCalled();
   });
 
   it("uses root-level OpenCode provider ids for standalone provider availability", async () => {

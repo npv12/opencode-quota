@@ -56,6 +56,7 @@ describe("tui runtime helpers", () => {
     process.env.XDG_DATA_HOME = join(tempDir, "xdg-data");
     process.env.XDG_CACHE_HOME = join(tempDir, "xdg-cache");
     process.env.XDG_STATE_HOME = join(tempDir, "xdg-state");
+    delete process.env.OPENCODE_CONFIG_DIR;
 
     collectQuotaRenderData.mockReset();
     buildSidebarQuotaPanelLines.mockReset();

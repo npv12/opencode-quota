@@ -32,6 +32,7 @@ describe("loadConfig integration runtime-path resolution", () => {
   let xdgConfigHome: string;
 
   beforeEach(() => {
+    delete process.env.OPENCODE_CONFIG_DIR;
     tempDir = mkdtempSync(join(tmpdir(), "opencode-quota-config-integration-"));
     mockedHomeDir.value = tempDir;
     workspaceDir = join(tempDir, "workspace");

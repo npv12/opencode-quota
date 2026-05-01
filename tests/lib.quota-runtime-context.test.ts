@@ -35,6 +35,7 @@ describe("quota runtime context", () => {
   let xdgConfigHome: string;
 
   beforeEach(() => {
+    delete process.env.OPENCODE_CONFIG_DIR;
     tempDir = mkdtempSync(join(tmpdir(), "opencode-quota-runtime-context-"));
     mockedHomeDir.value = tempDir;
     worktreeDir = join(tempDir, "worktree");
@@ -136,6 +137,53 @@ describe("quota runtime context", () => {
     expect(runtime.configMeta.globalConfigPaths).toEqual([]);
     expect(runtime.configMeta.workspaceConfigPaths).toEqual([worktreeConfigPath]);
     expect(runtime.configMeta.settingSources.enabled).toBe(worktreeConfigPath);
+  });
+
+  it("does not re-resolve OPENCODE_CONFIG_DIR when loadConfig receives resolved configRootDir", async () => {
+    process.env.OPENCODE_CONFIG_DIR = ".opencode";
+    mkdirSync(join(worktreeDir, ".opencode", ".opencode"), { recursive: true });
+    writeFileSync(
+      join(worktreeDir, ".opencode", "opencode.json"),
+      JSON.stringify({
+        experimental: {
+          quotaToast: {
+            enabled: false,
+          },
+        },
+      }),
+      "utf8",
+    );
+    writeFileSync(
+      join(worktreeDir, ".opencode", ".opencode", "opencode.json"),
+      JSON.stringify({
+        experimental: {
+          quotaToast: {
+            enabled: true,
+          },
+        },
+      }),
+      "utf8",
+    );
+
+    const runtime = await resolveQuotaRuntimeContext({
+      client: createClient(),
+      roots: {
+        worktreeRoot: worktreeDir,
+        activeDirectory: nestedDir,
+        fallbackDirectory: nestedDir,
+      },
+      providers: [],
+    });
+
+    expect(runtime.roots).toEqual({
+      workspaceRoot: worktreeDir,
+      configRoot: join(worktreeDir, ".opencode"),
+    });
+    expect(runtime.config.enabled).toBe(false);
+    expect(runtime.configMeta.paths).toContain(quotaConfigSource(join(worktreeDir, ".opencode")));
+    expect(runtime.configMeta.paths).not.toContain(
+      quotaConfigSource(join(worktreeDir, ".opencode", ".opencode")),
+    );
   });
 
   it("resolves session meta only when the shared config requests it", async () => {
