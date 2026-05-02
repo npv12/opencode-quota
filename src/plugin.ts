@@ -74,6 +74,7 @@ import {
   resolveQuotaRuntimeContext,
   type QuotaRuntimeContext,
 } from "./lib/quota-runtime-context.js";
+import { findGitWorktreeRoot, getEffectiveConfigRoot } from "./lib/config-file-utils.js";
 
 // =============================================================================
 // Types
@@ -522,9 +523,11 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
 
   function getPluginRuntimeRootHints() {
     const cwd = process.cwd();
+    const workspaceRoot = findGitWorktreeRoot(cwd) ?? cwd;
+    const configRoot = getEffectiveConfigRoot(workspaceRoot);
     return {
-      workspaceRoot: cwd,
-      configRoot: cwd,
+      workspaceRoot,
+      configRoot,
       fallbackDirectory: cwd,
     };
   }

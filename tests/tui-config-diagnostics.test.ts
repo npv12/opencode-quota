@@ -15,8 +15,11 @@ describe("inspectTuiConfig", () => {
   let tempDir: string;
   let projectDir: string;
   let globalDir: string;
+  let savedConfigDir: string | undefined;
 
   beforeEach(() => {
+    savedConfigDir = process.env.OPENCODE_CONFIG_DIR;
+    delete process.env.OPENCODE_CONFIG_DIR;
     tempDir = mkdtempSync(join(tmpdir(), "opencode-quota-tui-diag-"));
     projectDir = join(tempDir, "project");
     globalDir = join(tempDir, "global", "opencode");
@@ -30,6 +33,8 @@ describe("inspectTuiConfig", () => {
   });
 
   afterEach(() => {
+    if (savedConfigDir !== undefined) process.env.OPENCODE_CONFIG_DIR = savedConfigDir;
+    else delete process.env.OPENCODE_CONFIG_DIR;
     rmSync(tempDir, { recursive: true, force: true });
     vi.clearAllMocks();
   });
@@ -121,6 +126,29 @@ describe("inspectTuiConfig", () => {
 
     expect(diagnostics.workspaceRoot).toBe(projectDir);
     expect(diagnostics.configRoot).toBe(projectDir);
+    expect(diagnostics.inferredSelectedPath).toBe(join(projectDir, ".opencode", "tui.json"));
+    expect(diagnostics.quotaPluginConfigured).toBe(true);
+    expect(diagnostics.quotaPluginConfigPaths).toEqual([join(projectDir, ".opencode", "tui.json")]);
+  });
+
+  it("resolves relative OPENCODE_CONFIG_DIR from discovered worktree root", async () => {
+    const nestedDir = join(projectDir, "packages", "feature");
+    mkdirSync(nestedDir, { recursive: true });
+    mkdirSync(join(projectDir, ".git"), { recursive: true });
+    mkdirSync(join(projectDir, ".opencode"), { recursive: true });
+    process.env.OPENCODE_CONFIG_DIR = ".opencode";
+
+    writeFileSync(
+      join(projectDir, ".opencode", "tui.json"),
+      JSON.stringify({ plugin: ["@slkiser/opencode-quota"] }),
+      "utf8",
+    );
+
+    const { inspectTuiConfig } = await import("../src/lib/tui-config-diagnostics.js");
+    const diagnostics = await inspectTuiConfig({ cwd: nestedDir });
+
+    expect(diagnostics.workspaceRoot).toBe(projectDir);
+    expect(diagnostics.configRoot).toBe(join(projectDir, ".opencode"));
     expect(diagnostics.inferredSelectedPath).toBe(join(projectDir, ".opencode", "tui.json"));
     expect(diagnostics.quotaPluginConfigured).toBe(true);
     expect(diagnostics.quotaPluginConfigPaths).toEqual([join(projectDir, ".opencode", "tui.json")]);

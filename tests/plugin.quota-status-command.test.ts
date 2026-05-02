@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { COMMAND_HANDLED_SENTINEL } from "../src/lib/command-handled.js";
 import { DEFAULT_CONFIG } from "../src/lib/types.js";
@@ -75,7 +75,11 @@ vi.mock("../src/lib/google.js", () => ({
 }));
 
 describe("/quota_status command behavior", () => {
+  let savedConfigDir: string | undefined;
+
   beforeEach(() => {
+    savedConfigDir = process.env.OPENCODE_CONFIG_DIR;
+    delete process.env.OPENCODE_CONFIG_DIR;
     seedDefaultPluginBootstrapMocks(mocks, {
       configOverrides: {
         ...DEFAULT_CONFIG,
@@ -120,6 +124,11 @@ describe("/quota_status command behavior", () => {
       },
     ]);
     mocks.buildQuotaStatusReport.mockResolvedValue("Injected quota status");
+  });
+
+  afterEach(() => {
+    if (savedConfigDir !== undefined) process.env.OPENCODE_CONFIG_DIR = savedConfigDir;
+    else delete process.env.OPENCODE_CONFIG_DIR;
   });
 
   it("probes every enabled and available provider with fresh single-window status probes and still throws the handled sentinel", async () => {

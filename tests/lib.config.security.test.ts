@@ -30,6 +30,7 @@ describe("loadConfig layered precedence", () => {
   let xdgConfigHome: string;
 
   beforeEach(() => {
+    delete process.env.OPENCODE_CONFIG_DIR;
     tempDir = mkdtempSync(join(tmpdir(), "opencode-quota-config-"));
     workspaceDir = join(tempDir, "workspace");
     xdgConfigHome = join(tempDir, "xdg-config");

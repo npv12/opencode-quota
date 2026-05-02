@@ -66,7 +66,11 @@ vi.mock("../src/lib/opencode-runtime-paths.js", () => ({
 }));
 
 describe("/quota command behavior", () => {
+  let savedConfigDir: string | undefined;
+
   beforeEach(async () => {
+    savedConfigDir = process.env.OPENCODE_CONFIG_DIR;
+    delete process.env.OPENCODE_CONFIG_DIR;
     seedDefaultPluginBootstrapMocks(mocks, {
       configOverrides: {
         enabled: true,
@@ -84,6 +88,8 @@ describe("/quota command behavior", () => {
   });
 
   afterEach(async () => {
+    if (savedConfigDir !== undefined) process.env.OPENCODE_CONFIG_DIR = savedConfigDir;
+    else delete process.env.OPENCODE_CONFIG_DIR;
     const { __resetQuotaStateForTests } = await import("../src/lib/quota-state.js");
     __resetQuotaStateForTests();
     await rm(TEST_RUNTIME_ROOT, { recursive: true, force: true });

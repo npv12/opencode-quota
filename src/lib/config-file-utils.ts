@@ -1,5 +1,5 @@
 import { existsSync } from "fs";
-import { dirname, join } from "path";
+import { dirname, isAbsolute, join, resolve } from "path";
 
 export type ConfigFileKind = "opencode" | "tui";
 export type ConfigFileFormat = "json" | "jsonc";
@@ -42,6 +42,29 @@ function pickFirstNonEmptyString(items: Array<string | null | undefined>): strin
   return null;
 }
 
+/**
+ * Returns the effective config root directory.
+ *
+ * Priority:
+ * 1. `OPENCODE_CONFIG_DIR` environment variable (if set and non-empty)
+ * 2. The provided fallback directory
+ *
+ * This matches OpenCode's own behavior: when `OPENCODE_CONFIG_DIR` is set,
+ * config files are resolved relative to it rather than the current working directory.
+ */
+export function getEffectiveConfigRoot(fallback: string): string {
+  const envDir = process.env.OPENCODE_CONFIG_DIR?.trim();
+  if (!envDir) {
+    return fallback;
+  }
+
+  if (isAbsolute(envDir)) {
+    return envDir;
+  }
+
+  return resolve(fallback, envDir);
+}
+
 export function resolveRuntimeContextRoots(params: RuntimeContextRootHints): RuntimeContextRoots {
   const workspaceRoot =
     pickFirstNonEmptyString([
@@ -50,9 +73,10 @@ export function resolveRuntimeContextRoots(params: RuntimeContextRootHints): Run
       params.activeDirectory,
       params.fallbackDirectory,
     ]) ?? params.fallbackDirectory;
-  const configRoot =
-    pickFirstNonEmptyString([params.configRoot, workspaceRoot, params.activeDirectory]) ??
-    workspaceRoot;
+  const explicitConfigRoot = pickFirstNonEmptyString([params.configRoot]);
+  const computedConfigRoot =
+    pickFirstNonEmptyString([workspaceRoot, params.activeDirectory]) ?? workspaceRoot;
+  const configRoot = explicitConfigRoot ?? getEffectiveConfigRoot(computedConfigRoot);
 
   return { workspaceRoot, configRoot };
 }

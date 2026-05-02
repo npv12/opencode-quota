@@ -23,6 +23,7 @@ import { existsSync } from "fs";
 import { readFile } from "fs/promises";
 import { join } from "path";
 
+import { getEffectiveConfigRoot } from "./config-file-utils.js";
 import { getOpencodeRuntimeDirCandidates } from "./opencode-runtime-paths.js";
 
 export const QUOTA_TOAST_CONFIG_RELATIVE_PATH = "opencode-quota/quota-toast.json";
@@ -768,7 +769,7 @@ export async function loadConfig(
     networkSettingSources: Record<string, string>;
     configIssues: LoadConfigIssue[];
   }> {
-    const configRootDir = options?.configRootDir ?? options?.cwd ?? process.cwd();
+    const configRootDir = options?.configRootDir ?? getEffectiveConfigRoot(options?.cwd ?? process.cwd());
     const { configDirs } = getOpencodeRuntimeDirCandidates();
     const config = cloneDefaultConfig();
     const usedPaths: string[] = [];
