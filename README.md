@@ -125,10 +125,9 @@ This is only for users who intentionally want `experimental.quotaToast` mirrored
 
 For companion providers, put the auth plugin first and `@slkiser/opencode-quota` second.
 
-Providers are auto-detected by default. To choose providers explicitly:
+Providers are auto-detected by default. To choose providers explicitly, set `enabledProviders` in `opencode-quota/quota-toast.json`:
 
 ```jsonc
-// opencode-quota/quota-toast.json
 {
   "enabledProviders": ["copilot", "openai", "google-gemini-cli"],
 }
@@ -200,6 +199,67 @@ Increase the remote provider request timeout from the default 5000ms. Providers 
   "requestTimeoutMs": 12000,
 }
 ```
+
+</details>
+
+<details>
+<summary>Full configuration reference</summary>
+
+Quota plugin settings go in `opencode-quota/quota-toast.json` next to the OpenCode config file you chose during install. Existing `experimental.quotaToast` settings in `opencode.json` / `opencode.jsonc` still work when no sidecar file exists. Quota settings do not live in `tui.json`.
+
+#### Core/shared settings
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `enabled` | `true` | Master switch for quota collection and handled slash commands. When `false`, `/quota`, `/quota_status`, `/pricing_refresh`, and `/tokens_*` are handled as no-ops. |
+| `enabledProviders` | `"auto"` | Auto-detect providers, or set an explicit provider list. Unknown provider ids are reported under `config_errors` in `/quota_status`; an explicit list with no valid providers resolves to none instead of falling back to auto-detect. |
+| `minIntervalMs` | `300000` | Minimum fetch interval between provider updates. |
+| `requestTimeoutMs` | `5000` | Remote provider request timeout in milliseconds. Providers with custom defaults, such as Gemini CLI and OpenCode Go, keep their provider default unless this is explicitly configured. |
+| `formatStyle` | `singleWindow` | Shared quota-row style for popup toasts and the TUI sidebar: `singleWindow` or `allWindows`. Legacy `classic`/`grouped` aliases still work, and legacy `toastStyle` is still accepted on read for backward compatibility. |
+| `percentDisplayMode` | `remaining` | Shared percent meaning for popup toasts and the TUI sidebar: `remaining` renders labels like `81% left`; `used` renders labels like `19% used` or `125% used` when over quota. |
+| `onlyCurrentModel` | `false` | Filter quota rows to the current model/provider when that session selection can be resolved. |
+| `showSessionTokens` | `true` | Show the `Session input/output tokens` section in quota displays when session token data is available. |
+| `pricingSnapshot.source` | `"auto"` | Token pricing snapshot selection for `/tokens_*`: `auto`, `bundled`, or `runtime`. |
+| `pricingSnapshot.autoRefresh` | `7` | Refresh stale local pricing data after this many days. |
+
+`percentDisplayMode` affects popup toasts and the TUI sidebar only. `/quota` keeps its existing remaining-oriented percentage output.
+
+#### Toast settings
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `enableToast` | `true` | Show popup toasts. Disabling this does not disable `/quota` or the TUI sidebar. |
+| `toastDurationMs` | `9000` | Toast duration in milliseconds. |
+| `showOnIdle` | `true` | Show a toast on the idle trigger. |
+| `showOnQuestion` | `true` | Show a toast after a question/assistant response. |
+| `showOnCompact` | `true` | Show a toast after session compaction. |
+| `showOnBothFail` | `true` | Show a fallback toast when providers attempted quota reads and all failed. |
+| `layout.maxWidth` | `50` | Toast formatting width target. Ignored by the TUI sidebar. |
+| `layout.narrowAt` | `42` | Toast compact-layout breakpoint. Ignored by the TUI sidebar. |
+| `layout.tinyAt` | `32` | Toast tiny-layout breakpoint. Ignored by the TUI sidebar. |
+| `debug` | `false` | Append toast debug context when troubleshooting. |
+
+#### TUI sidebar setup
+
+If you want the `Quota` sidebar panel, you need the plugin in both OpenCode config surfaces:
+
+| File | What goes there | Needed for sidebar? |
+| --- | --- | --- |
+| `tui.json` / `tui.jsonc` | `plugin: ["@slkiser/opencode-quota"]` | Yes |
+| `opencode.json` / `opencode.jsonc` | Server plugin entry | Yes |
+| `opencode-quota/quota-toast.json` | Quota settings | No, but controls quota behavior |
+
+#### Provider-specific settings
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `anthropicBinaryPath` | `"claude"` | Command/path used for local Claude CLI probing; override this for custom installs or shim locations. |
+| `googleModels` | `["CLAUDE"]` | Google model keys to query: `CLAUDE`, `G3PRO`, `G3FLASH`, `G3IMAGE`. |
+| `opencodeGoWindows` | `["rolling", "weekly", "monthly"]` | OpenCode Go usage windows to display. |
+| `alibabaCodingPlanTier` | `"lite"` | Fallback Alibaba Coding Plan tier when auth does not include `tier`. |
+| `cursorPlan` | `"none"` | Cursor included API budget preset: `none`, `pro`, `pro-plus`, `ultra`. |
+| `cursorIncludedApiUsd` | unset | Override Cursor monthly included API budget in USD. |
+| `cursorBillingCycleStartDay` | unset | Local billing-cycle anchor day `1..28`; when unset, Cursor usage resets on the local calendar month. |
 
 </details>
 
@@ -302,7 +362,6 @@ Companion plugin: [`opencode-gemini-auth`](https://github.com/jenslys/opencode-g
 Add both plugins to `opencode.json`, with the Gemini auth plugin first:
 
 ```jsonc
-// opencode.json
 {
   "$schema": "https://opencode.ai/config.json",
   "plugin": ["opencode-gemini-auth", "@slkiser/opencode-quota"]
