@@ -75,10 +75,10 @@ describe("alibaba auth resolution", () => {
       expect(hasAlibabaAuth(auth as any)).toBe(false);
     });
 
-    it("falls back from alibaba-coding-plan to alibaba when the first alias has no usable credential", () => {
+    it("uses the canonical alibaba-coding-plan auth entry when present", () => {
       const auth = {
-        "alibaba-coding-plan": { type: "api", key: "   " },
-        alibaba: { type: "api", access: " dashscope-key ", tier: "pro" },
+        "alibaba-coding-plan": { type: "api", key: " dashscope-key ", tier: "pro" },
+        alibaba: { type: "api", key: "fallback-key", tier: "lite" },
       };
 
       expect(resolveAlibabaCodingPlanAuth(auth as any)).toEqual({
@@ -87,6 +87,45 @@ describe("alibaba auth resolution", () => {
         tier: "pro",
       });
       expect(hasAlibabaAuth(auth as any)).toBe(true);
+    });
+
+    it("falls back to alibaba alias when canonical alias is absent", () => {
+      const auth = {
+        alibaba: { type: "api", key: " dashscope-key ", tier: "pro" },
+      };
+
+      expect(resolveAlibabaCodingPlanAuth(auth as any)).toEqual({
+        state: "configured",
+        apiKey: "dashscope-key",
+        tier: "pro",
+      });
+      expect(hasAlibabaAuth(auth as any)).toBe(true);
+    });
+
+    it("returns invalid when the first present alias has no usable key", () => {
+      const auth = {
+        "alibaba-coding-plan": { type: "api", key: "   " },
+        alibaba: { type: "api", key: "fallback-key", tier: "pro" },
+      };
+
+      expect(resolveAlibabaCodingPlanAuth(auth as any)).toEqual({
+        state: "invalid",
+        error: "Alibaba Coding Plan auth entry present but key is empty",
+      });
+      expect(hasAlibabaAuth(auth as any)).toBe(false);
+    });
+
+    it("returns invalid when the first present alias has a non-api type", () => {
+      const auth = {
+        "alibaba-coding-plan": { type: "oauth", key: "canonical-key" },
+        alibaba: { type: "api", key: "fallback-key", tier: "pro" },
+      };
+
+      expect(resolveAlibabaCodingPlanAuth(auth as any)).toEqual({
+        state: "invalid",
+        error: 'Unsupported Alibaba Coding Plan auth type: "oauth"',
+      });
+      expect(hasAlibabaAuth(auth as any)).toBe(false);
     });
 
     it("uses the configured fallback tier when auth omits tier", () => {
@@ -104,15 +143,34 @@ describe("alibaba auth resolution", () => {
       });
     });
 
-    it("preserves type-agnostic credential resolution for existing auth.json entries", () => {
-      expect(
-        resolveAlibabaCodingPlanAuth({
-          alibaba: { type: "oauth", key: "dashscope-key", tier: "lite" },
-        } as any),
-      ).toEqual({
-        state: "configured",
-        apiKey: "dashscope-key",
-        tier: "lite",
+    it("returns invalid for non-api auth types", () => {
+      const auth = {
+        alibaba: { type: "oauth", key: "dashscope-key", tier: "lite" },
+      };
+
+      expect(resolveAlibabaCodingPlanAuth(auth as any)).toEqual({
+        state: "invalid",
+        error: 'Unsupported Alibaba Coding Plan auth type: "oauth"',
+      });
+      expect(hasAlibabaAuth(auth as any)).toBe(false);
+    });
+
+    it("returns invalid for access-only auth entries", () => {
+      const auth = {
+        alibaba: { type: "api", access: "dashscope-key", tier: "lite" },
+      };
+
+      expect(resolveAlibabaCodingPlanAuth(auth as any)).toEqual({
+        state: "invalid",
+        error: "Alibaba Coding Plan auth entry present but key is empty",
+      });
+      expect(hasAlibabaAuth(auth as any)).toBe(false);
+    });
+
+    it("returns invalid for malformed auth entries", () => {
+      expect(resolveAlibabaCodingPlanAuth({ alibaba: "bad-shape" } as any)).toEqual({
+        state: "invalid",
+        error: "Alibaba Coding Plan auth entry has invalid shape",
       });
     });
 
@@ -203,7 +261,7 @@ describe("alibaba auth resolution", () => {
 
     it("falls back to auth.json when env/config are not configured", async () => {
       mocks.readAuthFileCached.mockResolvedValueOnce({
-        alibaba: { type: "api", access: "dashscope-key", tier: "pro" },
+        alibaba: { type: "api", key: "dashscope-key", tier: "pro" },
       });
 
       await expect(resolveAlibabaCodingPlanAuthCached()).resolves.toEqual({
@@ -213,6 +271,17 @@ describe("alibaba auth resolution", () => {
       });
       expect(mocks.readAuthFileCached).toHaveBeenCalledWith({
         maxAgeMs: DEFAULT_ALIBABA_AUTH_CACHE_MAX_AGE_MS,
+      });
+    });
+
+    it("returns invalid for access-only cached auth.json", async () => {
+      mocks.readAuthFileCached.mockResolvedValueOnce({
+        alibaba: { type: "api", access: "dashscope-key", tier: "pro" },
+      });
+
+      await expect(resolveAlibabaCodingPlanAuthCached()).resolves.toEqual({
+        state: "invalid",
+        error: "Alibaba Coding Plan auth entry present but key is empty",
       });
     });
 

@@ -20,6 +20,7 @@ vi.mock("fs/promises", () => ({
 }));
 
 vi.mock("../src/lib/opencode-auth.js", () => ({
+  getAuthPaths: vi.fn(() => ["/tmp/auth.json"]),
   readAuthFile: vi.fn(),
 }));
 
@@ -165,5 +166,6 @@ describe("chutes-config", () => {
     expect(result.configured).toBe(true);
     expect(result.source).toBe("env:CHUTES_API_KEY");
     expect(result.checkedPaths).toContain("env:CHUTES_API_KEY");
+    expect(result.authPaths).toEqual(["/tmp/auth.json"]);
   });
 });

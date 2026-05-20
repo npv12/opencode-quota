@@ -105,9 +105,7 @@ function isMiniMaxAuthData(value: unknown): value is MiniMaxAuthData {
 }
 
 function getMiniMaxCredential(auth: MiniMaxAuthData): string {
-  const key = typeof auth.key === "string" ? auth.key.trim() : "";
-  const access = typeof auth.access === "string" ? auth.access.trim() : "";
-  return key || access || "";
+  return typeof auth.key === "string" ? auth.key.trim() : "";
 }
 
 function sanitizeMiniMaxAuthValue(value: string): string {
@@ -205,7 +203,7 @@ function resolveMiniMaxAuthForSpec(
 
   const credential = getMiniMaxCredential(minimax);
   if (!credential) {
-    return { state: "invalid", error: "MiniMax auth entry present but credentials are empty" };
+    return { state: "invalid", error: "MiniMax auth entry present but key is empty" };
   }
 
   return { state: "configured", apiKey: credential, endpoint: spec.endpoint };

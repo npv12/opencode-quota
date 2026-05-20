@@ -25,7 +25,11 @@ vi.mock("fs/promises", () => ({
   readFile: vi.fn(),
 }));
 
-import { getApiKeyCheckedPaths, resolveApiKeyFromEnvAndConfig } from "../src/lib/api-key-resolver.js";
+import {
+  extractAuthApiKeyEntry,
+  getApiKeyCheckedPaths,
+  resolveApiKeyFromEnvAndConfig,
+} from "../src/lib/api-key-resolver.js";
 
 describe("api-key-resolver", () => {
   const workspaceJsonPath = join(process.cwd(), "opencode.json");
@@ -91,5 +95,34 @@ describe("api-key-resolver", () => {
         envVarNames: [],
       }),
     ).toEqual([trustedJsonPath]);
+  });
+
+  it("extracts only strict api key auth entries", () => {
+    expect(
+      extractAuthApiKeyEntry(
+        {
+          provider: { type: "api", key: " auth-key " },
+        },
+        ["provider"],
+      ),
+    ).toBe("auth-key");
+
+    expect(
+      extractAuthApiKeyEntry(
+        {
+          provider: { type: "api", access: "access-token" },
+        },
+        ["provider"],
+      ),
+    ).toBeNull();
+
+    expect(
+      extractAuthApiKeyEntry(
+        {
+          provider: { type: "oauth", key: "auth-key" },
+        },
+        ["provider"],
+      ),
+    ).toBeNull();
   });
 });

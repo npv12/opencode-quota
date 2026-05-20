@@ -94,28 +94,20 @@ describe("alibaba-coding-plan provider", () => {
     expect(computeAlibabaCodingPlanQuota as any).toHaveBeenCalledWith({ state: {}, tier: "pro" });
   });
 
-  it("falls back to the alibaba auth key when alibaba-coding-plan exists without usable credentials", async () => {
+  it("surfaces invalid auth when alibaba-coding-plan exists without usable credentials", async () => {
     const { readAuthFileCached } = await import("../src/lib/opencode-auth.js");
-    const { computeAlibabaCodingPlanQuota, readAlibabaCodingPlanQuotaState } = await import(
-      "../src/lib/qwen-local-quota.js"
-    );
+    const { computeAlibabaCodingPlanQuota } = await import("../src/lib/qwen-local-quota.js");
 
     (readAuthFileCached as any).mockResolvedValueOnce({
       "alibaba-coding-plan": { type: "api", key: "   " },
       alibaba: { type: "api", key: "dashscope-key", tier: "pro" },
     });
-    (readAlibabaCodingPlanQuotaState as any).mockResolvedValue({});
-    (computeAlibabaCodingPlanQuota as any).mockReturnValue({
-      tier: "pro",
-      fiveHour: { used: 0, limit: 6000, percentRemaining: 100 },
-      weekly: { used: 0, limit: 45000, percentRemaining: 100 },
-      monthly: { used: 0, limit: 90000, percentRemaining: 100 },
-    });
 
     const out = await alibabaCodingPlanProvider.fetch({ config: {} } as any);
 
-    expectAttemptedWithNoErrors(out);
-    expect(computeAlibabaCodingPlanQuota as any).toHaveBeenCalledWith({ state: {}, tier: "pro" });
+    expectAttemptedWithErrorLabel(out, "Alibaba Coding Plan");
+    expect(out.errors[0]?.message).toContain("Alibaba Coding Plan auth entry present but key is empty");
+    expect(computeAlibabaCodingPlanQuota as any).not.toHaveBeenCalled();
   });
 
   it("surfaces invalid alibaba tier errors", async () => {

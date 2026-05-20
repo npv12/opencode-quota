@@ -1,11 +1,11 @@
 import {
   extractProviderOptionsApiKey,
   getApiKeyCheckedPaths,
-  getFirstAuthEntryRecord,
   getGlobalOpencodeConfigCandidatePaths,
   resolveApiKeyFromEnvAndConfig,
 } from "./api-key-resolver.js";
 import { getAuthPaths, readAuthFileCached } from "./opencode-auth.js";
+import { sanitizeDisplayText } from "./display-sanitize.js";
 import type { AlibabaAuthData, AlibabaCodingPlanTier, AuthData } from "./types.js";
 
 export const DEFAULT_ALIBABA_AUTH_CACHE_MAX_AGE_MS = 5_000;
@@ -69,40 +69,62 @@ function normalizeAlibabaTier(value: string | undefined): AlibabaCodingPlanTier 
   return null;
 }
 
-function getAlibabaAuth(auth: AuthData | null | undefined): AlibabaAuthData | null {
-  for (const key of ALIBABA_AUTH_KEYS) {
-    const entry = getFirstAuthEntryRecord(auth, [key]);
-    if (!entry) continue;
-
-    const alibaba = entry as AlibabaAuthData;
-
-    const credential =
-      typeof alibaba.key === "string" && alibaba.key.trim()
-        ? alibaba.key.trim()
-        : typeof alibaba.access === "string" && alibaba.access.trim()
-          ? alibaba.access.trim()
-          : "";
-
-    if (!credential) {
-      continue;
-    }
-
-    return alibaba;
-  }
-  return null;
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" ? (value as Record<string, unknown>) : null;
 }
 
-function getAlibabaCredential(auth: AlibabaAuthData): string {
-  return (auth.key?.trim() || auth.access?.trim() || "") as string;
+function getAlibabaAuthEntry(auth: AuthData | null | undefined): unknown {
+  const root = asRecord(auth);
+  if (!root) return undefined;
+
+  for (const key of ALIBABA_AUTH_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(root, key)) {
+      return root[key];
+    }
+  }
+
+  return undefined;
+}
+
+function isAlibabaAuthData(value: unknown): value is AlibabaAuthData {
+  return value !== null && typeof value === "object";
+}
+
+function sanitizeAlibabaAuthValue(value: string): string {
+  const sanitized = sanitizeDisplayText(value).replace(/\s+/g, " ").trim();
+  return (sanitized || "unknown").slice(0, 120);
 }
 
 export function resolveAlibabaCodingPlanAuth(
   auth: AuthData | null | undefined,
   fallbackTier: AlibabaCodingPlanTier = DEFAULT_ALIBABA_CODING_PLAN_TIER,
 ): ResolvedAlibabaCodingPlanAuth {
-  const alibaba = getAlibabaAuth(auth);
-  if (!alibaba) {
+  const alibaba = getAlibabaAuthEntry(auth);
+  if (alibaba === undefined) {
     return { state: "none" };
+  }
+
+  if (!isAlibabaAuthData(alibaba)) {
+    return { state: "invalid", error: "Alibaba Coding Plan auth entry has invalid shape" };
+  }
+
+  if (typeof alibaba.type !== "string") {
+    return {
+      state: "invalid",
+      error: "Alibaba Coding Plan auth entry present but type is missing or invalid",
+    };
+  }
+
+  if (alibaba.type !== "api") {
+    return {
+      state: "invalid",
+      error: `Unsupported Alibaba Coding Plan auth type: "${sanitizeAlibabaAuthValue(alibaba.type)}"`,
+    };
+  }
+
+  const apiKey = typeof alibaba.key === "string" ? alibaba.key.trim() : "";
+  if (!apiKey) {
+    return { state: "invalid", error: "Alibaba Coding Plan auth entry present but key is empty" };
   }
 
   const rawTier = getFirstString(alibaba as Record<string, unknown>, [
@@ -115,7 +137,7 @@ export function resolveAlibabaCodingPlanAuth(
   if (!rawTier) {
     return {
       state: "configured",
-      apiKey: getAlibabaCredential(alibaba),
+      apiKey,
       tier: fallbackTier,
     };
   }
@@ -123,14 +145,14 @@ export function resolveAlibabaCodingPlanAuth(
   if (!tier) {
     return {
       state: "invalid",
-      error: `Unsupported Alibaba Coding Plan tier: ${rawTier}`,
+      error: `Unsupported Alibaba Coding Plan tier: ${sanitizeAlibabaAuthValue(rawTier)}`,
       rawTier,
     };
   }
 
   return {
     state: "configured",
-    apiKey: getAlibabaCredential(alibaba),
+    apiKey,
     tier,
   };
 }
@@ -232,7 +254,7 @@ export async function getAlibabaCodingPlanAuthDiagnostics(params?: {
 }
 
 export function hasAlibabaAuth(auth: AuthData | null | undefined): boolean {
-  return getAlibabaAuth(auth) !== null;
+  return resolveAlibabaCodingPlanAuth(auth).state === "configured";
 }
 
 export function isAlibabaModelId(model?: string): boolean {
