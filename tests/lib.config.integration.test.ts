@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "fs";
-import { tmpdir } from "os";
-import { join } from "path";
+import { mkdirSync } from "fs";
+import {
+  createConfigLoaderEnv,
+  createConfigLoaderWorkspace,
+  quotaConfigSource,
+  writeQuotaToastConfig,
+  type ConfigLoaderWorkspace,
+} from "./helpers/config-loader-test-harness.js";
 
 const mockedHomeDir = vi.hoisted(() => ({
   value: "",
@@ -18,40 +23,29 @@ vi.mock("os", async (importOriginal) => {
 import { createLoadConfigMeta, loadConfig } from "../src/lib/config.js";
 import { getOpencodeRuntimeDirCandidates } from "../src/lib/opencode-runtime-paths.js";
 
-function quotaConfigSource(dir: string): string {
-  return join(dir, "opencode.json") + " (experimental.quotaToast)";
-}
-
 describe("loadConfig integration runtime-path resolution", () => {
   const originalEnv = process.env;
   const originalCwd = process.cwd();
 
+  let workspace: ConfigLoaderWorkspace;
   let tempDir: string;
   let workspaceDir: string;
   let nestedDir: string;
-  let xdgConfigHome: string;
 
   beforeEach(() => {
-    delete process.env.OPENCODE_CONFIG_DIR;
-    tempDir = mkdtempSync(join(tmpdir(), "opencode-quota-config-integration-"));
+    workspace = createConfigLoaderWorkspace("opencode-quota-config-integration-", {
+      nestedPath: ["packages", "feature"],
+    });
+    tempDir = workspace.tempDir;
     mockedHomeDir.value = tempDir;
-    workspaceDir = join(tempDir, "workspace");
-    nestedDir = join(workspaceDir, "packages", "feature");
-    xdgConfigHome = join(tempDir, "xdg-config");
-
-    mkdirSync(nestedDir, { recursive: true });
-    mkdirSync(join(xdgConfigHome, "opencode"), { recursive: true });
+    workspaceDir = workspace.workspaceDir;
+    nestedDir = workspace.nestedDir;
 
     process.env = {
       ...originalEnv,
-      HOME: tempDir,
-      XDG_CONFIG_HOME: xdgConfigHome,
-      XDG_DATA_HOME: join(tempDir, "xdg-data"),
-      XDG_CACHE_HOME: join(tempDir, "xdg-cache"),
-      XDG_STATE_HOME: join(tempDir, "xdg-state"),
-      APPDATA: join(tempDir, "appdata", "roaming"),
-      LOCALAPPDATA: join(tempDir, "appdata", "local"),
+      ...createConfigLoaderEnv(workspace, { home: tempDir, includePlatformAppData: true }),
     };
+    delete process.env.OPENCODE_CONFIG_DIR;
     process.chdir(nestedDir);
   });
 
@@ -59,65 +53,35 @@ describe("loadConfig integration runtime-path resolution", () => {
     process.chdir(originalCwd);
     process.env = originalEnv;
     mockedHomeDir.value = "";
-    rmSync(tempDir, { recursive: true, force: true });
+    workspace.cleanup();
   });
 
   it("uses real runtime dirs as defaults and explicit cwd config as workspace overrides", async () => {
     const env = {
       ...process.env,
-      HOME: tempDir,
-      XDG_CONFIG_HOME: xdgConfigHome,
-      XDG_DATA_HOME: join(tempDir, "xdg-data"),
-      XDG_CACHE_HOME: join(tempDir, "xdg-cache"),
-      XDG_STATE_HOME: join(tempDir, "xdg-state"),
-      APPDATA: join(tempDir, "appdata", "roaming"),
-      LOCALAPPDATA: join(tempDir, "appdata", "local"),
+      ...createConfigLoaderEnv(workspace, { home: tempDir, includePlatformAppData: true }),
     } as NodeJS.ProcessEnv;
     const { configDirs } = getOpencodeRuntimeDirCandidates({ env, homeDir: tempDir });
     for (const dir of configDirs) {
       mkdirSync(dir, { recursive: true });
-      writeFileSync(
-        join(dir, "opencode.json"),
-        JSON.stringify({
-          experimental: {
-            quotaToast: {
-              enabled: false,
-              enabledProviders: ["openai"],
-              showOnIdle: false,
-              pricingSnapshot: { source: "bundled", autoRefresh: 30 },
-            },
-          },
-        }),
-        "utf8",
-      );
+      writeQuotaToastConfig(dir, {
+        enabled: false,
+        enabledProviders: ["openai"],
+        showOnIdle: false,
+        pricingSnapshot: { source: "bundled", autoRefresh: 30 },
+      });
     }
 
-    writeFileSync(
-      join(workspaceDir, "opencode.json"),
-      JSON.stringify({
-        experimental: {
-          quotaToast: {
-            enabled: true,
-            enabledProviders: ["nano-gpt"],
-            formatStyle: "allWindows",
-            onlyCurrentModel: true,
-          },
-        },
-      }),
-      "utf8",
-    );
+    writeQuotaToastConfig(workspaceDir, {
+      enabled: true,
+      enabledProviders: ["nano-gpt"],
+      formatStyle: "allWindows",
+      onlyCurrentModel: true,
+    });
 
-    writeFileSync(
-      join(nestedDir, "opencode.json"),
-      JSON.stringify({
-        experimental: {
-          quotaToast: {
-            enabledProviders: ["chutes"],
-          },
-        },
-      }),
-      "utf8",
-    );
+    writeQuotaToastConfig(nestedDir, {
+      enabledProviders: ["chutes"],
+    });
 
     const meta = createLoadConfigMeta();
     const cfg = await loadConfig(undefined, meta, { cwd: workspaceDir });
@@ -164,20 +128,12 @@ describe("loadConfig integration runtime-path resolution", () => {
   });
 
   it("treats an overlapping configRootDir as the workspace layer instead of a duplicate global path", async () => {
-    const overlappingRoot = join(xdgConfigHome, "opencode");
+    const overlappingRoot = workspace.opencodeConfigDir;
 
-    writeFileSync(
-      join(overlappingRoot, "opencode.json"),
-      JSON.stringify({
-        experimental: {
-          quotaToast: {
-            enabled: false,
-            minIntervalMs: 12_345,
-          },
-        },
-      }),
-      "utf8",
-    );
+    writeQuotaToastConfig(overlappingRoot, {
+      enabled: false,
+      minIntervalMs: 12_345,
+    });
 
     const meta = createLoadConfigMeta();
     const cfg = await loadConfig(undefined, meta, { configRootDir: overlappingRoot });
@@ -198,64 +154,34 @@ describe("loadConfig integration runtime-path resolution", () => {
   it("uses the provided configRootDir to pick the workspace override layer over shared global defaults", async () => {
     const env = {
       ...process.env,
-      HOME: tempDir,
-      XDG_CONFIG_HOME: xdgConfigHome,
-      XDG_DATA_HOME: join(tempDir, "xdg-data"),
-      XDG_CACHE_HOME: join(tempDir, "xdg-cache"),
-      XDG_STATE_HOME: join(tempDir, "xdg-state"),
-      APPDATA: join(tempDir, "appdata", "roaming"),
-      LOCALAPPDATA: join(tempDir, "appdata", "local"),
+      ...createConfigLoaderEnv(workspace, { home: tempDir, includePlatformAppData: true }),
     } as NodeJS.ProcessEnv;
     const { configDirs } = getOpencodeRuntimeDirCandidates({ env, homeDir: tempDir });
 
     for (const dir of configDirs) {
       mkdirSync(dir, { recursive: true });
-      writeFileSync(
-        join(dir, "opencode.json"),
-        JSON.stringify({
-          experimental: {
-            quotaToast: {
-              enabled: false,
-              enabledProviders: ["openai"],
-              minIntervalMs: 30_000,
-            },
-          },
-        }),
-        "utf8",
-      );
+      writeQuotaToastConfig(dir, {
+        enabled: false,
+        enabledProviders: ["openai"],
+        minIntervalMs: 30_000,
+      });
     }
 
-    writeFileSync(
-      join(workspaceDir, "opencode.json"),
-      JSON.stringify({
-        experimental: {
-          quotaToast: {
-            enabled: true,
-            enabledProviders: ["nano-gpt"],
-            minIntervalMs: 1_000,
-            formatStyle: "allWindows",
-            onlyCurrentModel: true,
-          },
-        },
-      }),
-      "utf8",
-    );
+    writeQuotaToastConfig(workspaceDir, {
+      enabled: true,
+      enabledProviders: ["nano-gpt"],
+      minIntervalMs: 1_000,
+      formatStyle: "allWindows",
+      onlyCurrentModel: true,
+    });
 
-    writeFileSync(
-      join(nestedDir, "opencode.json"),
-      JSON.stringify({
-        experimental: {
-          quotaToast: {
-            enabled: true,
-            enabledProviders: ["chutes"],
-            minIntervalMs: 2_000,
-            formatStyle: "singleWindow",
-            onlyCurrentModel: false,
-          },
-        },
-      }),
-      "utf8",
-    );
+    writeQuotaToastConfig(nestedDir, {
+      enabled: true,
+      enabledProviders: ["chutes"],
+      minIntervalMs: 2_000,
+      formatStyle: "singleWindow",
+      onlyCurrentModel: false,
+    });
 
     const workspaceMeta = createLoadConfigMeta();
     const workspaceCfg = await loadConfig(undefined, workspaceMeta, { configRootDir: workspaceDir });

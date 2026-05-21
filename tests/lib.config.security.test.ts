@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "fs";
-import { tmpdir } from "os";
+import { mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
+import {
+  createConfigLoaderEnv,
+  createConfigLoaderWorkspace,
+  quotaConfigSource,
+  type ConfigLoaderWorkspace,
+} from "./helpers/config-loader-test-harness.js";
 
 const runtimeDirs = vi.hoisted(() => ({
   value: {
@@ -18,47 +23,34 @@ vi.mock("../src/lib/opencode-runtime-paths.js", () => ({
 
 import { createLoadConfigMeta, loadConfig } from "../src/lib/config.js";
 
-function quotaConfigSource(dir: string): string {
-  return join(dir, "opencode.json") + " (experimental.quotaToast)";
-}
-
 describe("loadConfig layered precedence", () => {
   const originalEnv = process.env;
   const originalCwd = process.cwd();
+  let workspace: ConfigLoaderWorkspace;
   let tempDir: string;
   let workspaceDir: string;
   let xdgConfigHome: string;
 
   beforeEach(() => {
-    delete process.env.OPENCODE_CONFIG_DIR;
-    tempDir = mkdtempSync(join(tmpdir(), "opencode-quota-config-"));
-    workspaceDir = join(tempDir, "workspace");
-    xdgConfigHome = join(tempDir, "xdg-config");
+    workspace = createConfigLoaderWorkspace("opencode-quota-config-");
+    tempDir = workspace.tempDir;
+    workspaceDir = workspace.workspaceDir;
+    xdgConfigHome = workspace.xdgConfigHome;
 
-    mkdirSync(workspaceDir, { recursive: true });
-    mkdirSync(join(xdgConfigHome, "opencode"), { recursive: true });
-
-    runtimeDirs.value = {
-      dataDirs: [join(tempDir, "xdg-data", "opencode")],
-      configDirs: [join(xdgConfigHome, "opencode")],
-      cacheDirs: [join(tempDir, "xdg-cache", "opencode")],
-      stateDirs: [join(tempDir, "xdg-state", "opencode")],
-    };
+    runtimeDirs.value = workspace.runtimeDirs;
 
     process.env = {
       ...originalEnv,
-      XDG_CONFIG_HOME: xdgConfigHome,
-      XDG_DATA_HOME: join(tempDir, "xdg-data"),
-      XDG_CACHE_HOME: join(tempDir, "xdg-cache"),
-      XDG_STATE_HOME: join(tempDir, "xdg-state"),
+      ...createConfigLoaderEnv(workspace),
     };
+    delete process.env.OPENCODE_CONFIG_DIR;
     process.chdir(workspaceDir);
   });
 
   afterEach(() => {
     process.chdir(originalCwd);
     process.env = originalEnv;
-    rmSync(tempDir, { recursive: true, force: true });
+    workspace.cleanup();
   });
 
   it("lets workspace ordinary settings override global defaults while file-backed config still blocks sdk fallback", async () => {
@@ -251,6 +243,51 @@ describe("loadConfig layered precedence", () => {
     expect(meta.settingSources["layout.tinyAt"]).toBe(
       quotaConfigSource(workspaceDir),
     );
+  });
+
+  it("merges maintainer announcements per field and ignores invalid workspace fields", async () => {
+    writeFileSync(
+      join(xdgConfigHome, "opencode", "opencode.json"),
+      JSON.stringify({
+        experimental: {
+          quotaToast: {
+            maintainerAnnouncements: {
+              enabled: false,
+            },
+          },
+        },
+      }),
+      "utf-8",
+    );
+
+    writeFileSync(
+      join(workspaceDir, "opencode.json"),
+      JSON.stringify({
+        experimental: {
+          quotaToast: {
+            maintainerAnnouncements: {
+              home: false,
+            },
+          },
+        },
+      }),
+      "utf-8",
+    );
+
+    const meta = createLoadConfigMeta();
+    const cfg = await loadConfig(undefined, meta, { cwd: workspaceDir });
+
+    expect(cfg.maintainerAnnouncements).toEqual({
+      enabled: false,
+      home: false,
+    });
+    expect(meta.settingSources["maintainerAnnouncements.enabled"]).toBe(
+      quotaConfigSource(join(xdgConfigHome, "opencode")),
+    );
+    expect(meta.settingSources["maintainerAnnouncements.home"]).toBe(
+      quotaConfigSource(workspaceDir),
+    );
+    expect(meta.networkSettingSources).toEqual({});
   });
 
   it("merges tuiSidebarPanel enabled per layer and ignores invalid workspace fields", async () => {

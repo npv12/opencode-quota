@@ -93,6 +93,99 @@ describe("collectQuotaRenderData shared quota state", () => {
     ]);
   });
 
+  it("returns allWindowsData when includeAllWindowsData is true and style is singleWindow", async () => {
+    const provider = {
+      id: "test-provider",
+      isAvailable: vi.fn().mockResolvedValue(true),
+      fetch: vi.fn().mockResolvedValue({
+        attempted: true,
+        entries: [
+          { name: "Daily", label: "Daily:", percentRemaining: 50 },
+          { name: "Weekly", label: "Weekly:", percentRemaining: 80 },
+        ],
+        errors: [],
+      }),
+    };
+
+    const result = await collectQuotaRenderData({
+      client: TEST_CLIENT,
+      config: {
+        ...DEFAULT_CONFIG,
+        enabledProviders: ["test-provider"],
+        showSessionTokens: false,
+      },
+      surfaceExplicitProviderIssues: true,
+      formatStyle: "singleWindow",
+      providers: [provider],
+      includeAllWindowsData: true,
+    });
+
+    expect(result.data).not.toBeNull();
+    expect(result.allWindowsData).toBeDefined();
+    expect(result.allWindowsData).not.toBeNull();
+    expect(result.allWindowsData!.entries.length).toBe(2);
+    expect(result.data!.entries.length).toBe(1);
+  });
+
+  it("does not return allWindowsData when includeAllWindowsData is not set", async () => {
+    const provider = {
+      id: "test-provider",
+      isAvailable: vi.fn().mockResolvedValue(true),
+      fetch: vi.fn().mockResolvedValue({
+        attempted: true,
+        entries: [{ name: "Daily", label: "Daily:", percentRemaining: 50 }],
+        errors: [],
+      }),
+    };
+
+    const result = await collectQuotaRenderData({
+      client: TEST_CLIENT,
+      config: {
+        ...DEFAULT_CONFIG,
+        enabledProviders: ["test-provider"],
+        showSessionTokens: false,
+      },
+      surfaceExplicitProviderIssues: true,
+      formatStyle: "singleWindow",
+      providers: [provider],
+    });
+
+    expect(result.data).not.toBeNull();
+    expect(result.allWindowsData).toBeUndefined();
+  });
+
+  it("returns allWindowsData equal to data when style is already allWindows", async () => {
+    const provider = {
+      id: "test-provider",
+      isAvailable: vi.fn().mockResolvedValue(true),
+      fetch: vi.fn().mockResolvedValue({
+        attempted: true,
+        entries: [
+          { name: "Daily", label: "Daily:", percentRemaining: 50 },
+          { name: "Weekly", label: "Weekly:", percentRemaining: 80 },
+        ],
+        errors: [],
+      }),
+    };
+
+    const result = await collectQuotaRenderData({
+      client: TEST_CLIENT,
+      config: {
+        ...DEFAULT_CONFIG,
+        enabledProviders: ["test-provider"],
+        showSessionTokens: false,
+      },
+      surfaceExplicitProviderIssues: true,
+      formatStyle: "allWindows",
+      providers: [provider],
+      includeAllWindowsData: true,
+    });
+
+    expect(result.data).not.toBeNull();
+    expect(result.allWindowsData).not.toBeNull();
+    expect(result.allWindowsData!.entries).toEqual(result.data!.entries);
+  });
+
   it("treats a thrown availability probe as unavailable instead of rejecting the whole render", async () => {
     const failingProvider = {
       id: "copilot",

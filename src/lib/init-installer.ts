@@ -54,6 +54,7 @@ export interface InitInstallerSelections {
   formatStyle: CanonicalQuotaFormatStyle;
   percentDisplayMode: QuotaToastConfig["percentDisplayMode"];
   showSessionTokens: boolean;
+  maintainerAnnouncements?: boolean;
 }
 
 export interface InitInstallerQuickSetupNote {
@@ -425,6 +426,38 @@ function planTuiSidebarPanelConfig(params: {
   );
 }
 
+function planMaintainerAnnouncementsConfig(params: {
+  quotaToast: JsonObject;
+  selections: InitInstallerSelections;
+  edit: PlannedConfigEdit;
+}): void {
+  if (params.selections.maintainerAnnouncements === undefined) {
+    return;
+  }
+
+  const enabled = params.selections.maintainerAnnouncements;
+
+  const pathLabel = "quotaToast.maintainerAnnouncements";
+  let maintainerAnnouncements: JsonObject;
+  if (!hasOwnKey(params.quotaToast, "maintainerAnnouncements")) {
+    maintainerAnnouncements = {};
+    params.quotaToast.maintainerAnnouncements = maintainerAnnouncements;
+  } else if (isPlainObject(params.quotaToast.maintainerAnnouncements)) {
+    maintainerAnnouncements = params.quotaToast.maintainerAnnouncements;
+  } else {
+    params.edit.warnings.push(`${pathLabel} is not an object; preserved existing value.`);
+    return;
+  }
+
+  setInstallerOwnedSetting(
+    maintainerAnnouncements,
+    "enabled",
+    enabled,
+    `${pathLabel}.enabled`,
+    params.edit,
+  );
+}
+
 function planTuiCompactStatusConfig(params: {
   quotaToast: JsonObject;
   quotaUiIntent: NormalizedQuotaUiIntent;
@@ -729,6 +762,11 @@ async function planQuotaConfigEdit(params: {
     quotaUiIntent: params.quotaUiIntent,
     edit,
   });
+  planMaintainerAnnouncementsConfig({
+    quotaToast,
+    selections: params.selections,
+    edit,
+  });
 
   edit.plannedData = quotaToast;
   if (edit.changed) {
@@ -792,6 +830,12 @@ function buildPlanSummary(plan: InitInstallerPlan): string[] {
     `Quota percentage meaning: ${getPercentDisplayModeLabel(plan.selections.percentDisplayMode)}`,
     `Session token details: ${plan.selections.showSessionTokens ? "Show" : "Hide"}`,
   ];
+
+  if (plan.selections.maintainerAnnouncements !== undefined) {
+    lines.push(
+      `Maintainer announcements: ${plan.selections.maintainerAnnouncements ? "Enabled" : "Disabled"}`,
+    );
+  }
 
   if (quotaUiIntent.enableCompactStatus) {
     lines.push(`Compact status mode: ${getTuiCompactStatusLabel("home_bottom_session_prompt")}`);
@@ -881,6 +925,7 @@ export async function planInitInstaller(params: {
   const selections: InitInstallerSelections = {
     ...params.selections,
     quotaUi: quotaUiIntent.choices,
+    maintainerAnnouncements: params.selections.maintainerAnnouncements,
     manualProviders:
       params.selections.providerMode === "manual"
         ? (resolveRequestedProviders(params.selections) as string[])
@@ -1032,6 +1077,12 @@ async function promptForSelections(
   });
   if (prompts.isCancel(showSessionTokens)) return null;
 
+  const maintainerAnnouncements = await prompts.confirm({
+    message: "Show bundled maintainer notices automatically when available?",
+    initialValue: true,
+  });
+  if (prompts.isCancel(maintainerAnnouncements)) return null;
+
   return {
     scope: scope as InitInstallerScope,
     quotaUi: quotaUi.filter((value): value is InitQuotaUiChoice => typeof value === "string"),
@@ -1040,6 +1091,7 @@ async function promptForSelections(
     formatStyle: formatStyle as CanonicalQuotaFormatStyle,
     percentDisplayMode: percentDisplayMode as QuotaToastConfig["percentDisplayMode"],
     showSessionTokens: showSessionTokens === "yes",
+    maintainerAnnouncements: maintainerAnnouncements !== false,
   };
 }
 

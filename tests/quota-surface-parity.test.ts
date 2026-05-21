@@ -4,85 +4,73 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { COMMAND_HANDLED_SENTINEL } from "../src/lib/command-handled.js";
+import {
+  createPluginTestClient,
+  createPluginToolMockModule,
+  createPricingModuleMock,
+  createProvidersRegistryModuleMock,
+  getPromptText,
+} from "./helpers/plugin-test-harness.js";
 
-function createSchemaChain() {
-  const chain: any = {};
-  chain.optional = () => chain;
-  chain.describe = () => chain;
-  chain.int = () => chain;
-  chain.min = () => chain;
-  return chain;
-}
-
-const { mockProviders } = vi.hoisted(() => ({
+const mocks = vi.hoisted(() => ({
   mockProviders: [] as any[],
-}));
-
-vi.mock("@opencode-ai/plugin", () => {
-  const toolFn = ((definition: unknown) => definition) as any;
-  toolFn.schema = {
-    boolean: () => createSchemaChain(),
-    number: () => createSchemaChain(),
-  };
-  return { tool: toolFn };
-});
-
-vi.mock("../src/providers/registry.js", () => ({
-  getProviders: () => mockProviders,
-}));
-
-vi.mock("../src/lib/modelsdev-pricing.js", () => ({
-  getPricingSnapshotMeta: () => ({
-    source: "runtime",
-    generatedAt: Date.UTC(2026, 0, 1),
-    units: "USD per 1M tokens",
-  }),
-  getPricingSnapshotSource: () => "runtime",
-  getRuntimePricingRefreshStatePath: () => "/tmp/refresh-state.json",
-  getRuntimePricingSnapshotPath: () => "/tmp/pricing-runtime.json",
-  maybeRefreshPricingSnapshot: vi.fn().mockResolvedValue({
-    attempted: false,
-    updated: false,
-    state: { version: 1, updatedAt: Date.now() },
-  }),
+  getProviders: vi.fn(),
+  getPricingSnapshotMeta: vi.fn(),
+  getPricingSnapshotSource: vi.fn(),
+  getRuntimePricingRefreshStatePath: vi.fn(),
+  getRuntimePricingSnapshotPath: vi.fn(),
+  maybeRefreshPricingSnapshot: vi.fn(),
   setPricingSnapshotAutoRefresh: vi.fn(),
   setPricingSnapshotSelection: vi.fn(),
 }));
 
-function getPromptText(client: any): string {
-  return client.session.prompt.mock.calls[0]?.[0]?.body?.parts?.[0]?.text ?? "";
+vi.mock("@opencode-ai/plugin", () => createPluginToolMockModule());
+
+vi.mock("../src/providers/registry.js", () =>
+  createProvidersRegistryModuleMock(mocks.getProviders),
+);
+
+vi.mock("../src/lib/modelsdev-pricing.js", () => createPricingModuleMock(mocks));
+
+function seedPricingMocks(): void {
+  mocks.getPricingSnapshotMeta.mockReturnValue({
+    source: "runtime",
+    generatedAt: Date.UTC(2026, 0, 1),
+    units: "USD per 1M tokens",
+  });
+  mocks.getPricingSnapshotSource.mockReturnValue("runtime");
+  mocks.getRuntimePricingRefreshStatePath.mockReturnValue("/tmp/refresh-state.json");
+  mocks.getRuntimePricingSnapshotPath.mockReturnValue("/tmp/pricing-runtime.json");
+  mocks.maybeRefreshPricingSnapshot.mockResolvedValue({
+    attempted: false,
+    updated: false,
+    state: { version: 1, updatedAt: Date.now() },
+  });
 }
 
 function createClient(params: {
   config: Record<string, unknown>;
   sessionMeta: { modelID?: string; providerID?: string };
 }) {
-  return {
-    config: {
-      get: vi.fn().mockResolvedValue({
-        data: {
-          experimental: {
-            quotaToast: params.config,
-          },
-        },
-      }),
-      providers: vi.fn().mockResolvedValue({
-        data: {
-          providers: mockProviders.map((provider) => ({ id: provider.id })),
-        },
-      }),
+  const client = createPluginTestClient({
+    modelID: params.sessionMeta.modelID,
+    providerID: params.sessionMeta.providerID,
+  });
+
+  client.config.get.mockResolvedValue({
+    data: {
+      experimental: {
+        quotaToast: params.config,
+      },
     },
-    session: {
-      get: vi.fn().mockResolvedValue({ data: params.sessionMeta }),
-      prompt: vi.fn().mockResolvedValue({}),
+  });
+  client.config.providers.mockResolvedValue({
+    data: {
+      providers: mocks.mockProviders.map((provider) => ({ id: provider.id })),
     },
-    tui: {
-      showToast: vi.fn().mockResolvedValue({}),
-    },
-    app: {
-      log: vi.fn().mockResolvedValue({}),
-    },
-  };
+  });
+
+  return client;
 }
 
 async function resetQuotaStateForTests(): Promise<void> {
@@ -99,7 +87,10 @@ describe("quota surface parity regressions", () => {
 
   beforeEach(async () => {
     vi.resetModules();
-    mockProviders.length = 0;
+    vi.clearAllMocks();
+    mocks.mockProviders.length = 0;
+    mocks.getProviders.mockImplementation(() => mocks.mockProviders);
+    seedPricingMocks();
     await resetQuotaStateForTests();
 
     tempDir = mkdtempSync(join(tmpdir(), "opencode-quota-surface-parity-"));
@@ -118,7 +109,7 @@ describe("quota surface parity regressions", () => {
   });
 
   afterEach(async () => {
-    mockProviders.length = 0;
+    mocks.mockProviders.length = 0;
     await resetQuotaStateForTests();
     process.chdir(originalCwd);
     process.env = originalEnv;
@@ -145,7 +136,7 @@ describe("quota surface parity regressions", () => {
         errors: [],
       }),
     };
-    mockProviders.push(syntheticProvider);
+    mocks.mockProviders.push(syntheticProvider);
 
     // Stage 1 parity guard: both surfaces should resolve local config from worktree root,
     // not nested active directory config.
@@ -243,7 +234,7 @@ describe("quota surface parity regressions", () => {
         errors: [],
       }),
     };
-    mockProviders.push(syntheticProvider);
+    mocks.mockProviders.push(syntheticProvider);
 
     mkdirSync(join(worktreeDir, ".git"));
     mkdirSync(join(worktreeDir, ".opencode"), { recursive: true });
@@ -338,7 +329,7 @@ describe("quota surface parity regressions", () => {
         errors: [],
       }),
     };
-    mockProviders.push(syntheticProvider, openaiProvider);
+    mocks.mockProviders.push(syntheticProvider, openaiProvider);
 
     const globalConfigDir = join(process.env.XDG_CONFIG_HOME!, "opencode");
     mkdirSync(globalConfigDir, { recursive: true });
@@ -456,7 +447,7 @@ describe("quota surface parity regressions", () => {
         },
       }),
     };
-    mockProviders.push(syntheticProvider);
+    mocks.mockProviders.push(syntheticProvider);
 
     const sharedConfig = {
       enabled: true,
@@ -541,7 +532,7 @@ describe("quota surface parity regressions", () => {
         },
       }),
     };
-    mockProviders.push(openaiProvider);
+    mocks.mockProviders.push(openaiProvider);
 
     const config = {
       enabled: true,

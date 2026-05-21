@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { expectAttemptedWithErrorLabel, expectNotAttempted } from "./helpers/provider-assertions.js";
+import {
+  expectAttemptedWithErrorLabel,
+  expectAttemptedWithNoErrors,
+  expectNotAttempted,
+} from "./helpers/provider-assertions.js";
 import { googleGeminiCliProvider } from "../src/providers/google-gemini-cli.js";
 
 vi.mock("../src/lib/google-gemini-cli.js", () => ({
@@ -104,6 +108,7 @@ describe("google gemini cli provider", () => {
     });
 
     const out = await googleGeminiCliProvider.fetch({ client: {} } as any);
+    expectAttemptedWithNoErrors(out);
     expect(out.entries).toEqual([
       {
         name: "Gemini Pro (ali..example)",

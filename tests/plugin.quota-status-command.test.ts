@@ -7,6 +7,7 @@ import {
   createConfigModuleMock,
   createPluginTestClient as createClient,
   createPluginToolMockModule,
+  createPluginTuiConfigInspection,
   createPricingModuleMock,
   createProvidersRegistryModuleMock,
   createQwenAuthModuleMock,
@@ -92,18 +93,7 @@ describe("/quota_status command behavior", () => {
       resetModules: true,
       resetPluginState: true,
     });
-    mocks.resolveQwenLocalPlanCached.mockResolvedValue({ state: "none" });
-    mocks.resolveAlibabaCodingPlanAuthCached.mockResolvedValue({ state: "none" });
-    mocks.inspectTuiConfig.mockResolvedValue({
-      workspaceRoot: process.cwd(),
-      configRoot: process.cwd(),
-      configured: false,
-      inferredSelectedPath: null,
-      presentPaths: [],
-      candidatePaths: [],
-      quotaPluginConfigured: false,
-      quotaPluginConfigPaths: [],
-    });
+    mocks.inspectTuiConfig.mockResolvedValue(createPluginTuiConfigInspection(process.cwd()));
     mocks.refreshGoogleTokensForAllAccounts.mockResolvedValue({ attempted: false });
     mocks.collectQuotaStatusLiveProbes.mockResolvedValue([
       {

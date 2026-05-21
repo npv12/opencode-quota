@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
-import { tmpdir } from "os";
+import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
+import {
+  createConfigLoaderWorkspace,
+  createEmptyRuntimeDirCandidates,
+  quotaSidecarConfigSource,
+  type ConfigLoaderWorkspace,
+} from "./helpers/config-loader-test-harness.js";
 
 const runtimeDirs = vi.hoisted(() => ({
   value: {
@@ -20,25 +25,22 @@ import { createLoadConfigMeta, loadConfig } from "../src/lib/config.js";
 import { DEFAULT_CONFIG } from "../src/lib/types.js";
 
 describe("loadConfig", () => {
+  let workspace: ConfigLoaderWorkspace;
   let isolatedCwd: string;
   let savedConfigDir: string | undefined;
 
   beforeEach(() => {
     savedConfigDir = process.env.OPENCODE_CONFIG_DIR;
     delete process.env.OPENCODE_CONFIG_DIR;
-    isolatedCwd = mkdtempSync(join(tmpdir(), "opencode-quota-config-sdk-"));
-    runtimeDirs.value = {
-      dataDirs: [],
-      configDirs: [],
-      cacheDirs: [],
-      stateDirs: [],
-    };
+    workspace = createConfigLoaderWorkspace("opencode-quota-config-sdk-");
+    isolatedCwd = workspace.workspaceDir;
+    runtimeDirs.value = createEmptyRuntimeDirCandidates();
   });
 
   afterEach(() => {
     if (savedConfigDir !== undefined) process.env.OPENCODE_CONFIG_DIR = savedConfigDir;
     else delete process.env.OPENCODE_CONFIG_DIR;
-    rmSync(isolatedCwd, { recursive: true, force: true });
+    workspace.cleanup();
   });
 
   async function loadSdkConfig(
@@ -63,6 +65,48 @@ describe("loadConfig", () => {
 
     return { config, meta };
   }
+
+  it("defaults maintainer announcements config and accepts validated nested overrides", async () => {
+    const defaults = await loadSdkConfig({});
+    expect(defaults.config.maintainerAnnouncements).toEqual(DEFAULT_CONFIG.maintainerAnnouncements);
+    expect(defaults.config.maintainerAnnouncements).not.toBe(DEFAULT_CONFIG.maintainerAnnouncements);
+
+    const explicit = await loadSdkConfig({
+      maintainerAnnouncements: {
+        enabled: false,
+        home: false,
+      },
+    });
+    expect(explicit.config.maintainerAnnouncements).toEqual({
+      enabled: false,
+      home: false,
+    });
+    expect(explicit.meta.settingSources).toEqual({
+      "maintainerAnnouncements.enabled": "client.config.get",
+      "maintainerAnnouncements.home": "client.config.get",
+    });
+    expect(explicit.meta.networkSettingSources).toEqual({});
+
+    const partialInvalid = await loadSdkConfig({
+      maintainerAnnouncements: {
+        enabled: true,
+        home: "no",
+      },
+    });
+    expect(partialInvalid.config.maintainerAnnouncements).toEqual({
+      ...DEFAULT_CONFIG.maintainerAnnouncements,
+      enabled: true,
+    });
+    expect(partialInvalid.meta.settingSources).toEqual({
+      "maintainerAnnouncements.enabled": "client.config.get",
+    });
+
+    const invalidNested = await loadSdkConfig({ maintainerAnnouncements: false });
+    expect(invalidNested.config.maintainerAnnouncements).toEqual(
+      DEFAULT_CONFIG.maintainerAnnouncements,
+    );
+    expect(invalidNested.meta.settingSources).toEqual({});
+  });
 
   it("defaults TUI sidebar panel config and accepts validated nested overrides", async () => {
     const defaults = await loadSdkConfig({});
@@ -151,6 +195,8 @@ describe("loadConfig", () => {
     first.tuiSidebarPanel.enabled = false;
     first.tuiCompactStatus.enabled = true;
     first.tuiCompactStatus.maxWidth = 1;
+    first.maintainerAnnouncements.enabled = false;
+    first.maintainerAnnouncements.home = false;
 
     const second = await loadConfig(undefined, undefined, { cwd: isolatedCwd });
     expect(second.tuiSidebarPanel).toEqual(DEFAULT_CONFIG.tuiSidebarPanel);
@@ -162,6 +208,11 @@ describe("loadConfig", () => {
       sessionPrompt: true,
       suppressWhenNativeProviderQuota: true,
       maxWidth: 96,
+    });
+    expect(second.maintainerAnnouncements).toEqual(DEFAULT_CONFIG.maintainerAnnouncements);
+    expect(DEFAULT_CONFIG.maintainerAnnouncements).toEqual({
+      enabled: true,
+      home: true,
     });
   });
 
@@ -341,15 +392,15 @@ describe("loadConfig", () => {
     expect(config.enabledProviders).toEqual(["nanogpt"]);
     expect(config.formatStyle).toBe("allWindows");
     expect(meta.settingSources).toMatchObject({
-      enabledProviders: `${quotaConfigPath} (opencode-quota/quota-toast.json)`,
-      formatStyle: `${quotaConfigPath} (opencode-quota/quota-toast.json)`,
+      enabledProviders: quotaSidecarConfigSource(isolatedCwd),
+      formatStyle: quotaSidecarConfigSource(isolatedCwd),
     });
   });
 
   it("does not fall through to legacy or sdk config when sidecar exists but is invalid", async () => {
     const workspaceConfigPath = join(isolatedCwd, "opencode.json");
     const quotaConfigPath = join(isolatedCwd, "opencode-quota", "quota-toast.json");
-    const quotaConfigSource = `${quotaConfigPath} (opencode-quota/quota-toast.json)`;
+    const quotaConfigSource = quotaSidecarConfigSource(isolatedCwd);
     mkdirSync(join(isolatedCwd, "opencode-quota"), { recursive: true });
     writeFileSync(
       workspaceConfigPath,

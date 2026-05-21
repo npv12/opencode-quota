@@ -30,7 +30,12 @@ interface SessionTokenMocks {
   fetchSessionTokensForDisplay: MockFunction;
 }
 
-interface PluginBootstrapMocks extends PricingMocks {
+interface AuthPlanMocks {
+  resolveAlibabaCodingPlanAuthCached?: MockFunction;
+  resolveQwenLocalPlanCached?: MockFunction;
+}
+
+interface PluginBootstrapMocks extends PricingMocks, AuthPlanMocks {
   loadConfig: MockFunction;
   getProviders?: MockFunction;
   fetchSessionTokensForDisplay?: MockFunction;
@@ -41,7 +46,37 @@ interface PluginBootstrapOptions {
   providers?: unknown[];
   resetModules?: boolean;
   resetPluginState?: boolean;
+  seedAuthPlans?: boolean;
   seedSessionTokens?: boolean;
+}
+
+interface PluginRuntimeRoot {
+  cacheDir: string;
+  configDir: string;
+  dataDir: string;
+  stateDir: string;
+}
+
+interface PluginRuntimePathCandidates {
+  cacheDirs: string[];
+  configDirs: string[];
+  dataDirs: string[];
+  stateDirs: string[];
+}
+
+interface PluginRuntimePathsMockOptions {
+  includeCandidates?: boolean;
+}
+
+interface PluginTuiConfigInspectionOverrides {
+  candidatePaths?: string[];
+  configRoot?: string;
+  configured?: boolean;
+  inferredSelectedPath?: string | null;
+  presentPaths?: string[];
+  quotaPluginConfigPaths?: string[];
+  quotaPluginConfigured?: boolean;
+  workspaceRoot?: string;
 }
 
 function createSchemaChain() {
@@ -117,6 +152,55 @@ export function createAlibabaAuthModuleMock(resolveAlibabaCodingPlanAuthCached: 
   };
 }
 
+export function createPluginBootstrapRuntimeRoot(root: string): PluginRuntimeRoot {
+  return {
+    dataDir: `${root}/data`,
+    configDir: `${root}/config`,
+    cacheDir: `${root}/cache`,
+    stateDir: `${root}/state`,
+  };
+}
+
+export function createPluginRuntimePathCandidates(root: string): PluginRuntimePathCandidates {
+  return {
+    dataDirs: [`${root}/data`],
+    configDirs: [`${root}/config`],
+    cacheDirs: [`${root}/cache`],
+    stateDirs: [`${root}/state`],
+  };
+}
+
+export function createPluginRuntimePathsMockModule(
+  root: string,
+  options: PluginRuntimePathsMockOptions = {},
+) {
+  const runtimeRoot = createPluginBootstrapRuntimeRoot(root);
+  const candidates = createPluginRuntimePathCandidates(root);
+
+  return {
+    getOpencodeRuntimeDirs: () => ({ ...runtimeRoot }),
+    ...(options.includeCandidates
+      ? { getOpencodeRuntimeDirCandidates: () => ({ ...candidates }) }
+      : {}),
+  };
+}
+
+export function createPluginTuiConfigInspection(
+  root: string,
+  overrides: PluginTuiConfigInspectionOverrides = {},
+) {
+  return {
+    workspaceRoot: overrides.workspaceRoot ?? root,
+    configRoot: overrides.configRoot ?? root,
+    configured: overrides.configured ?? false,
+    inferredSelectedPath: overrides.inferredSelectedPath ?? null,
+    presentPaths: overrides.presentPaths ?? [],
+    candidatePaths: overrides.candidatePaths ?? [],
+    quotaPluginConfigured: overrides.quotaPluginConfigured ?? false,
+    quotaPluginConfigPaths: overrides.quotaPluginConfigPaths ?? [],
+  };
+}
+
 export function resetPluginTestState(): void {
   // Per-test module resets clear in-memory plugin/cache singletons.
 }
@@ -148,6 +232,10 @@ export function makeQuotaToastTestConfig(
     tuiCompactStatus: {
       ...DEFAULT_CONFIG.tuiCompactStatus,
       ...overrides.tuiCompactStatus,
+    },
+    maintainerAnnouncements: {
+      ...DEFAULT_CONFIG.maintainerAnnouncements,
+      ...overrides.maintainerAnnouncements,
     },
     layout: {
       ...DEFAULT_CONFIG.layout,
@@ -181,6 +269,11 @@ export function seedDefaultSessionTokenMocks(mocks: SessionTokenMocks): void {
   });
 }
 
+export function seedDefaultAuthPlanMocks(mocks: AuthPlanMocks): void {
+  mocks.resolveQwenLocalPlanCached?.mockResolvedValue({ state: "none" });
+  mocks.resolveAlibabaCodingPlanAuthCached?.mockResolvedValue({ state: "none" });
+}
+
 export function seedDefaultPluginBootstrapMocks(
   mocks: PluginBootstrapMocks,
   options: PluginBootstrapOptions = {},
@@ -201,6 +294,10 @@ export function seedDefaultPluginBootstrapMocks(
 
   if (mocks.fetchSessionTokensForDisplay && options.seedSessionTokens !== false) {
     seedDefaultSessionTokenMocks(mocks);
+  }
+
+  if (options.seedAuthPlans !== false) {
+    seedDefaultAuthPlanMocks(mocks);
   }
 
   seedDefaultPricingMocks(mocks);

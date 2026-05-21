@@ -3,12 +3,14 @@ import { homedir } from "os";
 import { join } from "path";
 import {
   createRuntimePathsMockModule,
+  getTrustedAuthPath,
   getTrustedOpencodeConfigPaths,
   getWorkspaceOpencodeConfigPaths,
   loadFsConfigMocks,
+  mockExistingConfigPath,
   mockTrustedConfigFile,
   resetFsConfigMocks,
-  resetProcessEnv,
+  resetTrustedConfigTestEnv,
 } from "./helpers/trusted-config-test-harness.js";
 
 vi.mock("../src/lib/opencode-runtime-paths.js", () => createRuntimePathsMockModule());
@@ -23,7 +25,7 @@ vi.mock("fs/promises", () => ({
 
 vi.mock("../src/lib/opencode-auth.js", () => ({
   readAuthFile: vi.fn(),
-  getAuthPaths: () => [join(homedir(), ".local", "share", "opencode", "auth.json")],
+  getAuthPaths: () => [getTrustedAuthPath()],
 }));
 
 describe("deepseek-auth", () => {
@@ -35,14 +37,7 @@ describe("deepseek-auth", () => {
   beforeEach(async () => {
     vi.resetModules();
     vi.clearAllMocks();
-    resetProcessEnv(originalEnv, [
-      "DEEPSEEK_API_KEY",
-      "SOMETHING_ELSE",
-      "XDG_CONFIG_HOME",
-      "XDG_DATA_HOME",
-      "XDG_CACHE_HOME",
-      "XDG_STATE_HOME",
-    ]);
+    resetTrustedConfigTestEnv(originalEnv, ["DEEPSEEK_API_KEY", "SOMETHING_ELSE"]);
     fsConfigMocks = await loadFsConfigMocks();
     resetFsConfigMocks(fsConfigMocks);
   });
@@ -134,7 +129,7 @@ describe("deepseek-auth", () => {
   ])("ignores workspace-local %s when resolving provider secrets", async (_label, workspacePath) => {
     const { readAuthFile } = await import("../src/lib/opencode-auth.js");
 
-    fsConfigMocks.existsSync.mockImplementation((path: string) => path === workspacePath);
+    mockExistingConfigPath(fsConfigMocks, workspacePath);
     (readAuthFile as any).mockResolvedValue(null);
 
     const { resolveDeepSeekApiKey } = await import("../src/lib/deepseek-auth.js");
@@ -168,7 +163,7 @@ describe("deepseek-auth", () => {
     expect(result.configured).toBe(true);
     expect(result.source).toBe("env:DEEPSEEK_API_KEY");
     expect(result.checkedPaths).toContain("env:DEEPSEEK_API_KEY");
-    expect(result.authPaths).toContain(join(homedir(), ".local", "share", "opencode", "auth.json"));
+    expect(result.authPaths).toContain(getTrustedAuthPath());
   });
 
   it("returns trusted global config candidate paths only", async () => {

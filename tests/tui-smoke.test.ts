@@ -2,18 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   cleanupFns,
-  loadTuiHomeCompactStatus,
+  loadTuiHomeBottomStatus,
   loadTuiSessionQuotaSurfaces,
   resolveTuiSurfaceRegistration,
 } = vi.hoisted(() => ({
   cleanupFns: [] as Array<() => void>,
-  loadTuiHomeCompactStatus: vi.fn(),
+  loadTuiHomeBottomStatus: vi.fn(),
   loadTuiSessionQuotaSurfaces: vi.fn(),
   resolveTuiSurfaceRegistration: vi.fn(),
 }));
 
 vi.mock("../src/lib/tui-runtime.js", () => ({
-  loadTuiHomeCompactStatus,
+  loadTuiHomeBottomStatus,
   loadTuiSessionQuotaSurfaces,
   resolveTuiSurfaceRegistration,
 }));
@@ -133,8 +133,11 @@ describe("tui plugin smoke", () => {
     vi.useFakeTimers();
     (globalThis as any).React = { createElement };
     cleanupFns.length = 0;
-    loadTuiHomeCompactStatus.mockReset();
-    loadTuiHomeCompactStatus.mockResolvedValue({ status: "ready", text: "Home quota" });
+    loadTuiHomeBottomStatus.mockReset();
+    loadTuiHomeBottomStatus.mockResolvedValue({
+      status: "ready",
+      compact: { status: "ready", text: "Home quota" },
+    });
     loadTuiSessionQuotaSurfaces.mockReset();
     loadTuiSessionQuotaSurfaces.mockResolvedValue({
       sidebar: { status: "ready", lines: ["Sidebar quota"] },
@@ -163,6 +166,8 @@ describe("tui plugin smoke", () => {
         hasNativeProviderQuota: false,
         suppressedByNativeProviderQuota: false,
       },
+      announcements: { homeBottom: false },
+      homeBottom: false,
     });
 
     await plugin.tui(sidebarOnly.api as any, undefined, {} as any);
@@ -181,6 +186,8 @@ describe("tui plugin smoke", () => {
         hasNativeProviderQuota: false,
         suppressedByNativeProviderQuota: false,
       },
+      announcements: { homeBottom: true },
+      homeBottom: true,
     });
 
     await plugin.tui(compactOnly.api as any, undefined, {} as any);
@@ -199,6 +206,8 @@ describe("tui plugin smoke", () => {
         hasNativeProviderQuota: false,
         suppressedByNativeProviderQuota: false,
       },
+      announcements: { homeBottom: true },
+      homeBottom: true,
     });
 
     await plugin.tui(enabled.api as any, undefined, {} as any);
@@ -232,6 +241,8 @@ describe("tui plugin smoke", () => {
         hasNativeProviderQuota: false,
         suppressedByNativeProviderQuota: false,
       },
+      announcements: { homeBottom: false },
+      homeBottom: false,
     });
 
     await plugin.tui(api as any, undefined, {} as any);
@@ -292,6 +303,8 @@ describe("tui plugin smoke", () => {
         hasNativeProviderQuota: false,
         suppressedByNativeProviderQuota: false,
       },
+      announcements: { homeBottom: true },
+      homeBottom: true,
     });
 
     await plugin.tui(api as any, undefined, {} as any);
@@ -316,6 +329,8 @@ describe("tui plugin smoke", () => {
         hasNativeProviderQuota: false,
         suppressedByNativeProviderQuota: false,
       },
+      announcements: { homeBottom: true },
+      homeBottom: true,
     });
 
     await plugin.tui(api as any, undefined, {} as any);
@@ -336,6 +351,7 @@ describe("tui plugin smoke", () => {
             type: "text",
             props: { children: " " },
           },
+          null,
           {
             type: "box",
             props: {
@@ -371,6 +387,8 @@ describe("tui plugin smoke", () => {
         hasNativeProviderQuota: false,
         suppressedByNativeProviderQuota: false,
       },
+      announcements: { homeBottom: false },
+      homeBottom: false,
     });
 
     await plugin.tui(api as any, undefined, {} as any);

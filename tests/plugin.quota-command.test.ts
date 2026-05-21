@@ -6,6 +6,7 @@ import { DEFAULT_CONFIG } from "../src/lib/types.js";
 import {
   createAlibabaAuthModuleMock,
   createConfigModuleMock,
+  createPluginRuntimePathsMockModule,
   createPluginTestClient as createClient,
   createPluginToolMockModule,
   createPricingModuleMock,
@@ -56,14 +57,9 @@ vi.mock("../src/lib/alibaba-auth.js", () =>
   createAlibabaAuthModuleMock(mocks.resolveAlibabaCodingPlanAuthCached),
 );
 
-vi.mock("../src/lib/opencode-runtime-paths.js", () => ({
-  getOpencodeRuntimeDirs: () => ({
-    dataDir: `${TEST_RUNTIME_ROOT}/data`,
-    configDir: `${TEST_RUNTIME_ROOT}/config`,
-    cacheDir: `${TEST_RUNTIME_ROOT}/cache`,
-    stateDir: `${TEST_RUNTIME_ROOT}/state`,
-  }),
-}));
+vi.mock("../src/lib/opencode-runtime-paths.js", () =>
+  createPluginRuntimePathsMockModule(TEST_RUNTIME_ROOT),
+);
 
 describe("/quota command behavior", () => {
   let savedConfigDir: string | undefined;
@@ -83,8 +79,6 @@ describe("/quota command behavior", () => {
     await rm(TEST_RUNTIME_ROOT, { recursive: true, force: true });
     const { __resetQuotaStateForTests } = await import("../src/lib/quota-state.js");
     __resetQuotaStateForTests();
-    mocks.resolveQwenLocalPlanCached.mockResolvedValue({ state: "none" });
-    mocks.resolveAlibabaCodingPlanAuthCached.mockResolvedValue({ state: "none" });
   });
 
   afterEach(async () => {

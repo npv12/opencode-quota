@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  buildProviderStatusReport,
+  buildQuotaStatusReportForTest,
+  expectReportSection,
+  getReportSection,
+  makeProviderAvailability,
+} from "./helpers/quota-status-test-harness.js";
+
 const fsPromiseMocks = vi.hoisted(() => ({
   stat: vi.fn(async () => {
     throw new Error("missing");
@@ -429,10 +437,9 @@ describe("buildQuotaStatusReport", () => {
   });
 
   it("renders config validation errors in the toast diagnostics section", async () => {
-    const { buildQuotaStatusReport } = await import("../src/lib/quota-status.js");
     const geminiCliClient = { config: { get: vi.fn() } };
 
-    const report = await buildQuotaStatusReport({
+    const report = await buildQuotaStatusReportForTest({
       configSource: "files",
       configPaths: [
         "/tmp/project/opencode-quota/quota-toast.json (opencode-quota/quota-toast.json)",
@@ -448,12 +455,6 @@ describe("buildQuotaStatusReport", () => {
           message: "unknown provider id(s): opnai",
         },
       ],
-      enabledProviders: [],
-      alibabaCodingPlanTier: "lite",
-      cursorPlan: "none",
-      pricingSnapshotSource: "auto",
-      onlyCurrentModel: false,
-      providerAvailability: [],
       geminiCliClient,
     });
 
@@ -465,143 +466,62 @@ describe("buildQuotaStatusReport", () => {
     expect(geminiCliMocks.inspectGeminiCliAuthPresence).toHaveBeenCalledWith(geminiCliClient);
   });
 
-  async function buildMiniMaxStatusReport(overrides: Record<string, unknown> = {}) {
-    const { buildQuotaStatusReport } = await import("../src/lib/quota-status.js");
+  const buildMiniMaxStatusReport = (overrides: Record<string, unknown> = {}) =>
+    buildProviderStatusReport(["minimax-coding-plan", "minimax-china-coding-plan"], overrides as any);
 
-    return buildQuotaStatusReport({
-      configSource: "test",
-      configPaths: [],
-      enabledProviders: ["minimax-coding-plan", "minimax-china-coding-plan"],
-      alibabaCodingPlanTier: "lite",
-      cursorPlan: "none",
-      pricingSnapshotSource: "auto",
-      onlyCurrentModel: false,
-      providerAvailability: [
-        {
-          id: "minimax-coding-plan",
-          enabled: true,
-          available: true,
-        },
-        {
-          id: "minimax-china-coding-plan",
-          enabled: true,
-          available: true,
-        },
-      ],
-      generatedAtMs: Date.UTC(2026, 2, 12, 12, 45, 0),
+  const buildZaiStatusReport = (overrides: Record<string, unknown> = {}) =>
+    buildProviderStatusReport("zai", overrides as any);
+
+  const buildZhipuStatusReport = (overrides: Record<string, unknown> = {}) =>
+    buildProviderStatusReport("zhipu", overrides as any);
+
+  const buildOpenCodeGoStatusReport = (overrides: Record<string, unknown> = {}) =>
+    buildProviderStatusReport("opencode-go", {
+      providerAvailability: [makeProviderAvailability("opencode-go", { available: false })],
       ...overrides,
     } as any);
-  }
 
-  async function buildZaiStatusReport(overrides: Record<string, unknown> = {}) {
-    const { buildQuotaStatusReport } = await import("../src/lib/quota-status.js");
+  const buildSyntheticStatusReport = (overrides: Record<string, unknown> = {}) =>
+    buildProviderStatusReport("synthetic", overrides as any);
 
-    return buildQuotaStatusReport({
-      configSource: "test",
-      configPaths: [],
-      enabledProviders: ["zai"],
-      alibabaCodingPlanTier: "lite",
-      cursorPlan: "none",
-      pricingSnapshotSource: "auto",
-      onlyCurrentModel: false,
-      providerAvailability: [
-        {
-          id: "zai",
+  it("renders simplified maintainer announcement diagnostics", async () => {
+    const report = await buildSyntheticStatusReport({
+      maintainerAnnouncements: {
+        config: {
           enabled: true,
-          available: true,
+          home: true,
         },
-      ],
-      generatedAtMs: Date.UTC(2026, 2, 12, 12, 45, 0),
-      ...overrides,
-    } as any);
-  }
-
-  async function buildZhipuStatusReport(overrides: Record<string, unknown> = {}) {
-    const { buildQuotaStatusReport } = await import("../src/lib/quota-status.js");
-
-    return buildQuotaStatusReport({
-      configSource: "test",
-      configPaths: [],
-      enabledProviders: ["zhipu"],
-      alibabaCodingPlanTier: "lite",
-      cursorPlan: "none",
-      pricingSnapshotSource: "auto",
-      onlyCurrentModel: false,
-      providerAvailability: [
-        {
-          id: "zhipu",
-          enabled: true,
-          available: true,
+        summary: {
+          source: "bundled_only",
+          network: false,
+          bundledCount: 4,
+          activeCount: 2,
+          futureCount: 1,
+          expiredCount: 1,
+          activeAnnouncements: [],
+          evaluations: [],
         },
+      },
+    });
+
+    expectReportSection(
+      report,
+      "maintainer_announcements:",
+      [
+        "- enabled: true",
+        "- home: true",
+        "- source: bundled_only",
+        "- network: false",
+        "- active: 2",
+        "- future: 1",
+        "- expired: 1",
       ],
-      generatedAtMs: Date.UTC(2026, 2, 12, 12, 45, 0),
-      ...overrides,
-    } as any);
-  }
-
-  async function buildOpenCodeGoStatusReport(overrides: Record<string, unknown> = {}) {
-    const { buildQuotaStatusReport } = await import("../src/lib/quota-status.js");
-
-    return buildQuotaStatusReport({
-      configSource: "test",
-      configPaths: [],
-      enabledProviders: ["opencode-go"],
-      alibabaCodingPlanTier: "lite",
-      cursorPlan: "none",
-      pricingSnapshotSource: "auto",
-      onlyCurrentModel: false,
-      providerAvailability: [
-        {
-          id: "opencode-go",
-          enabled: true,
-          available: false,
-        },
-      ],
-      generatedAtMs: Date.UTC(2026, 2, 12, 12, 45, 0),
-      ...overrides,
-    } as any);
-  }
-
-  async function buildSyntheticStatusReport(overrides: Record<string, unknown> = {}) {
-    const { buildQuotaStatusReport } = await import("../src/lib/quota-status.js");
-
-    return buildQuotaStatusReport({
-      configSource: "test",
-      configPaths: [],
-      enabledProviders: ["synthetic"],
-      alibabaCodingPlanTier: "lite",
-      cursorPlan: "none",
-      pricingSnapshotSource: "auto",
-      onlyCurrentModel: false,
-      providerAvailability: [
-        {
-          id: "synthetic",
-          enabled: true,
-          available: true,
-        },
-      ],
-      generatedAtMs: Date.UTC(2026, 2, 12, 12, 45, 0),
-      ...overrides,
-    } as any);
-  }
-
-  function getSection(report: string, title: string): string {
-    const start = report.indexOf(`${title}\n`);
-    expect(start).toBeGreaterThanOrEqual(0);
-
-    const rest = report.slice(start + title.length + 1);
-    const nextSectionOffset = rest.search(/\n[a-z0-9_]+:\n/u);
-    if (nextSectionOffset === -1) {
-      return report.slice(start);
-    }
-
-    return report.slice(start, start + title.length + 1 + nextSectionOffset);
-  }
+      ["state_path", "toast", "bundled_count", "active_count", "dismissed"],
+    );
+  });
 
   it("distinguishes organization billing access from computable remaining quota totals", async () => {
-    const { buildQuotaStatusReport } = await import("../src/lib/quota-status.js");
-
-    const report = await buildQuotaStatusReport({
+    const report = await buildQuotaStatusReportForTest({
       configSource: "files",
       configPaths: [
         "/tmp/config/opencode.json (experimental.quotaToast)",
@@ -634,18 +554,8 @@ describe("buildQuotaStatusReport", () => {
       },
       enabledProviders: ["copilot"],
       anthropicBinaryPath: "/opt/claude/bin/claude",
-      alibabaCodingPlanTier: "lite",
       cursorPlan: "pro",
       pricingSnapshotSource: "runtime",
-      onlyCurrentModel: false,
-      providerAvailability: [
-        {
-          id: "copilot",
-          enabled: true,
-          available: true,
-        },
-      ],
-      generatedAtMs: Date.UTC(2026, 2, 12, 12, 45, 0),
     });
 
     expect(report).toMatch(
@@ -806,24 +716,7 @@ describe("buildQuotaStatusReport", () => {
       },
     });
 
-    const { buildQuotaStatusReport } = await import("../src/lib/quota-status.js");
-    const report = await buildQuotaStatusReport({
-      configSource: "test",
-      configPaths: [],
-      enabledProviders: ["anthropic"],
-      alibabaCodingPlanTier: "lite",
-      cursorPlan: "none",
-      pricingSnapshotSource: "auto",
-      onlyCurrentModel: false,
-      providerAvailability: [
-        {
-          id: "anthropic",
-          enabled: true,
-          available: true,
-        },
-      ],
-      generatedAtMs: Date.UTC(2026, 2, 12, 12, 45, 0),
-    });
+    const report = await buildProviderStatusReport("anthropic");
 
     expect(report).toContain("- cli_version: 1.2.4");
     expect(report).toContain("- quota_supported: true");
@@ -853,24 +746,7 @@ describe("buildQuotaStatusReport", () => {
       },
     });
 
-    const { buildQuotaStatusReport } = await import("../src/lib/quota-status.js");
-    const report = await buildQuotaStatusReport({
-      configSource: "test",
-      configPaths: [],
-      enabledProviders: ["anthropic"],
-      alibabaCodingPlanTier: "lite",
-      cursorPlan: "none",
-      pricingSnapshotSource: "auto",
-      onlyCurrentModel: false,
-      providerAvailability: [
-        {
-          id: "anthropic",
-          enabled: true,
-          available: true,
-        },
-      ],
-      generatedAtMs: Date.UTC(2026, 2, 12, 12, 45, 0),
-    });
+    const report = await buildProviderStatusReport("anthropic");
 
     expect(report).toContain("- cli_version: 1.2.5");
     expect(report).toContain("- quota_supported: true");
@@ -954,11 +830,7 @@ describe("buildQuotaStatusReport", () => {
   });
 
   it("renders compact live probes in mapped and probe-only provider sections", async () => {
-    const { buildQuotaStatusReport } = await import("../src/lib/quota-status.js");
-
-    const report = await buildQuotaStatusReport({
-      configSource: "test",
-      configPaths: [],
+    const report = await buildQuotaStatusReportForTest({
       enabledProviders: [
         "openai",
         "qwen-code",
@@ -968,20 +840,6 @@ describe("buildQuotaStatusReport", () => {
         "google-antigravity",
         "google-gemini-cli",
         "chutes",
-      ],
-      alibabaCodingPlanTier: "lite",
-      cursorPlan: "none",
-      pricingSnapshotSource: "auto",
-      onlyCurrentModel: false,
-      providerAvailability: [
-        { id: "openai", enabled: true, available: true },
-        { id: "qwen-code", enabled: true, available: true },
-        { id: "alibaba-coding-plan", enabled: true, available: true },
-        { id: "minimax-coding-plan", enabled: true, available: true },
-        { id: "copilot", enabled: true, available: true },
-        { id: "google-antigravity", enabled: true, available: true },
-        { id: "google-gemini-cli", enabled: true, available: true },
-        { id: "chutes", enabled: true, available: true },
       ],
       providerLiveProbes: [
         {
@@ -1086,39 +944,38 @@ describe("buildQuotaStatusReport", () => {
           },
         },
       ],
-      generatedAtMs: Date.UTC(2026, 2, 12, 12, 45, 0),
     });
 
-    const openaiSection = getSection(report, "openai:");
+    const openaiSection = getReportSection(report, "openai:");
     expect(openaiSection).toContain("- live_probe: success");
     expect(openaiSection).toContain(
       "- live_entry_1: Pro 91/100 percent_remaining=91 reset_at=2026-04-22T00:00:00.000Z",
     );
 
-    const qwenSection = getSection(report, "qwen_code:");
+    const qwenSection = getReportSection(report, "qwen_code:");
     expect(qwenSection).toContain("- live_probe: success");
     expect(qwenSection).toContain(
       "- live_entry_1: Daily 120/1000 percent_remaining=88 reset_at=2026-04-22T00:00:00.000Z",
     );
 
-    const alibabaSection = getSection(report, "alibaba_coding_plan:");
+    const alibabaSection = getReportSection(report, "alibaba_coding_plan:");
     expect(alibabaSection).toContain("- live_probe: no_data");
 
-    const minimaxSection = getSection(report, "minimax:");
+    const minimaxSection = getReportSection(report, "minimax:");
     expect(minimaxSection).toContain("- auth_state: none");
     expect(minimaxSection).toContain("- live_probe: success");
     expect(minimaxSection).toContain(
       "- live_entry_1: Weekly 1600/45000 percent_remaining=63 reset_at=2026-04-28T00:00:00.000Z",
     );
 
-    const copilotSection = getSection(report, "copilot_quota_auth:");
+    const copilotSection = getReportSection(report, "copilot_quota_auth:");
     expect(copilotSection).toContain("- live_probe: error");
     expect(copilotSection).toContain("- live_error_1: Billing endpoint unavailable");
 
-    const googleSection = getSection(report, "google_antigravity:");
+    const googleSection = getReportSection(report, "google_antigravity:");
     expect(googleSection).toContain("- live_probe: no_data");
 
-    const geminiCliSection = getSection(report, "google_gemini_cli:");
+    const geminiCliSection = getReportSection(report, "google_gemini_cli:");
     expect(geminiCliSection).toContain("- auth_state: missing");
     expect(geminiCliSection).toContain("- companion_package_state: missing");
     expect(geminiCliSection).toContain("- live_probe: success");
@@ -1126,7 +983,7 @@ describe("buildQuotaStatusReport", () => {
       "- live_entry_1: Pro 77 left percent_remaining=77 reset_at=2026-04-23T00:00:00.000Z",
     );
 
-    const chutesSection = getSection(report, "chutes:");
+    const chutesSection = getReportSection(report, "chutes:");
     expect(chutesSection).toContain("- live_probe: error");
     expect(chutesSection).toContain("- live_error_1: probe failed with noise");
     expect(chutesSection).not.toContain("\u001b[31m");
@@ -1248,24 +1105,7 @@ describe("buildQuotaStatusReport", () => {
       ],
     });
 
-    const { buildQuotaStatusReport } = await import("../src/lib/quota-status.js");
-    const report = await buildQuotaStatusReport({
-      configSource: "test",
-      configPaths: [],
-      enabledProviders: ["nanogpt"],
-      alibabaCodingPlanTier: "lite",
-      cursorPlan: "none",
-      pricingSnapshotSource: "auto",
-      onlyCurrentModel: false,
-      providerAvailability: [
-        {
-          id: "nanogpt",
-          enabled: true,
-          available: true,
-        },
-      ],
-      generatedAtMs: Date.UTC(2026, 2, 12, 12, 45, 0),
-    });
+    const report = await buildProviderStatusReport("nanogpt");
 
     expect(report).toContain("nanogpt:");
     expect(report).toContain("- api_key_configured: true");
@@ -1323,13 +1163,7 @@ describe("buildQuotaStatusReport", () => {
     });
 
     const report = await buildOpenCodeGoStatusReport({
-      providerAvailability: [
-        {
-          id: "opencode-go",
-          enabled: true,
-          available: true,
-        },
-      ],
+      providerAvailability: [makeProviderAvailability("opencode-go")],
     });
 
     expect(report).toContain("opencode_go:");
@@ -1591,140 +1425,93 @@ describe("buildQuotaStatusReport", () => {
     expect(fetchErrorReport).toContain("- live_fetch_error: MiniMax API error 401: Unauthorized");
   });
 
-  it("reports Z.ai auth diagnostics and live quota details when configured", async () => {
-    zaiMocks.getZaiAuthDiagnostics.mockResolvedValueOnce({
-      state: "configured",
-      source: "auth.json",
-      checkedPaths: [],
-      authPaths: ["/tmp/auth.json"],
-    });
-    zaiMocks.queryZaiQuota.mockResolvedValueOnce({
-      success: true,
-      label: "Z.ai",
-      windows: {
-        fiveHour: { percentRemaining: 67, resetTimeIso: "2026-03-25T18:00:00.000Z" },
-        weekly: { percentRemaining: 44, resetTimeIso: "2026-04-01T00:00:00.000Z" },
-        mcp: { percentRemaining: 90, resetTimeIso: "2026-04-10T00:00:00.000Z" },
-      },
-    });
+  describe.each([
+    {
+      name: "Z.ai",
+      sectionTitle: "zai:",
+      getAuthDiagnostics: zaiMocks.getZaiAuthDiagnostics,
+      queryQuota: zaiMocks.queryZaiQuota,
+      buildStatusReport: buildZaiStatusReport,
+      unsupportedAuthError: 'Unsupported Z.ai auth type: "oauth"',
+      endpointError: "Z.ai API error 401: Unauthorized",
+    },
+    {
+      name: "Zhipu",
+      sectionTitle: "zhipu:",
+      getAuthDiagnostics: zhipuMocks.getZhipuAuthDiagnostics,
+      queryQuota: zhipuMocks.queryZhipuQuota,
+      buildStatusReport: buildZhipuStatusReport,
+      unsupportedAuthError: 'Unsupported Zhipu auth type: "oauth"',
+      endpointError: "Zhipu API error 401: Unauthorized",
+    },
+  ])("$name status diagnostics", (provider) => {
+    it("reports auth diagnostics and live quota details when configured", async () => {
+      provider.getAuthDiagnostics.mockResolvedValueOnce({
+        state: "configured",
+        source: "auth.json",
+        checkedPaths: [],
+        authPaths: ["/tmp/auth.json"],
+      });
+      provider.queryQuota.mockResolvedValueOnce({
+        success: true,
+        label: provider.name,
+        windows: {
+          fiveHour: { percentRemaining: 67, resetTimeIso: "2026-03-25T18:00:00.000Z" },
+          weekly: { percentRemaining: 44, resetTimeIso: "2026-04-01T00:00:00.000Z" },
+          mcp: { percentRemaining: 90, resetTimeIso: "2026-04-10T00:00:00.000Z" },
+        },
+      });
 
-    const report = await buildZaiStatusReport();
+      const report = await provider.buildStatusReport();
 
-    expect(report).toContain("zai:");
-    expect(report).toContain("- auth_state: configured");
-    expect(report).toContain("- api_key_configured: true");
-    expect(report).toContain("- api_key_source: auth.json");
-    expect(report).toContain("- api_key_checked_paths: (none)");
-    expect(report).toContain("- api_key_auth_paths: /tmp/auth.json");
-    expect(report).toContain("- five_hour_remaining: 67% reset_at=2026-03-25T18:00:00.000Z");
-    expect(report).toContain("- weekly_remaining: 44% reset_at=2026-04-01T00:00:00.000Z");
-    expect(report).toContain("- mcp_remaining: 90% reset_at=2026-04-10T00:00:00.000Z");
-  });
-
-  it("reports Z.ai auth errors", async () => {
-    zaiMocks.getZaiAuthDiagnostics.mockResolvedValueOnce({
-      state: "invalid",
-      source: "auth.json",
-      checkedPaths: [],
-      authPaths: ["/tmp/auth.json"],
-      error: 'Unsupported Z.ai auth type: "oauth"',
-    });
-
-    const report = await buildZaiStatusReport();
-
-    expect(report).toContain("zai:");
-    expect(report).toContain("- auth_state: invalid");
-    expect(report).toContain("- api_key_configured: false");
-    expect(report).toContain("- api_key_source: auth.json");
-    expect(report).toContain("- api_key_checked_paths: (none)");
-    expect(report).toContain("- api_key_auth_paths: /tmp/auth.json");
-    expect(report).toContain('- auth_error: Unsupported Z.ai auth type: "oauth"');
-    expect(zaiMocks.queryZaiQuota).not.toHaveBeenCalled();
-  });
-
-  it("reports Z.ai endpoint errors", async () => {
-    zaiMocks.getZaiAuthDiagnostics.mockResolvedValueOnce({
-      state: "configured",
-      source: "auth.json",
-      checkedPaths: [],
-      authPaths: ["/tmp/auth.json"],
-    });
-    zaiMocks.queryZaiQuota.mockResolvedValueOnce({
-      success: false,
-      error: "Z.ai API error 401: Unauthorized",
+      expect(report).toContain(provider.sectionTitle);
+      expect(report).toContain("- auth_state: configured");
+      expect(report).toContain("- api_key_configured: true");
+      expect(report).toContain("- api_key_source: auth.json");
+      expect(report).toContain("- api_key_checked_paths: (none)");
+      expect(report).toContain("- api_key_auth_paths: /tmp/auth.json");
+      expect(report).toContain("- five_hour_remaining: 67% reset_at=2026-03-25T18:00:00.000Z");
+      expect(report).toContain("- weekly_remaining: 44% reset_at=2026-04-01T00:00:00.000Z");
+      expect(report).toContain("- mcp_remaining: 90% reset_at=2026-04-10T00:00:00.000Z");
     });
 
-    const report = await buildZaiStatusReport();
+    it("reports auth errors", async () => {
+      provider.getAuthDiagnostics.mockResolvedValueOnce({
+        state: "invalid",
+        source: "auth.json",
+        checkedPaths: [],
+        authPaths: ["/tmp/auth.json"],
+        error: provider.unsupportedAuthError,
+      });
 
-    expect(report).toContain("- live_fetch_error: Z.ai API error 401: Unauthorized");
-  });
+      const report = await provider.buildStatusReport();
 
-  it("reports Zhipu auth diagnostics and live quota details when configured", async () => {
-    zhipuMocks.getZhipuAuthDiagnostics.mockResolvedValueOnce({
-      state: "configured",
-      source: "auth.json",
-      checkedPaths: [],
-      authPaths: ["/tmp/auth.json"],
-    });
-    zhipuMocks.queryZhipuQuota.mockResolvedValueOnce({
-      success: true,
-      label: "Zhipu",
-      windows: {
-        fiveHour: { percentRemaining: 67, resetTimeIso: "2026-03-25T18:00:00.000Z" },
-        weekly: { percentRemaining: 44, resetTimeIso: "2026-04-01T00:00:00.000Z" },
-        mcp: { percentRemaining: 90, resetTimeIso: "2026-04-10T00:00:00.000Z" },
-      },
-    });
-
-    const report = await buildZhipuStatusReport();
-
-    expect(report).toContain("zhipu:");
-    expect(report).toContain("- auth_state: configured");
-    expect(report).toContain("- api_key_configured: true");
-    expect(report).toContain("- api_key_source: auth.json");
-    expect(report).toContain("- api_key_checked_paths: (none)");
-    expect(report).toContain("- api_key_auth_paths: /tmp/auth.json");
-    expect(report).toContain("- five_hour_remaining: 67% reset_at=2026-03-25T18:00:00.000Z");
-    expect(report).toContain("- weekly_remaining: 44% reset_at=2026-04-01T00:00:00.000Z");
-    expect(report).toContain("- mcp_remaining: 90% reset_at=2026-04-10T00:00:00.000Z");
-  });
-
-  it("reports Zhipu auth errors", async () => {
-    zhipuMocks.getZhipuAuthDiagnostics.mockResolvedValueOnce({
-      state: "invalid",
-      source: "auth.json",
-      checkedPaths: [],
-      authPaths: ["/tmp/auth.json"],
-      error: 'Unsupported Zhipu auth type: "oauth"',
+      expect(report).toContain(provider.sectionTitle);
+      expect(report).toContain("- auth_state: invalid");
+      expect(report).toContain("- api_key_configured: false");
+      expect(report).toContain("- api_key_source: auth.json");
+      expect(report).toContain("- api_key_checked_paths: (none)");
+      expect(report).toContain("- api_key_auth_paths: /tmp/auth.json");
+      expect(report).toContain(`- auth_error: ${provider.unsupportedAuthError}`);
+      expect(provider.queryQuota).not.toHaveBeenCalled();
     });
 
-    const report = await buildZhipuStatusReport();
+    it("reports endpoint errors", async () => {
+      provider.getAuthDiagnostics.mockResolvedValueOnce({
+        state: "configured",
+        source: "auth.json",
+        checkedPaths: [],
+        authPaths: ["/tmp/auth.json"],
+      });
+      provider.queryQuota.mockResolvedValueOnce({
+        success: false,
+        error: provider.endpointError,
+      });
 
-    expect(report).toContain("zhipu:");
-    expect(report).toContain("- auth_state: invalid");
-    expect(report).toContain("- api_key_configured: false");
-    expect(report).toContain("- api_key_source: auth.json");
-    expect(report).toContain("- api_key_checked_paths: (none)");
-    expect(report).toContain("- api_key_auth_paths: /tmp/auth.json");
-    expect(report).toContain('- auth_error: Unsupported Zhipu auth type: "oauth"');
-    expect(zhipuMocks.queryZhipuQuota).not.toHaveBeenCalled();
-  });
+      const report = await provider.buildStatusReport();
 
-  it("reports Zhipu endpoint errors", async () => {
-    zhipuMocks.getZhipuAuthDiagnostics.mockResolvedValueOnce({
-      state: "configured",
-      source: "auth.json",
-      checkedPaths: [],
-      authPaths: ["/tmp/auth.json"],
+      expect(report).toContain(`- live_fetch_error: ${provider.endpointError}`);
     });
-    zhipuMocks.queryZhipuQuota.mockResolvedValueOnce({
-      success: false,
-      error: "Zhipu API error 401: Unauthorized",
-    });
-
-    const report = await buildZhipuStatusReport();
-
-    expect(report).toContain("- live_fetch_error: Zhipu API error 401: Unauthorized");
   });
 
   it("reports enterprise billing scope and token compatibility notes", async () => {
@@ -1764,25 +1551,7 @@ describe("buildQuotaStatusReport", () => {
         "GitHub's enterprise premium usage endpoint does not support fine-grained personal access tokens. Use a classic PAT or another supported non-fine-grained token for enterprise billing.",
     });
 
-    const { buildQuotaStatusReport } = await import("../src/lib/quota-status.js");
-
-    const report = await buildQuotaStatusReport({
-      configSource: "test",
-      configPaths: [],
-      enabledProviders: ["copilot"],
-      alibabaCodingPlanTier: "lite",
-      cursorPlan: "none",
-      pricingSnapshotSource: "auto",
-      onlyCurrentModel: false,
-      providerAvailability: [
-        {
-          id: "copilot",
-          enabled: true,
-          available: true,
-        },
-      ],
-      generatedAtMs: Date.UTC(2026, 2, 12, 12, 45, 0),
-    });
+    const report = await buildProviderStatusReport("copilot");
 
     expect(report).toContain("- pat_enterprise: acme-enterprise");
     expect(report).toContain("- billing_mode: enterprise_usage");
@@ -1802,25 +1571,7 @@ describe("buildQuotaStatusReport", () => {
   });
 
   it("locks the early /quota_status section layout after the shared report-document migration", async () => {
-    const { buildQuotaStatusReport } = await import("../src/lib/quota-status.js");
-
-    const report = await buildQuotaStatusReport({
-      configSource: "defaults",
-      configPaths: [],
-      enabledProviders: ["copilot"],
-      alibabaCodingPlanTier: "lite",
-      cursorPlan: "none",
-      pricingSnapshotSource: "auto",
-      onlyCurrentModel: false,
-      providerAvailability: [
-        {
-          id: "copilot",
-          enabled: true,
-          available: true,
-        },
-      ],
-      generatedAtMs: Date.UTC(2026, 2, 12, 12, 45, 0),
-    } as any);
+    const report = await buildProviderStatusReport("copilot", { configSource: "defaults" });
 
     const [heading, blank, ...body] = report.split("\n");
     expect(heading).toMatch(

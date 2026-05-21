@@ -18,6 +18,11 @@ export type CompactStatusState =
   | { status: "disabled"; text?: string }
   | { status: "ready"; text: string };
 
+export type HomeBottomState =
+  | { status: "loading"; announcementText?: string; compact: CompactStatusState }
+  | { status: "disabled"; announcementText?: string; compact: CompactStatusState }
+  | { status: "ready"; announcementText?: string; compact: CompactStatusState };
+
 export function shouldRenderSidebarPanel(panel: SidebarPanelState): boolean {
   return panel.status !== "disabled";
 }
@@ -51,4 +56,12 @@ export function getCompactStatusText(panel: CompactStatusState): string {
   if (text) return text;
 
   return panel.status === "loading" ? COMPACT_LOADING_TEXT : "";
+}
+
+export function shouldRenderHomeBottom(panel: HomeBottomState): boolean {
+  return Boolean(getHomeBottomAnnouncementText(panel) || shouldRenderCompactStatus(panel.compact));
+}
+
+export function getHomeBottomAnnouncementText(panel: HomeBottomState): string {
+  return sanitizeSingleLineDisplayText(panel.announcementText ?? "");
 }

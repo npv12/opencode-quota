@@ -8,18 +8,20 @@ import type {
 } from "@opencode-ai/plugin/tui";
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 
-import type { CompactStatusState, SidebarPanelState } from "./lib/tui-panel-state.js";
+import type { CompactStatusState, HomeBottomState, SidebarPanelState } from "./lib/tui-panel-state.js";
 
 import {
   getCompactStatusText,
+  getHomeBottomAnnouncementText,
   getSidebarPanelLines,
   getSidebarPanelLinesExpanded,
   shouldRenderCompactStatus,
+  shouldRenderHomeBottom,
   shouldRenderSidebarPanel,
 } from "./lib/tui-panel-state.js";
 import { getSidebarBodyLineColor } from "./lib/tui-line-style.js";
 import {
-  loadTuiHomeCompactStatus,
+  loadTuiHomeBottomStatus,
   loadTuiSessionQuotaSurfaces,
   resolveTuiSurfaceRegistration,
 } from "./lib/tui-runtime.js";
@@ -43,14 +45,14 @@ type SessionQuotaResource = {
   release: () => void;
 };
 
-type HomeCompactResource = {
-  compact: () => CompactStatusState;
-  retain: () => HomeCompactResource;
+type HomeBottomResource = {
+  bottom: () => HomeBottomState;
+  retain: () => HomeBottomResource;
   release: () => void;
 };
 
 const sessionResources = new WeakMap<TuiPluginApi, Map<string, SessionQuotaResource>>();
-const homeResources = new WeakMap<TuiPluginApi, HomeCompactResource>();
+const homeResources = new WeakMap<TuiPluginApi, HomeBottomResource>();
 
 function getSessionResourceMap(api: TuiPluginApi): Map<string, SessionQuotaResource> {
   const existing = sessionResources.get(api);
@@ -191,8 +193,11 @@ function acquireSessionQuotaResource(api: TuiPluginApi, sessionID: string): Sess
   return next;
 }
 
-function createHomeCompactResource(api: TuiPluginApi): HomeCompactResource {
-  const [compact, setCompact] = createSignal<CompactStatusState>({ status: "loading" });
+function createHomeBottomResource(api: TuiPluginApi): HomeBottomResource {
+  const [bottom, setBottom] = createSignal<HomeBottomState>({
+    status: "loading",
+    compact: { status: "loading" },
+  });
 
   let refCount = 0;
   let disposed = false;
@@ -213,10 +218,10 @@ function createHomeCompactResource(api: TuiPluginApi): HomeCompactResource {
     inFlight = true;
     const currentVersion = ++loadVersion;
 
-    void loadTuiHomeCompactStatus({ api })
+    void loadTuiHomeBottomStatus({ api })
       .then((next) => {
         if (disposed || currentVersion !== loadVersion) return;
-        setCompact(next);
+        setBottom(next);
       })
       .catch(() => {
         if (disposed || currentVersion !== loadVersion) return;
@@ -264,8 +269,8 @@ function createHomeCompactResource(api: TuiPluginApi): HomeCompactResource {
     homeResources.delete(api);
   };
 
-  const resource: HomeCompactResource = {
-    compact,
+  const resource: HomeBottomResource = {
+    bottom,
     retain: () => {
       refCount += 1;
       return resource;
@@ -281,11 +286,11 @@ function createHomeCompactResource(api: TuiPluginApi): HomeCompactResource {
   return resource;
 }
 
-function acquireHomeCompactResource(api: TuiPluginApi): HomeCompactResource {
+function acquireHomeBottomResource(api: TuiPluginApi): HomeBottomResource {
   const existing = homeResources.get(api);
   if (existing) return existing.retain();
 
-  const next = createHomeCompactResource(api).retain();
+  const next = createHomeBottomResource(api).retain();
   homeResources.set(api, next);
   return next;
 }
@@ -421,17 +426,27 @@ function SessionPromptWithCompactStatus(props: {
   );
 }
 
-function HomeCompactStatusView(props: { api: TuiPluginApi }) {
-  const resource = acquireHomeCompactResource(props.api);
+function HomeBottomView(props: { api: TuiPluginApi }) {
+  const resource = acquireHomeBottomResource(props.api);
   onCleanup(() => resource.release());
 
+  const announcement = () => getHomeBottomAnnouncementText(resource.bottom());
+  const compact = () => resource.bottom().compact;
+
   return (
-    <CompactStatusLine
-      api={props.api}
-      panel={resource.compact}
-      justifyContent="center"
-      blankLineBefore
-    />
+    <Show when={shouldRenderHomeBottom(resource.bottom())}>
+      <box gap={0}>
+        <text> </text>
+        <Show when={announcement()}>
+          <box flexDirection="row" justifyContent="center">
+            <text fg={props.api.theme.current.textMuted} wrapMode="none">
+              {announcement()}
+            </text>
+          </box>
+        </Show>
+        <CompactStatusLine api={props.api} panel={compact} justifyContent="center" />
+      </box>
+    </Show>
   );
 }
 
@@ -460,7 +475,7 @@ const tui: TuiPlugin = async (api) => {
   }
 
   const compactRegistration = surfaceRegistration.compact;
-  if (!compactRegistration.enabled) return;
+  if (!compactRegistration.enabled && !surfaceRegistration.homeBottom) return;
 
   const compactSlots: Record<string, (ctx: any, props: any) => JSX.Element | null> = {};
 
@@ -486,8 +501,8 @@ const tui: TuiPlugin = async (api) => {
     );
   }
 
-  if (compactRegistration.homeBottom) {
-    compactSlots.home_bottom = () => <HomeCompactStatusView api={api} />;
+  if (surfaceRegistration.homeBottom) {
+    compactSlots.home_bottom = () => <HomeBottomView api={api} />;
   }
 
   if (Object.keys(compactSlots).length > 0) {

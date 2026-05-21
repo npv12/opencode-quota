@@ -43,6 +43,7 @@ vi.mock("../src/lib/tui-compact-format.js", async () => {
 import {
   getTuiSessionModelMeta,
   loadSidebarPanel,
+  loadTuiHomeBottomStatus,
   loadTuiHomeCompactStatus,
   loadTuiSessionQuotaSurfaces,
   resolveTuiCompactStatusRegistration,
@@ -764,6 +765,10 @@ describe("tui runtime helpers", () => {
         hasNativeProviderQuota: true,
         suppressedByNativeProviderQuota: true,
       },
+      announcements: {
+        homeBottom: true,
+      },
+      homeBottom: true,
     });
     expect(collectQuotaRenderData).not.toHaveBeenCalled();
   });
@@ -1119,6 +1124,167 @@ describe("tui runtime helpers", () => {
       percentDisplayMode: "remaining",
       maxWidth: 96,
     });
+  });
+
+  it("loads announcement-only home bottom without fetching quota data", async () => {
+    writeFileSync(
+      join(worktreeDir, "opencode.json"),
+      JSON.stringify({
+        experimental: {
+          quotaToast: {
+            enabled: true,
+            tuiCompactStatus: {
+              enabled: false,
+              homeBottom: false,
+            },
+            maintainerAnnouncements: {
+              enabled: true,
+              home: true,
+            },
+          },
+        },
+      }),
+      "utf8",
+    );
+
+    const bottom = await loadTuiHomeBottomStatus({
+      api: {
+        state: {
+          provider: [],
+          path: {
+            worktree: worktreeDir,
+            directory: nestedDir,
+          },
+          session: {
+            messages: () => [],
+          },
+        },
+        client: {},
+      } as any,
+      nowMs: Date.parse("2026-05-21T12:00:00.000Z"),
+      announcements: [
+        {
+          id: "copilot-credits",
+          message: "If you use Copilot, GitHub billing is moving to AI Credits.",
+        },
+      ],
+    });
+
+    expect(bottom).toEqual({
+      status: "ready",
+      announcementText: "Notice: Maintainer announcement available. Run /quota_announcements.",
+      compact: { status: "disabled" },
+    });
+    expect(collectQuotaRenderData).not.toHaveBeenCalled();
+  });
+
+  it("loads announcement and compact quota in one home bottom state", async () => {
+    writeFileSync(
+      join(worktreeDir, "opencode.json"),
+      JSON.stringify({
+        experimental: {
+          quotaToast: {
+            enabled: true,
+            tuiCompactStatus: {
+              enabled: true,
+              homeBottom: true,
+            },
+            maintainerAnnouncements: {
+              enabled: true,
+              home: true,
+            },
+          },
+        },
+      }),
+      "utf8",
+    );
+
+    const data = {
+      entries: [],
+      errors: [],
+      sessionTokens: undefined,
+    };
+    collectQuotaRenderData.mockResolvedValue({ active: [], data });
+    buildCompactQuotaStatusLine.mockReturnValue("Home compact quota");
+
+    const bottom = await loadTuiHomeBottomStatus({
+      api: {
+        state: {
+          provider: [],
+          path: {
+            worktree: worktreeDir,
+            directory: nestedDir,
+          },
+          session: {
+            messages: () => [],
+          },
+        },
+        client: {},
+      } as any,
+      nowMs: Date.parse("2026-05-21T12:00:00.000Z"),
+      announcements: [
+        {
+          id: "copilot-credits",
+          message: "If you use Copilot, GitHub billing is moving to AI Credits.",
+        },
+      ],
+    });
+
+    expect(bottom).toEqual({
+      status: "ready",
+      announcementText: "Notice: Maintainer announcement available. Run /quota_announcements.",
+      compact: { status: "ready", text: "Home compact quota" },
+    });
+    expect(collectQuotaRenderData).toHaveBeenCalledOnce();
+  });
+
+  it("does not render inactive announcement-only home bottom", async () => {
+    writeFileSync(
+      join(worktreeDir, "opencode.json"),
+      JSON.stringify({
+        experimental: {
+          quotaToast: {
+            enabled: true,
+            tuiCompactStatus: {
+              enabled: false,
+              homeBottom: false,
+            },
+            maintainerAnnouncements: {
+              enabled: true,
+              home: true,
+            },
+          },
+        },
+      }),
+      "utf8",
+    );
+
+    const bottom = await loadTuiHomeBottomStatus({
+      api: {
+        state: {
+          provider: [],
+          path: {
+            worktree: worktreeDir,
+            directory: nestedDir,
+          },
+          session: {
+            messages: () => [],
+          },
+        },
+        client: {},
+      } as any,
+      nowMs: Date.parse("2026-05-21T12:00:00.000Z"),
+      announcements: [
+        {
+          id: "copilot-credits",
+          message: "If you use Copilot, GitHub billing is moving to AI Credits.",
+          startsAt: "2026-06-01T00:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(bottom).toEqual({ status: "disabled", compact: { status: "disabled" } });
+    expect(collectQuotaRenderData).not.toHaveBeenCalled();
   });
 
   it("loads home compact with an onlyCurrentModel false config copy", async () => {

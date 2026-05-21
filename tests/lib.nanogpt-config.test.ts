@@ -3,12 +3,14 @@ import { homedir } from "os";
 import { join } from "path";
 import {
   createRuntimePathsMockModule,
+  getTrustedAuthPath,
   getTrustedOpencodeConfigPaths,
   getWorkspaceOpencodeConfigPaths,
   loadFsConfigMocks,
+  mockExistingConfigPath,
   mockTrustedConfigFile,
   resetFsConfigMocks,
-  resetProcessEnv,
+  resetTrustedConfigTestEnv,
 } from "./helpers/trusted-config-test-harness.js";
 
 vi.mock("../src/lib/opencode-runtime-paths.js", () => createRuntimePathsMockModule());
@@ -23,7 +25,7 @@ vi.mock("fs/promises", () => ({
 
 vi.mock("../src/lib/opencode-auth.js", () => ({
   readAuthFile: vi.fn(),
-  getAuthPaths: () => [join(homedir(), ".local", "share", "opencode", "auth.json")],
+  getAuthPaths: () => [getTrustedAuthPath()],
 }));
 
 describe("nanogpt-config", () => {
@@ -35,14 +37,7 @@ describe("nanogpt-config", () => {
   beforeEach(async () => {
     vi.resetModules();
     vi.clearAllMocks();
-    resetProcessEnv(originalEnv, [
-      "NANOGPT_API_KEY",
-      "NANO_GPT_API_KEY",
-      "XDG_CONFIG_HOME",
-      "XDG_DATA_HOME",
-      "XDG_CACHE_HOME",
-      "XDG_STATE_HOME",
-    ]);
+    resetTrustedConfigTestEnv(originalEnv, ["NANOGPT_API_KEY", "NANO_GPT_API_KEY"]);
     fsConfigMocks = await loadFsConfigMocks();
     resetFsConfigMocks(fsConfigMocks);
   });
@@ -168,7 +163,7 @@ describe("nanogpt-config", () => {
     ])("ignores workspace-local %s when resolving provider secrets", async (_label, workspacePath) => {
       const { readAuthFile } = await import("../src/lib/opencode-auth.js");
 
-      fsConfigMocks.existsSync.mockImplementation((path: string) => path === workspacePath);
+      mockExistingConfigPath(fsConfigMocks, workspacePath);
       (readAuthFile as any).mockResolvedValue(null);
 
       const { resolveNanoGptApiKey } = await import("../src/lib/nanogpt-config.js");
@@ -233,7 +228,7 @@ describe("nanogpt-config", () => {
       expect(result.configured).toBe(true);
       expect(result.source).toBe("env:NANOGPT_API_KEY");
       expect(result.checkedPaths).toContain("env:NANOGPT_API_KEY");
-      expect(result.authPaths).toContain(join(homedir(), ".local", "share", "opencode", "auth.json"));
+      expect(result.authPaths).toContain(getTrustedAuthPath());
     });
 
     it("reports checked trusted config paths", async () => {
@@ -248,7 +243,7 @@ describe("nanogpt-config", () => {
 
       expect(result.configured).toBe(false);
       expect(result.checkedPaths).toContain(expectedPath);
-      expect(result.authPaths).toContain(join(homedir(), ".local", "share", "opencode", "auth.json"));
+      expect(result.authPaths).toContain(getTrustedAuthPath());
     });
   });
 

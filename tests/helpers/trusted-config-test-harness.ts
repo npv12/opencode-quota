@@ -28,6 +28,17 @@ export function createRuntimePathsMockModule() {
   };
 }
 
+export const TRUSTED_CONFIG_ENV_KEYS = [
+  "XDG_CONFIG_HOME",
+  "XDG_DATA_HOME",
+  "XDG_CACHE_HOME",
+  "XDG_STATE_HOME",
+] as const;
+
+export function getTrustedAuthPath(): string {
+  return join(homedir(), ".local", "share", "opencode", "auth.json");
+}
+
 export function getTrustedOpencodeConfigPaths() {
   const configDir = join(homedir(), ".config", "opencode");
   return {
@@ -41,6 +52,13 @@ export function resetProcessEnv(originalEnv: NodeJS.ProcessEnv, keysToDelete: st
   for (const key of keysToDelete) {
     delete process.env[key];
   }
+}
+
+export function resetTrustedConfigTestEnv(
+  originalEnv: NodeJS.ProcessEnv,
+  providerKeysToDelete: string[],
+): void {
+  resetProcessEnv(originalEnv, [...providerKeysToDelete, ...TRUSTED_CONFIG_ENV_KEYS]);
 }
 
 export async function loadFsConfigMocks(): Promise<FsConfigMocks> {
@@ -62,13 +80,17 @@ export function mockTrustedConfigFile(
   path: string,
   contents: string,
 ): void {
-  mocks.existsSync.mockImplementation((candidatePath: string) => candidatePath === path);
+  mockExistingConfigPath(mocks, path);
   mocks.readFile.mockImplementation(async (candidatePath: string) => {
     if (candidatePath !== path) {
       throw new Error(`Unexpected config read path: ${candidatePath}`);
     }
     return contents;
   });
+}
+
+export function mockExistingConfigPath(mocks: FsConfigMocks, path: string): void {
+  mocks.existsSync.mockImplementation((candidatePath: string) => candidatePath === path);
 }
 
 export function getWorkspaceOpencodeConfigPaths() {

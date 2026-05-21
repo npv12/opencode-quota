@@ -47,42 +47,15 @@ describe("getSidebarPanelLinesExpanded", () => {
 
 // --- Mocks (all hoisted) ---
 
-const { mockProviders } = vi.hoisted(() => ({
-  mockProviders: [] as any[],
-}));
-
-const {
-  collectQuotaRenderDataMock,
-  buildSidebarQuotaPanelLinesMock,
-  actualCollectQuotaRenderDataHolder,
-} = vi.hoisted(() => ({
+const { collectQuotaRenderDataMock, buildSidebarQuotaPanelLinesMock } = vi.hoisted(() => ({
   collectQuotaRenderDataMock: vi.fn(),
   buildSidebarQuotaPanelLinesMock: vi.fn(),
-  actualCollectQuotaRenderDataHolder: { fn: null as any },
-}));
-
-vi.mock("../src/providers/registry.js", () => ({
-  getProviders: () => mockProviders,
-}));
-
-vi.mock("../src/lib/opencode-runtime-paths.js", () => ({
-  getOpencodeRuntimeDirs: () => ({
-    dataDir: "/tmp/opencode-quota-collapse-test/data",
-    configDir: "/tmp/opencode-quota-collapse-test/config",
-    cacheDir: "/tmp/opencode-quota-collapse-test/cache",
-    stateDir: "/tmp/opencode-quota-collapse-test/state",
-  }),
-  getOpencodeRuntimeDirCandidates: () => ({
-    configDirs: [],
-    dataDirs: [],
-  }),
 }));
 
 vi.mock("../src/lib/quota-render-data.js", async () => {
   const actual = await vi.importActual<typeof import("../src/lib/quota-render-data.js")>(
     "../src/lib/quota-render-data.js",
   );
-  actualCollectQuotaRenderDataHolder.fn = actual.collectQuotaRenderData;
   return { ...actual, collectQuotaRenderData: collectQuotaRenderDataMock };
 });
 
@@ -93,128 +66,7 @@ vi.mock("../src/lib/tui-sidebar-format.js", async () => {
   return { ...actual, buildSidebarQuotaPanelLines: buildSidebarQuotaPanelLinesMock };
 });
 
-import { __resetQuotaStateForTests } from "../src/lib/quota-state.js";
-import { DEFAULT_CONFIG } from "../src/lib/types.js";
 import { loadSidebarPanel } from "../src/lib/tui-runtime.js";
-import { rm } from "fs/promises";
-
-const COLLAPSE_TEST_ROOT = "/tmp/opencode-quota-collapse-test";
-
-const TEST_CLIENT = {
-  config: {
-    providers: async () => ({ data: { providers: [] } }),
-    get: async () => ({ data: {} }),
-  },
-};
-
-describe("collectQuotaRenderData allWindowsData", () => {
-  beforeEach(async () => {
-    mockProviders.length = 0;
-    vi.restoreAllMocks();
-    __resetQuotaStateForTests();
-    await rm(COLLAPSE_TEST_ROOT, { recursive: true, force: true });
-  });
-
-  afterEach(async () => {
-    mockProviders.length = 0;
-    vi.restoreAllMocks();
-    __resetQuotaStateForTests();
-    await rm(COLLAPSE_TEST_ROOT, { recursive: true, force: true });
-  });
-
-  it("returns allWindowsData when includeAllWindowsData is true and style is singleWindow", async () => {
-    const provider = {
-      id: "test-provider",
-      isAvailable: vi.fn().mockResolvedValue(true),
-      fetch: vi.fn().mockResolvedValue({
-        attempted: true,
-        entries: [
-          { name: "Daily", label: "Daily:", percentRemaining: 50 },
-          { name: "Weekly", label: "Weekly:", percentRemaining: 80 },
-        ],
-        errors: [],
-      }),
-    };
-
-    const result = await actualCollectQuotaRenderDataHolder.fn({
-      client: TEST_CLIENT,
-      config: {
-        ...DEFAULT_CONFIG,
-        enabledProviders: ["test-provider"],
-        showSessionTokens: false,
-      },
-      surfaceExplicitProviderIssues: true,
-      formatStyle: "singleWindow",
-      providers: [provider],
-      includeAllWindowsData: true,
-    });
-
-    expect(result.data).not.toBeNull();
-    expect(result.allWindowsData).toBeDefined();
-    expect(result.allWindowsData).not.toBeNull();
-    expect(result.allWindowsData!.entries.length).toBe(2);
-    expect(result.data!.entries.length).toBe(1);
-  });
-
-  it("does not return allWindowsData when includeAllWindowsData is not set", async () => {
-    const provider = {
-      id: "test-provider",
-      isAvailable: vi.fn().mockResolvedValue(true),
-      fetch: vi.fn().mockResolvedValue({
-        attempted: true,
-        entries: [{ name: "Daily", label: "Daily:", percentRemaining: 50 }],
-        errors: [],
-      }),
-    };
-
-    const result = await actualCollectQuotaRenderDataHolder.fn({
-      client: TEST_CLIENT,
-      config: {
-        ...DEFAULT_CONFIG,
-        enabledProviders: ["test-provider"],
-        showSessionTokens: false,
-      },
-      surfaceExplicitProviderIssues: true,
-      formatStyle: "singleWindow",
-      providers: [provider],
-    });
-
-    expect(result.data).not.toBeNull();
-    expect(result.allWindowsData).toBeUndefined();
-  });
-
-  it("returns allWindowsData equal to data when style is already allWindows", async () => {
-    const provider = {
-      id: "test-provider",
-      isAvailable: vi.fn().mockResolvedValue(true),
-      fetch: vi.fn().mockResolvedValue({
-        attempted: true,
-        entries: [
-          { name: "Daily", label: "Daily:", percentRemaining: 50 },
-          { name: "Weekly", label: "Weekly:", percentRemaining: 80 },
-        ],
-        errors: [],
-      }),
-    };
-
-    const result = await actualCollectQuotaRenderDataHolder.fn({
-      client: TEST_CLIENT,
-      config: {
-        ...DEFAULT_CONFIG,
-        enabledProviders: ["test-provider"],
-        showSessionTokens: false,
-      },
-      surfaceExplicitProviderIssues: true,
-      formatStyle: "allWindows",
-      providers: [provider],
-      includeAllWindowsData: true,
-    });
-
-    expect(result.data).not.toBeNull();
-    expect(result.allWindowsData).not.toBeNull();
-    expect(result.allWindowsData!.entries).toEqual(result.data!.entries);
-  });
-});
 
 describe("tui-runtime linesExpanded", () => {
   const originalEnv = { ...process.env };
