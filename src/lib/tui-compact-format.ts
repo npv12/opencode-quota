@@ -90,7 +90,7 @@ function formatCompactValueEntrySegment(
 ): string | null {
   const name = getProviderName(entry);
   const value = compactText(entry.value);
-  const segment = [name, value].filter(Boolean).join(" - ");
+  const segment = [name, value].filter(Boolean).join(" ");
   return segment || null;
 }
 
