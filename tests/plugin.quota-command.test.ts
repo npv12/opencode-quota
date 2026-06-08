@@ -119,6 +119,7 @@ describe("quota plugin behavior (idle, config, pricing_refresh)", () => {
     mocks.loadConfig.mockResolvedValueOnce({
       ...DEFAULT_CONFIG,
       enabled: true,
+      enableToast: true,
       enabledProviders: ["copilot"],
       showOnIdle: true,
       showOnCompact: false,
@@ -154,6 +155,7 @@ describe("quota plugin behavior (idle, config, pricing_refresh)", () => {
     mocks.loadConfig.mockResolvedValueOnce({
       ...DEFAULT_CONFIG,
       enabled: true,
+      enableToast: true,
       enabledProviders: ["openai"],
       onlyCurrentModel: true,
       showOnIdle: true,
@@ -195,6 +197,7 @@ describe("quota plugin behavior (idle, config, pricing_refresh)", () => {
     mocks.loadConfig.mockResolvedValueOnce({
       ...DEFAULT_CONFIG,
       enabled: true,
+      enableToast: true,
       enabledProviders: ["copilot"],
       showOnIdle: true,
       showOnCompact: false,
@@ -270,6 +273,7 @@ describe("quota plugin behavior (idle, config, pricing_refresh)", () => {
       mocks.loadConfig.mockResolvedValueOnce({
         ...DEFAULT_CONFIG,
         enabled: true,
+        enableToast: true,
         enabledProviders: ["openai"],
         showOnIdle: true,
         showOnCompact: false,
@@ -323,6 +327,7 @@ describe("quota plugin behavior (idle, config, pricing_refresh)", () => {
       mocks.loadConfig.mockResolvedValueOnce({
         ...DEFAULT_CONFIG,
         enabled: true,
+        enableToast: true,
         enabledProviders: ["openai"],
         showOnIdle: true,
         showOnCompact: false,
@@ -376,6 +381,7 @@ describe("quota plugin behavior (idle, config, pricing_refresh)", () => {
       mocks.loadConfig.mockResolvedValueOnce({
         ...DEFAULT_CONFIG,
         enabled: true,
+        enableToast: true,
         enabledProviders: ["openai"],
         showOnIdle: true,
         showOnCompact: false,
@@ -429,6 +435,7 @@ describe("quota plugin behavior (idle, config, pricing_refresh)", () => {
     mocks.loadConfig.mockResolvedValueOnce({
       ...DEFAULT_CONFIG,
       enabled: true,
+      enableToast: true,
       enabledProviders: ["openai"],
       showOnIdle: true,
       showOnCompact: true,
@@ -476,6 +483,7 @@ describe("quota plugin behavior (idle, config, pricing_refresh)", () => {
     mocks.loadConfig.mockResolvedValueOnce({
       ...DEFAULT_CONFIG,
       enabled: true,
+      enableToast: true,
       onlyCurrentModel: true,
       showOnIdle: true,
       showOnCompact: false,

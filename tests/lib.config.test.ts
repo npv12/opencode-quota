@@ -157,9 +157,9 @@ describe("loadConfig", () => {
     const second = await loadConfig(undefined, undefined, { cwd: isolatedCwd });
     expect(second.tuiSidebarPanel).toEqual(DEFAULT_CONFIG.tuiSidebarPanel);
     expect(second.tuiCompactStatus).toEqual(DEFAULT_CONFIG.tuiCompactStatus);
-    expect(DEFAULT_CONFIG.tuiSidebarPanel).toEqual({ enabled: true });
+    expect(DEFAULT_CONFIG.tuiSidebarPanel).toEqual({ enabled: false });
     expect(DEFAULT_CONFIG.tuiCompactStatus).toEqual({
-      enabled: false,
+      enabled: true,
       homeBottom: true,
       sessionPrompt: true,
       suppressWhenNativeProviderQuota: true,

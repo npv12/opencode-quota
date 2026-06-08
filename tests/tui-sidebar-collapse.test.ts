@@ -106,6 +106,7 @@ describe("tui-runtime linesExpanded", () => {
           quotaToast: {
             enabled: true,
             formatStyle: "singleWindow",
+            tuiSidebarPanel: { enabled: true },
           },
         },
       }),
@@ -173,6 +174,7 @@ describe("tui-runtime linesExpanded", () => {
         experimental: {
           quotaToast: {
             enabled: true,
+            tuiSidebarPanel: { enabled: true },
           },
         },
       }),

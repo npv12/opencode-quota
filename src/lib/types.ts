@@ -137,7 +137,7 @@ export interface QuotaToastConfig {
 export const DEFAULT_CONFIG: QuotaToastConfig = {
   enabled: true,
 
-  enableToast: true,
+  enableToast: false,
   formatStyle: DEFAULT_QUOTA_FORMAT_STYLE,
   percentDisplayMode: "remaining",
   minIntervalMs: 300000, // 5 minutes
@@ -167,10 +167,10 @@ export const DEFAULT_CONFIG: QuotaToastConfig = {
   toastDurationMs: 9000,
   onlyCurrentModel: false,
   tuiSidebarPanel: {
-    enabled: true,
+    enabled: false,
   },
   tuiCompactStatus: {
-    enabled: false,
+    enabled: true,
     homeBottom: true,
     sessionPrompt: true,
     suppressWhenNativeProviderQuota: true,

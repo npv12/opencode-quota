@@ -77,6 +77,7 @@ describe("tui runtime helpers", () => {
 
     collectQuotaRenderData.mockReset();
     buildCompactQuotaStatusLine.mockReset();
+    buildCompactQuotaStatusLine.mockReturnValue("");
     buildSidebarQuotaPanelLines.mockReset();
   });
 
@@ -306,6 +307,7 @@ describe("tui runtime helpers", () => {
                     formatStyle: "grouped",
                     percentDisplayMode: "used",
                     onlyCurrentModel: true,
+                    tuiSidebarPanel: { enabled: true },
                   },
                 },
               },
@@ -363,6 +365,7 @@ describe("tui runtime helpers", () => {
           quotaToast: {
             enabled: true,
             enableToast: false,
+            tuiSidebarPanel: { enabled: true },
           },
         },
       }),
@@ -410,6 +413,7 @@ describe("tui runtime helpers", () => {
             enabled: true,
             enabledProviders: ["copilot"],
             onlyCurrentModel: true,
+            tuiSidebarPanel: { enabled: true },
           },
         },
       }),
@@ -465,6 +469,7 @@ describe("tui runtime helpers", () => {
           quotaToast: {
             enabled: true,
             formatStyle: "allWindows",
+            tuiSidebarPanel: { enabled: true },
           },
         },
       }),
@@ -529,6 +534,7 @@ describe("tui runtime helpers", () => {
             enabled: true,
             formatStyle: "allWindows",
             percentDisplayMode: "used",
+            tuiSidebarPanel: { enabled: true },
           },
         },
       }),
@@ -587,6 +593,7 @@ describe("tui runtime helpers", () => {
         experimental: {
           quotaToast: {
             enabled: true,
+            tuiSidebarPanel: { enabled: true },
           },
         },
       }),
@@ -891,6 +898,7 @@ describe("tui runtime helpers", () => {
             enabled: true,
             percentDisplayMode: "used",
             onlyCurrentModel: true,
+            tuiSidebarPanel: { enabled: true },
             tuiCompactStatus: {
               enabled: true,
               sessionPrompt: true,
@@ -983,6 +991,7 @@ describe("tui runtime helpers", () => {
         experimental: {
           quotaToast: {
             enabled: true,
+            tuiSidebarPanel: { enabled: true },
             tuiCompactStatus: {
               enabled: true,
               sessionPrompt: true,
@@ -1027,6 +1036,7 @@ describe("tui runtime helpers", () => {
           quotaToast: {
             enabled: true,
             onlyCurrentModel: true,
+            tuiSidebarPanel: { enabled: true },
             tuiCompactStatus: {
               enabled: true,
               sessionPrompt: true,
