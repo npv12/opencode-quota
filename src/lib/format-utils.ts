@@ -4,7 +4,6 @@
  * These primitives are used by:
  * - format.ts (classic toast)
  * - toast-format-grouped.ts (grouped toast)
- * - quota-command-format.ts (/quota command)
  */
 
 import type { PercentDisplayMode } from "./types.js";

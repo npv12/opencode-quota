@@ -12,16 +12,8 @@ import { DEFAULT_CONFIG } from "./lib/types.js";
 import { createLoadConfigMeta, type LoadConfigMeta } from "./lib/config.js";
 import { clearCache, getOrFetchWithCacheControl } from "./lib/cache.js";
 import { formatQuotaRows } from "./lib/format.js";
-import { formatQuotaCommand } from "./lib/quota-command-format.js";
 import { getProviders } from "./providers/registry.js";
 import { tool } from "@opencode-ai/plugin";
-import {
-  aggregateUsage,
-  resolveSessionTree,
-  SessionNotFoundError,
-  type SessionTreeNode,
-} from "./lib/quota-stats.js";
-import { formatQuotaStatsReport } from "./lib/quota-stats-format.js";
 import { buildQuotaStatusReport } from "./lib/quota-status.js";
 import { inspectTuiConfig } from "./lib/tui-config-diagnostics.js";
 import {
@@ -43,19 +35,10 @@ import {
 import { isQwenCodeModelId, resolveQwenLocalPlanCached } from "./lib/qwen-auth.js";
 import { recordAlibabaCodingPlanCompletion, recordQwenCompletion } from "./lib/qwen-local-quota.js";
 import { isCursorModelId, isCursorProviderId } from "./lib/cursor-pricing.js";
-import {
-  parseOptionalJsonArgs,
-  parseQuotaBetweenArgs,
-  startOfLocalDayMs,
-  startOfNextLocalDayMs,
-  formatYmd,
-  type Ymd,
-} from "./lib/command-parsing.js";
+import { parseOptionalJsonArgs } from "./lib/command-parsing.js";
 import { handled } from "./lib/command-handled.js";
-import { renderCommandHeading } from "./lib/format-utils.js";
 import { sanitizeDisplayText } from "./lib/display-sanitize.js";
 import {
-  ALL_WINDOWS_FORMAT_STYLE,
   SINGLE_WINDOW_PER_PROVIDER_FORMAT_STYLE,
   resolveQuotaFormatStyle,
 } from "./lib/quota-format-style.js";
@@ -63,8 +46,6 @@ import {
   collectQuotaRenderData,
   collectQuotaStatusLiveProbes,
   matchesQuotaProviderCurrentSelection,
-  resolveQuotaRenderSelection,
-  type QuotaRenderData as QuotaCommandRenderData,
   type QuotaStatusLiveProbe,
   type SessionModelMeta,
 } from "./lib/quota-render-data.js";
@@ -200,135 +181,6 @@ type QuotaMessageFetchResult = {
 };
 
 const DEFERRED_QUOTA_REFRESH_DELAYS_MS = [3_000, 15_000, 60_000, 300_000] as const;
-
-// =============================================================================
-// Token Report Command Specification
-// =============================================================================
-
-/** Token report command IDs */
-type TokenReportCommandId =
-  | "tokens_today"
-  | "tokens_daily"
-  | "tokens_weekly"
-  | "tokens_monthly"
-  | "tokens_all"
-  | "tokens_session"
-  | "tokens_session_all"
-  | "tokens_between";
-
-/** Specification for a token report command */
-type TokenReportCommandSpec =
-  | {
-      id: Exclude<TokenReportCommandId, "tokens_between">;
-      template: `/${string}`;
-      description: string;
-      title: string;
-      metadataTitle: string;
-      kind: "rolling" | "today" | "all" | "session" | "session_tree";
-      windowMs?: number;
-      topModels?: number;
-      topSessions?: number;
-    }
-  | {
-      id: "tokens_between";
-      template: "/tokens_between";
-      description: string;
-      titleForRange: (startYmd: Ymd, endYmd: Ymd) => string;
-      metadataTitle: string;
-      kind: "between";
-    };
-
-/** All token report command specifications */
-const TOKEN_REPORT_COMMANDS: readonly TokenReportCommandSpec[] = [
-  {
-    id: "tokens_today",
-    template: "/tokens_today",
-    description: "Token + deterministic cost summary for today (calendar day, local timezone).",
-    title: "Tokens used (Today) (/tokens_today)",
-    metadataTitle: "Tokens used (Today)",
-    kind: "today",
-  },
-  {
-    id: "tokens_daily",
-    template: "/tokens_daily",
-    description: "Token + deterministic cost summary for the last 24 hours (rolling).",
-    title: "Tokens used (Last 24 Hours) (/tokens_daily)",
-    metadataTitle: "Tokens used (Last 24 Hours)",
-    kind: "rolling",
-    windowMs: 24 * 60 * 60 * 1000,
-  },
-  {
-    id: "tokens_weekly",
-    template: "/tokens_weekly",
-    description: "Token + deterministic cost summary for the last 7 days (rolling).",
-    title: "Tokens used (Last 7 Days) (/tokens_weekly)",
-    metadataTitle: "Tokens used (Last 7 Days)",
-    kind: "rolling",
-    windowMs: 7 * 24 * 60 * 60 * 1000,
-  },
-  {
-    id: "tokens_monthly",
-    template: "/tokens_monthly",
-    description: "Token + deterministic cost summary for the last 30 days (rolling).",
-    title: "Tokens used (Last 30 Days) (/tokens_monthly)",
-    metadataTitle: "Tokens used (Last 30 Days)",
-    kind: "rolling",
-    windowMs: 30 * 24 * 60 * 60 * 1000,
-  },
-  {
-    id: "tokens_all",
-    template: "/tokens_all",
-    description: "Token + deterministic cost summary for all locally saved OpenCode history.",
-    title: "Tokens used (All Time) (/tokens_all)",
-    metadataTitle: "Tokens used (All Time)",
-    kind: "all",
-    topModels: 12,
-    topSessions: 12,
-  },
-  {
-    id: "tokens_session",
-    template: "/tokens_session",
-    description: "Token + deterministic cost summary for current session only.",
-    title: "Tokens used (Current Session) (/tokens_session)",
-    metadataTitle: "Tokens used (Current Session)",
-    kind: "session",
-  },
-  {
-    id: "tokens_session_all",
-    template: "/tokens_session_all",
-    description:
-      "Token + deterministic cost summary for current session and all descendant child/subagent sessions.",
-    title: "Tokens used (Current Session Tree) (/tokens_session_all)",
-    metadataTitle: "Tokens used (Current Session Tree)",
-    kind: "session_tree",
-  },
-  {
-    id: "tokens_between",
-    template: "/tokens_between",
-    description:
-      "Token + deterministic cost report between two YYYY-MM-DD dates (local timezone, inclusive).",
-    titleForRange: (startYmd: Ymd, endYmd: Ymd) => {
-      return `Tokens used (${formatYmd(startYmd)} .. ${formatYmd(endYmd)}) (/tokens_between)`;
-    },
-    metadataTitle: "Tokens used (Date Range)",
-    kind: "between",
-  },
-] as const;
-
-/** Build a lookup map from command ID to spec */
-const TOKEN_REPORT_COMMANDS_BY_ID: ReadonlyMap<TokenReportCommandId, TokenReportCommandSpec> =
-  (() => {
-    const map = new Map<TokenReportCommandId, TokenReportCommandSpec>();
-    for (const spec of TOKEN_REPORT_COMMANDS) {
-      map.set(spec.id, spec);
-    }
-    return map;
-  })();
-
-/** Check if a command is a token report command */
-function isTokenReportCommand(cmd: string): cmd is TokenReportCommandId {
-  return TOKEN_REPORT_COMMANDS_BY_ID.has(cmd as TokenReportCommandId);
-}
 
 // =============================================================================
 // Plugin Implementation
@@ -738,72 +590,6 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
       `enabled=${config.enabled} providers=${providers}${modelPart}`,
       `available=${availability}`,
     ].join("\n");
-  }
-
-  function describeQuotaCommandCurrentSelection(params: {
-    currentModel?: string;
-    currentProviderID?: string;
-  }): string {
-    if (isCursorProviderId(params.currentProviderID)) {
-      return `current provider: ${params.currentProviderID}`;
-    }
-    if (params.currentModel) {
-      return `current model: ${params.currentModel}`;
-    }
-    return "current session";
-  }
-
-  async function buildQuotaCommandUnavailableMessage(
-    runtime: QuotaRuntimeContext,
-  ): Promise<string> {
-    const selection = await resolveQuotaRenderSelection({
-      client: runtime.client,
-      config: runtime.config,
-      request: createQuotaRuntimeRequestContext(runtime),
-      providers: runtime.providers,
-    });
-    if (!selection) {
-      return "Quota unavailable\n\nNo enabled quota providers are configured.\n\nRun /quota_status for diagnostics.";
-    }
-
-    if (selection.filteringByCurrentSelection && selection.filtered.length === 0) {
-      const detail = describeQuotaCommandCurrentSelection({
-        currentModel: selection.currentModel,
-        currentProviderID: selection.currentProviderID,
-      });
-      return `Quota unavailable\n\nNo enabled quota providers matched the ${detail}.\n\nRun /quota_status for diagnostics.`;
-    }
-
-    const avail = await Promise.all(
-      selection.filtered.map(async (p) => {
-        try {
-          return { id: p.id, ok: await p.isAvailable(selection.ctx) };
-        } catch {
-          return { id: p.id, ok: false };
-        }
-      }),
-    );
-    const availableIds = avail.filter((x) => x.ok).map((x) => x.id);
-
-    if (availableIds.length === 0) {
-      const scopedDetail = selection.filteringByCurrentSelection
-        ? ` for the ${describeQuotaCommandCurrentSelection({
-            currentModel: selection.currentModel,
-            currentProviderID: selection.currentProviderID,
-          })}`
-        : "";
-      return (
-        `Quota unavailable\n\nNo quota providers detected${scopedDetail}. ` +
-        "Make sure you are logged in to a supported provider (Copilot, OpenAI, etc.).\n\n" +
-        "Run /quota_status for diagnostics."
-      );
-    }
-
-    return (
-      `Quota unavailable\n\nProviders detected (${availableIds.join(", ")}) but returned no data. ` +
-      "This may be a temporary API error.\n\n" +
-      "Run /quota_status for diagnostics."
-    );
   }
 
   function buildToastCacheKey(params: {
@@ -1235,60 +1021,6 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
   }
 
 
-  async function fetchQuotaCommandData(
-    runtime: QuotaRuntimeContext,
-  ): Promise<QuotaCommandRenderData | null> {
-    const request = createQuotaRuntimeRequestContext(runtime);
-    const quotaResult = await collectQuotaRenderData({
-      client: runtime.client,
-      config: runtime.config,
-      configMeta: runtime.configMeta,
-      request,
-      surfaceExplicitProviderIssues: false,
-      formatStyle: ALL_WINDOWS_FORMAT_STYLE,
-      providers: runtime.providers,
-    });
-
-    return quotaResult.data;
-  }
-
-  async function buildQuotaReport(params: {
-    title: string;
-    sinceMs?: number;
-    untilMs?: number;
-    sessionID: string;
-    topModels?: number;
-    topSessions?: number;
-    filterSessionID?: string;
-    filterSessionIDs?: string[];
-    /** When true, hides Window/Sessions columns and Top Sessions section */
-    sessionOnly?: boolean;
-    reportKind?: "standard" | "session" | "session_tree";
-    sessionTree?: {
-      rootSessionID: string;
-      nodes: SessionTreeNode[];
-    };
-    generatedAtMs: number;
-  }): Promise<string> {
-    const result = await aggregateUsage({
-      sinceMs: params.sinceMs,
-      untilMs: params.untilMs,
-      sessionID: params.filterSessionID,
-      sessionIDs: params.filterSessionIDs,
-    });
-    return formatQuotaStatsReport({
-      title: params.title,
-      result,
-      topModels: params.topModels,
-      topSessions: params.topSessions,
-      focusSessionID: params.sessionID,
-      sessionOnly: params.sessionOnly,
-      reportKind: params.reportKind,
-      sessionTree: params.sessionTree,
-      generatedAtMs: params.generatedAtMs,
-    });
-  }
-
   async function buildStatusReport(params: {
     refreshGoogleTokens?: boolean;
     skewMs?: number;
@@ -1423,71 +1155,9 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
       : "(none)";
   }
 
-  function buildPricingRefreshCommandOutput(params: {
-    result: PricingRefreshResult;
-    generatedAtMs: number;
-  }): string {
-    const meta = getPricingSnapshotMeta();
-    const activeSource = getPricingSnapshotSource();
-    const configuredSelection = config.pricingSnapshot.source;
-    const resultLabel =
-      params.result.reason ??
-      params.result.state.lastResult ??
-      (params.result.updated ? "success" : "unknown");
 
-    const lines = [
-      renderCommandHeading({
-        title: "Pricing Refresh (/pricing_refresh)",
-        generatedAtMs: params.generatedAtMs,
-      }),
-      "",
-      "refresh:",
-      `- attempted: ${params.result.attempted ? "true" : "false"}`,
-      `- result: ${resultLabel}`,
-      `- runtime_snapshot_persisted: ${params.result.updated ? "true" : "false"}`,
-    ];
 
-    if (params.result.error) {
-      lines.push(`- error: ${params.result.error}`);
-    }
 
-    lines.push("");
-    lines.push("pricing_snapshot:");
-    lines.push(`- selection: configured=${configuredSelection} active=${activeSource}`);
-    lines.push(
-      `- active_snapshot: source=${meta.source} generated_at=${formatIsoTimestamp(meta.generatedAt)} units=${meta.units}`,
-    );
-    lines.push(
-      `- runtime_paths: snapshot=${getRuntimePricingSnapshotPath()} refresh_state=${getRuntimePricingRefreshStatePath()}`,
-    );
-    if (configuredSelection === "bundled" && params.result.updated) {
-      lines.push(
-        "- selection_note: runtime snapshot refreshed locally, but active reports remain pinned to bundled pricing",
-      );
-    }
-
-    return lines.join("\n");
-  }
-
-  function buildTokenReportUnavailableOutput(params: {
-    command: `/${string}`;
-    generatedAtMs: number;
-    error: SessionNotFoundError;
-  }): string {
-    const lines = [
-      renderCommandHeading({
-        title: `Token report unavailable (${params.command})`,
-        generatedAtMs: params.generatedAtMs,
-      }),
-      "",
-      "session_lookup_error:",
-      `- session_id: ${params.error.sessionID}`,
-      `- error: ${params.error.message}`,
-      `- checked_path: ${params.error.checkedPath}`,
-    ];
-
-    return lines.join("\n");
-  }
 
   async function injectCommandOutputAndHandle(
     sessionID: string,
@@ -1499,172 +1169,7 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
     handled();
   }
 
-  async function handleQuotaSlashCommand(input: CommandExecuteInput): Promise<never> {
-    const sessionID = input.sessionID;
-    const generatedAtMs = Date.now();
-    const sessionMeta = sessionID ? await getSessionModelMeta(sessionID) : undefined;
-    const runtime = await resolvePluginRuntimeContext({
-      sessionID,
-      sessionMeta,
-      includeSessionMeta: (config) => config.onlyCurrentModel,
-    });
-    const reportData = await fetchQuotaCommandData(runtime);
 
-    if (!reportData) {
-      if (!configLoaded) {
-        return await injectCommandOutputAndHandle(
-          sessionID,
-          "Quota unavailable (config not loaded, try again)",
-        );
-      }
-      if (!runtime.config.enabled) {
-        return await injectCommandOutputAndHandle(
-          sessionID,
-          "Quota disabled in config (enabled: false)",
-        );
-      }
-      return await injectCommandOutputAndHandle(
-        sessionID,
-        await buildQuotaCommandUnavailableMessage(runtime),
-      );
-    }
-
-    return await injectCommandOutputAndHandle(
-      sessionID,
-      formatQuotaCommand({
-        ...reportData,
-        generatedAtMs,
-      }),
-    );
-  }
-
-  async function handlePricingRefreshSlashCommand(input: CommandExecuteInput): Promise<never> {
-    const sessionID = input.sessionID;
-    const generatedAtMs = Date.now();
-    if ((input.arguments ?? "").trim()) {
-      return await injectCommandOutputAndHandle(
-        sessionID,
-        "Invalid arguments for /pricing_refresh\n\nThis command does not accept arguments.\n\nUsage:\n/pricing_refresh",
-      );
-    }
-
-    const result = await maybeRefreshPricingSnapshot({
-      reason: "manual",
-      force: true,
-      snapshotSelection: config.pricingSnapshot.source,
-      allowRefreshWhenSelectionBundled: true,
-    });
-    return await injectCommandOutputAndHandle(
-      sessionID,
-      buildPricingRefreshCommandOutput({
-        result,
-        generatedAtMs,
-      }),
-    );
-  }
-
-  async function handleTokenReportSlashCommand(
-    input: CommandExecuteInput,
-    command: TokenReportCommandId,
-  ): Promise<never> {
-    const sessionID = input.sessionID;
-    const untilMs = Date.now();
-    const generatedAtMs = Date.now();
-    await kickPricingRefresh({ reason: "tokens", maxWaitMs: 750 });
-    const spec = TOKEN_REPORT_COMMANDS_BY_ID.get(command)!;
-
-    try {
-      if (spec.kind === "between") {
-        const parsed = parseQuotaBetweenArgs(input.arguments);
-        if (!parsed.ok) {
-          return await injectCommandOutputAndHandle(
-            sessionID,
-            `Invalid arguments for /${spec.id}\n\n${parsed.error}\n\nExpected: /${spec.id} YYYY-MM-DD YYYY-MM-DD\nExample: /${spec.id} 2026-01-01 2026-01-15`,
-          );
-        }
-
-        const sinceMs = startOfLocalDayMs(parsed.startYmd);
-        const rangeUntilMs = startOfNextLocalDayMs(parsed.endYmd);
-        return await injectCommandOutputAndHandle(
-          sessionID,
-          await buildQuotaReport({
-            title: spec.titleForRange(parsed.startYmd, parsed.endYmd),
-            sinceMs,
-            untilMs: rangeUntilMs,
-            sessionID,
-            generatedAtMs,
-          }),
-        );
-      }
-
-      let sinceMs: number | undefined;
-      let filterSessionID: string | undefined;
-      let filterSessionIDs: string[] | undefined;
-      let sessionOnly: boolean | undefined;
-      let topModels: number | undefined;
-      let topSessions: number | undefined;
-      let reportKind: "standard" | "session" | "session_tree" | undefined;
-      let sessionTree: { rootSessionID: string; nodes: SessionTreeNode[] } | undefined;
-
-      switch (spec.kind) {
-        case "rolling":
-          sinceMs = untilMs - spec.windowMs!;
-          break;
-        case "today": {
-          const now = new Date();
-          const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          sinceMs = startOfDay.getTime();
-          break;
-        }
-        case "session":
-          filterSessionID = sessionID;
-          sessionOnly = true;
-          reportKind = "session";
-          break;
-        case "session_tree": {
-          const nodes = await resolveSessionTree(sessionID);
-          filterSessionIDs = nodes.map((node) => node.sessionID);
-          reportKind = "session_tree";
-          sessionTree = { rootSessionID: sessionID, nodes };
-          break;
-        }
-        case "all":
-          topModels = spec.topModels;
-          topSessions = spec.topSessions;
-          break;
-      }
-
-      return await injectCommandOutputAndHandle(
-        sessionID,
-        await buildQuotaReport({
-          title: spec.title,
-          sinceMs,
-          untilMs: spec.kind === "rolling" || spec.kind === "today" ? untilMs : undefined,
-          sessionID,
-          filterSessionID,
-          filterSessionIDs,
-          sessionOnly,
-          reportKind,
-          sessionTree,
-          topModels,
-          topSessions,
-          generatedAtMs,
-        }),
-      );
-    } catch (err) {
-      if (err instanceof SessionNotFoundError) {
-        return await injectCommandOutputAndHandle(
-          sessionID,
-          buildTokenReportUnavailableOutput({
-            command: spec.template,
-            generatedAtMs,
-            error: err,
-          }),
-        );
-      }
-      throw err;
-    }
-  }
 
   async function handleQuotaStatusSlashCommand(input: CommandExecuteInput): Promise<never> {
     const sessionID = input.sessionID;
@@ -1694,28 +1199,11 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
     config: async (input: unknown) => {
       const cfg = input as PluginConfigInput;
       cfg.command ??= {};
-      // Non-token commands (quota toast and diagnostics)
-      cfg.command["quota"] = {
-        template: "/quota",
-        description: "Show quota toast output in chat.",
-      };
       cfg.command["quota_status"] = {
         template: "/quota_status",
         description:
           "Diagnostics for toast + TUI + pricing + local storage (includes unknown pricing report).",
       };
-      cfg.command["pricing_refresh"] = {
-        template: "/pricing_refresh",
-        description: "Refresh the local runtime pricing snapshot from models.dev.",
-      };
-
-      // Register token report commands (/tokens_*)
-      for (const spec of TOKEN_REPORT_COMMANDS) {
-        cfg.command[spec.id] = {
-          template: spec.template,
-          description: spec.description,
-        };
-      }
 
       // Fix zero-width space mismatch between default_agent and agent keys.
       // Some plugins remap agent keys with invisible Unicode prefixes for sort
@@ -1734,30 +1222,13 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
     "command.execute.before": async (input: CommandExecuteInput) => {
       try {
         const cmd = input.command;
-        const isHandledSlashCommand =
-          cmd === "quota" ||
-          cmd === "quota_status" ||
-          cmd === "pricing_refresh" ||
-          isTokenReportCommand(cmd);
+        const isHandledSlashCommand = cmd === "quota_status";
 
         if (isHandledSlashCommand && !configLoaded) {
           await refreshConfig();
         }
         if (isHandledSlashCommand && !config.enabled) {
           handled();
-        }
-
-        if (cmd === "quota") {
-          return await handleQuotaSlashCommand(input);
-        }
-
-        if (cmd === "pricing_refresh") {
-          return await handlePricingRefreshSlashCommand(input);
-        }
-
-        // Handle token report commands (/tokens_*)
-        if (isTokenReportCommand(cmd)) {
-          return await handleTokenReportSlashCommand(input, cmd);
         }
 
         // Handle /quota_status (diagnostics - not a token report)
