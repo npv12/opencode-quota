@@ -25,7 +25,7 @@ import {
   resolveTuiSurfaceRegistration,
 } from "./lib/tui-runtime.js";
 
-const id = "@slkiser/opencode-quota";
+const id = "@npv12/opencode-quota";
 // Place Quota near the top so variable-height built-in sections
 // (MCP/LSP/Todo/Files) do not push it below the visible fold.
 const SIDEBAR_ORDER = 150;

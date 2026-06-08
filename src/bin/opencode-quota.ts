@@ -8,9 +8,9 @@ import { runInitInstaller } from "../lib/init-installer.js";
 
 const USAGE = [
   "Usage:",
-  "  npx @slkiser/opencode-quota init [--sync-legacy-config]",
-  "  npx @slkiser/opencode-quota show [--provider <provider-id>]",
-  "  npx @slkiser/opencode-quota --help",
+  "  npx @npv12/opencode-quota init [--sync-legacy-config]",
+  "  npx @npv12/opencode-quota show [--provider <provider-id>]",
+  "  npx @npv12/opencode-quota --help",
   "",
   "Commands:",
   "  init    Run the interactive quota installer",

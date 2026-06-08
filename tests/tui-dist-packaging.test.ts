@@ -43,7 +43,7 @@ describe("tui dist packaging", () => {
     const mod = await import("../dist/tui.tsx");
 
     expect(mod.default).toMatchObject({
-      id: "@slkiser/opencode-quota",
+      id: "@npv12/opencode-quota",
     });
     expect(typeof mod.default.tui).toBe("function");
   });

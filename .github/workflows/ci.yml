@@ -82,9 +82,9 @@ jobs:
           import assert from "node:assert/strict";
           import { readFile } from "node:fs/promises";
 
-          await import("@slkiser/opencode-quota");
-          await import("@slkiser/opencode-quota/server");
+          await import("@npv12/opencode-quota");
+          await import("@npv12/opencode-quota/server");
 
-          const pkg = JSON.parse(await readFile("node_modules/@slkiser/opencode-quota/package.json", "utf8"));
+          const pkg = JSON.parse(await readFile("node_modules/@npv12/opencode-quota/package.json", "utf8"));
           assert.equal(pkg.engines?.node, ">=18.0.0");
           EOF

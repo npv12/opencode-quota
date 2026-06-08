@@ -32,7 +32,7 @@ type ParsedShowArgs =
 
 const SHOW_USAGE = [
   "Usage:",
-  "  npx @slkiser/opencode-quota show [--provider <provider-id>]",
+  "  npx @npv12/opencode-quota show [--provider <provider-id>]",
   "",
   "Options:",
   "  --provider <provider-id>  Show quota for one provider",

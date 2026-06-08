@@ -9,8 +9,8 @@
 </p>
 <p align="center">Quota, usage, and token visibility for OpenCode.</p>
 <p align="center">
-  <a href="https://www.npmjs.com/package/@slkiser/opencode-quota"><img alt="npm" src="https://img.shields.io/npm/v/%40slkiser%2Fopencode-quota?style=flat-square" /></a>
-  <a href="https://www.npmjs.com/package/@slkiser/opencode-quota"><img alt="npm downloads" src="https://img.shields.io/npm/dm/%40slkiser%2Fopencode-quota?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/@npv12/opencode-quota"><img alt="npm" src="https://img.shields.io/npm/v/%40npv12%2Fopencode-quota?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/@npv12/opencode-quota"><img alt="npm downloads" src="https://img.shields.io/npm/dm/%40npv12%2Fopencode-quota?style=flat-square" /></a>
   <a href="https://github.com/slkiser/opencode-quota/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/slkiser/opencode-quota/ci.yml?style=flat-square&branch=main&label=CI" /></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" /></a>
 </p>
@@ -22,7 +22,7 @@
 ## Install
 
 ```bash
-npx @slkiser/opencode-quota init
+npx @npv12/opencode-quota init
 ```
 
 > [!IMPORTANT]
@@ -54,7 +54,7 @@ The installer adds missing plugin/config entries and keeps your unrelated settin
 Run without installing the binary first:
 
 ```bash
-npx @slkiser/opencode-quota show
+npx @npv12/opencode-quota show
 ```
 
 Or, if `opencode-quota` is already on your `PATH`:
@@ -114,7 +114,7 @@ This enables providers, slash commands, terminal checks, and popup toasts. Add t
 ```jsonc
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@slkiser/opencode-quota"],
+  "plugin": ["@npv12/opencode-quota"],
 }
 ```
 
@@ -125,7 +125,7 @@ If you want the Sidebar panel or Compact status line, also add this to `tui.json
 ```jsonc
 {
   "$schema": "https://opencode.ai/tui.json",
-  "plugin": ["@slkiser/opencode-quota"],
+  "plugin": ["@npv12/opencode-quota"],
 }
 ```
 
@@ -322,7 +322,7 @@ Useful when you want the compact line on the home screen but not in the chat/ses
 By default, the installer writes quota settings only to `opencode-quota/quota-toast.json`. If you also want it to write the legacy OpenCode block, run:
 
 ```bash
-npx @slkiser/opencode-quota init --sync-legacy-config
+npx @npv12/opencode-quota init --sync-legacy-config
 ```
 
 This is only for users who intentionally want `experimental.quotaToast` mirrored into `opencode.json` / `opencode.jsonc`.
@@ -413,7 +413,7 @@ If Claude lives at a custom path, set `anthropicBinaryPath` in `opencode-quota/q
 <details>
 <summary><strong>Cursor</strong></summary>
 
-Use companion plugin [`@playwo/opencode-cursor-oauth`](https://github.com/PoolPirate/opencode-cursor#readme). Add it before `@slkiser/opencode-quota` in `opencode.json`, then authenticate once:
+Use companion plugin [`@playwo/opencode-cursor-oauth`](https://github.com/PoolPirate/opencode-cursor#readme). Add it before `@npv12/opencode-quota` in `opencode.json`, then authenticate once:
 
 ```bash
 opencode auth login --provider cursor
@@ -425,7 +425,7 @@ opencode auth login --provider cursor
 <details>
 <summary><strong>Qwen Code</strong></summary>
 
-Use companion plugin [`opencode-qwencode-auth`](https://github.com/gustavodiasdev/opencode-qwencode-auth#readme). Add it before `@slkiser/opencode-quota` in `opencode.json`.
+Use companion plugin [`opencode-qwencode-auth`](https://github.com/gustavodiasdev/opencode-qwencode-auth#readme). Add it before `@npv12/opencode-quota` in `opencode.json`.
 
 </details>
 
@@ -433,7 +433,7 @@ Use companion plugin [`opencode-qwencode-auth`](https://github.com/gustavodiasde
 <details>
 <summary><strong>Google Antigravity</strong></summary>
 
-Use companion plugin [`opencode-antigravity-auth`](https://github.com/NoeFabris/opencode-antigravity-auth#readme). Add it before `@slkiser/opencode-quota` in `opencode.json`.
+Use companion plugin [`opencode-antigravity-auth`](https://github.com/NoeFabris/opencode-antigravity-auth#readme). Add it before `@npv12/opencode-quota` in `opencode.json`.
 
 </details>
 
@@ -441,7 +441,7 @@ Use companion plugin [`opencode-antigravity-auth`](https://github.com/NoeFabris/
 <details>
 <summary><strong>Gemini CLI</strong></summary>
 
-Use companion plugin [`opencode-gemini-auth`](https://github.com/jenslys/opencode-gemini-auth#readme). Add it before `@slkiser/opencode-quota` in `opencode.json`, then authenticate Google once:
+Use companion plugin [`opencode-gemini-auth`](https://github.com/jenslys/opencode-gemini-auth#readme). Add it before `@npv12/opencode-quota` in `opencode.json`, then authenticate Google once:
 
 ```bash
 opencode auth login --provider google
@@ -500,7 +500,7 @@ Start here when quota or token data looks wrong.
 
 1. Run `/quota_status`.
 2. Confirm the expected provider appears in the detected provider list.
-3. Confirm companion auth plugins are before `@slkiser/opencode-quota` in `opencode.json`.
+3. Confirm companion auth plugins are before `@npv12/opencode-quota` in `opencode.json`.
 4. If token reports are empty, start OpenCode once so it creates `opencode.db`, then run a session with model usage.
 5. Use the provider-specific table below for the failing provider.
 
@@ -509,8 +509,8 @@ Start here when quota or token data looks wrong.
 | Symptom | Try this |
 | --- | --- |
 | `/quota` shows no providers | Run `/quota_status`, then check provider detection and auth. |
-| Sidebar panel does not appear | Confirm `tui.json` includes `@slkiser/opencode-quota`, restart OpenCode, and check `tuiSidebarPanel.enabled`. |
-| Compact status line does not appear anywhere | Confirm `tui.json` includes `@slkiser/opencode-quota`, restart OpenCode, check `tuiCompactStatus.enabled`, and check whether `tuiCompactStatus.suppressWhenNativeProviderQuota` is hiding it because OpenCode exposes native provider-quota support. |
+| Sidebar panel does not appear | Confirm `tui.json` includes `@npv12/opencode-quota`, restart OpenCode, and check `tuiSidebarPanel.enabled`. |
+| Compact status line does not appear anywhere | Confirm `tui.json` includes `@npv12/opencode-quota`, restart OpenCode, check `tuiCompactStatus.enabled`, and check whether `tuiCompactStatus.suppressWhenNativeProviderQuota` is hiding it because OpenCode exposes native provider-quota support. |
 | Compact status appears on home but not in chat/session | Check `tuiCompactStatus.sessionPrompt`; set it to `true` to show the chat/session prompt line. |
 | Popup toasts do not appear | Check `enableToast`, `showOnIdle`, `showOnQuestion`, and `showOnCompact`. |
 | Token reports are empty | Start OpenCode once so `opencode.db` exists, then run a session with model usage. |
@@ -567,7 +567,7 @@ Run `/quota_status` and check the Cursor section.
 
 | Symptom | Fix |
 | --- | --- |
-| Cursor not detected | Put `@playwo/opencode-cursor-oauth` before `@slkiser/opencode-quota` in `opencode.json`. |
+| Cursor not detected | Put `@playwo/opencode-cursor-oauth` before `@npv12/opencode-quota` in `opencode.json`. |
 | Cursor auth missing | Run `opencode auth login --provider cursor`. |
 | Quota appears but no remaining percentage | Set `cursorPlan` or `cursorIncludedApiUsd` in `opencode-quota/quota-toast.json`. |
 | Billing cycle looks wrong | Set `cursorBillingCycleStartDay` in `opencode-quota/quota-toast.json` to your local billing anchor day. |
@@ -582,7 +582,7 @@ Run `/quota_status` and check `qwen_oauth_source`, `qwen_local_plan`, and the `q
 
 | Symptom | Fix |
 | --- | --- |
-| Qwen not detected | Put `opencode-qwencode-auth` before `@slkiser/opencode-quota` in `opencode.json`. |
+| Qwen not detected | Put `opencode-qwencode-auth` before `@npv12/opencode-quota` in `opencode.json`. |
 | Auth missing | Complete the Qwen companion plugin auth flow. |
 | Counters do not move | Confirm the current model is `qwen-code/*`; Qwen quota is local request estimation for matching model usage. |
 | Usage looks stale | Check the local state file path shown by `/quota_status`. |
@@ -632,7 +632,7 @@ Run `/quota_status` and check the `google_antigravity` section.
 
 | Symptom | Fix |
 | --- | --- |
-| Companion missing | Put `opencode-antigravity-auth` before `@slkiser/opencode-quota` in `opencode.json`. |
+| Companion missing | Put `opencode-antigravity-auth` before `@npv12/opencode-quota` in `opencode.json`. |
 | Accounts not found | Check the selected `antigravity-accounts.json` path shown by `/quota_status`. |
 | Refresh tokens invalid | Re-authenticate with the companion plugin. |
 | Provider returns no rows | Check `live_probe`, `live_entry_*`, and `live_error_*` in `/quota_status`. |
@@ -646,7 +646,7 @@ Run `/quota_status` and check the Gemini CLI live probe rows.
 
 | Symptom | Fix |
 | --- | --- |
-| Companion missing | Put `opencode-gemini-auth` before `@slkiser/opencode-quota` in `opencode.json`. |
+| Companion missing | Put `opencode-gemini-auth` before `@npv12/opencode-quota` in `opencode.json`. |
 | Provider not enabled in manual mode | Include `google-gemini-cli` in `enabledProviders` in `opencode-quota/quota-toast.json`. |
 | Auth missing | Run `opencode auth login --provider google`. |
 | Project missing | Set `provider.google.options.projectId`, `OPENCODE_GEMINI_PROJECT_ID`, `GOOGLE_CLOUD_PROJECT`, or `GOOGLE_CLOUD_PROJECT_ID`. |
