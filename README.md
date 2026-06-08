@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://github.com/slkiser/opencode-quota">
+  <a href="https://github.com/npv12/opencode-quota">
     <picture>
       <source srcset="opencode-quota-logo-dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="opencode-quota-logo-light.svg" media="(prefers-color-scheme: light)">
@@ -11,11 +11,11 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/@npv12/opencode-quota"><img alt="npm" src="https://img.shields.io/npm/v/%40npv12%2Fopencode-quota?style=flat-square" /></a>
   <a href="https://www.npmjs.com/package/@npv12/opencode-quota"><img alt="npm downloads" src="https://img.shields.io/npm/dm/%40npv12%2Fopencode-quota?style=flat-square" /></a>
-  <a href="https://github.com/slkiser/opencode-quota/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/slkiser/opencode-quota/ci.yml?style=flat-square&branch=main&label=CI" /></a>
+  <a href="https://github.com/npv12/opencode-quota/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/npv12/opencode-quota/ci.yml?style=flat-square&branch=main&label=CI" /></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" /></a>
 </p>
 
-[![OpenCode Quota sidebar](https://shawnkiser.com/opencode-quota/opencode-quota-sidebar.webp)](https://github.com/slkiser/opencode-quota)
+[![OpenCode Quota sidebar](https://shawnkiser.com/opencode-quota/opencode-quota-sidebar.webp)](https://github.com/npv12/opencode-quota)
 
 ---
 
@@ -39,15 +39,13 @@ The installer adds missing plugin/config entries and keeps your unrelated settin
 | Provider mode | Auto-detect providers, or choose a provider list yourself. |
 | Quota reset periods | Show one reset period per provider, or all known reset periods. |
 | Quota percentage meaning | Show quota remaining, or quota already used. |
-| Session token details | Hide token counts for shorter output, or show them when available. |
 
 ### After install
 
 1. Restart OpenCode.
-2. Run `/quota`.
-3. If something looks wrong, run `/quota_status`.
-4. If you enabled the Sidebar panel, open the session sidebar and look for `Quota`.
-5. If you enabled Compact status line, look for the home-bottom quota line and the chat/session prompt quota line.
+2. Run `/quota_status` to verify things are working.
+3. If you enabled the Sidebar panel, open the session sidebar and look for `Quota`.
+4. If you enabled Compact status line, look for the home-bottom quota line and the chat/session prompt quota line.
 
 ### Terminal-only check
 
@@ -66,10 +64,9 @@ opencode-quota show --provider copilot
 ## What you get
 
 - A `Quota` Sidebar panel in the TUI
-- Popup quota toasts in OpenCode
 - A Compact status line in the TUI
-- `/quota` and `/quota_status` slash commands
-- Token reports such as `/tokens_today` and `/tokens_weekly`
+- `/quota_status` slash command
+- Popup quota toasts in OpenCode (opt-in)
 - Provider diagnostics for auth, quota sources, and pricing
 
 <table>
@@ -89,13 +86,9 @@ opencode-quota show --provider copilot
     <td width="50%">
       <img src="https://shawnkiser.com/opencode-quota/opencode-quota-statusbar.webp" alt="OpenCode Quota TUI status line" />
     </td>
-    <td width="50%">
-      <img src="https://shawnkiser.com/opencode-quota/opencode-quota-tokens-command.webp" alt="OpenCode Quota token report" />
-    </td>
   </tr>
   <tr>
     <td width="50%" align="center">Compact status line</td>
-    <td width="50%" align="center"><code>/tokens_weekly</code> report</td>
   </tr>
 </table>
 
@@ -109,7 +102,7 @@ Use the installer when possible. For manual setup, use the same OpenCode config 
 
 ### 1. Add the server plugin (required)
 
-This enables providers, slash commands, terminal checks, and popup toasts. Add this to `opencode.json` or `opencode.jsonc`:
+This enables providers, terminal checks, and popup toasts. Add this to `opencode.json` or `opencode.jsonc`:
 
 ```jsonc
 {
@@ -142,12 +135,12 @@ Start with this, then adjust the UI choices in the next section:
 ```jsonc
 {
   "enabledProviders": "auto",
-  "enableToast": true,
+  "enableToast": false,
   "tuiSidebarPanel": {
-    "enabled": true,
+    "enabled": false,
   },
   "tuiCompactStatus": {
-    "enabled": false,
+    "enabled": true,
   },
 }
 ```
@@ -164,7 +157,6 @@ All UI surfaces use the same quota data. Put these settings in `opencode-quota/q
 | Sidebar panel | `tuiSidebarPanel.enabled: true` | Full `Quota` panel in OpenCode's session sidebar. Requires the TUI plugin entry above. |
 | Toast | `enableToast: true` | Popup toast after idle/question/compact events. Requires the server plugin entry above. |
 | Compact status line | `tuiCompactStatus.enabled: true` | Short text-only quota line at the home bottom and chat/session prompt locations, for example `Copilot 94% | OpenAI Pro 5h 100%, 7d 100%`. Requires the TUI plugin entry above. |
-| Terminal/slash only | `enableToast: false`, `tuiSidebarPanel.enabled: false`, `tuiCompactStatus.enabled: false` | Keeps `/quota` and `/quota_status` and terminal checks. |
 
 Selecting Compact status line in the installer enables both compact surfaces by default. To keep compact status home-only, set `tuiCompactStatus.sessionPrompt: false`.
 
@@ -177,17 +169,7 @@ For more examples, see [Common configuration](#common-configuration). For every 
 | Command | What it shows |
 | --- | --- |
 | `opencode-quota show` | Terminal quota-only quick glance |
-| `/quota` | Detailed quota report |
 | `/quota_status` | Config, provider, auth, and pricing diagnostics |
-| `/pricing_refresh` | Refresh local runtime pricing from `models.dev` |
-| `/tokens_today` | Tokens used today |
-| `/tokens_daily` | Tokens used in the last 24 hours |
-| `/tokens_weekly` | Tokens used in the last 7 days |
-| `/tokens_monthly` | Tokens used in the last 30 days, including pricing |
-| `/tokens_all` | Tokens used across all local history |
-| `/tokens_session` | Tokens used in the current session |
-| `/tokens_session_all` | Current session plus descendant sessions |
-| `/tokens_between` | Tokens used between `YYYY-MM-DD YYYY-MM-DD` |
 
 ## Providers
 
@@ -263,7 +245,7 @@ If you are unsure, run `/quota_status`; it prints the config path it loaded.
 <details>
 <summary><strong>Turn off popup toasts</strong></summary>
 
-Keeps `/quota`, `/quota_status`, terminal checks, and any enabled UI surfaces.
+Keeps `/quota_status`, terminal checks, and any enabled UI surfaces.
 
 ```jsonc
 {
@@ -276,7 +258,7 @@ Keeps `/quota`, `/quota_status`, terminal checks, and any enabled UI surfaces.
 <details>
 <summary><strong>Turn off the Sidebar panel</strong></summary>
 
-Useful when you want Compact status line only, toasts only, or slash commands only.
+Useful when you want Compact status line only, or toasts only.
 
 ```jsonc
 {
@@ -342,21 +324,21 @@ Existing `experimental.quotaToast` settings still work when no sidecar file exis
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `enabled` | `true` | Master switch for quota collection and handled slash commands. When `false`, `/quota`, `/quota_status`, `/pricing_refresh`, and `/tokens_*` are handled as no-ops. |
+| `enabled` | `true` | Master switch for quota collection. When `false`, `/quota_status` is handled as a no-op. |
 | `enabledProviders` | `"auto"` | Auto-detect providers, or set an explicit provider list. |
 | `minIntervalMs` | `300000` | Minimum fetch interval between provider updates. |
 | `requestTimeoutMs` | `5000` | Remote provider request timeout in milliseconds. |
 | `formatStyle` | `singleWindow` | Shared quota reset-period display for popup toasts and the Sidebar panel: `singleWindow` shows one reset period per provider; `allWindows` shows all reset periods per provider. Legacy `classic`/`grouped` aliases are still accepted. |
-| `percentDisplayMode` | `remaining` | Shared quota percentage meaning for popup toasts and the Sidebar panel: `remaining` shows quota left; `used` shows quota consumed. `/quota` keeps its existing remaining-percent output. |
+| `percentDisplayMode` | `remaining` | Shared quota percentage meaning for popup toasts and the Sidebar panel: `remaining` shows quota left; `used` shows quota consumed. The terminal `show` command keeps its existing remaining-percent output. |
 | `onlyCurrentModel` | `false` | Filter quota rows to the current model/provider when that session selection can be resolved. |
-| `pricingSnapshot.source` | `"auto"` | Token pricing snapshot selection for `/tokens_*`: `auto`, `bundled`, or `runtime`. |
+| `pricingSnapshot.source` | `"auto"` | Token pricing snapshot selection: `auto`, `bundled`, or `runtime`. |
 | `pricingSnapshot.autoRefresh` | `7` | Refresh stale local pricing data after this many days. |
 
 ### Toast settings
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `enableToast` | `true` | Show popup toasts. Disabling this does not disable `/quota` or UI surfaces. |
+| `enableToast` | `false` | Show popup toasts. Disabling this does not disable `/quota_status` or UI surfaces. |
 | `toastDurationMs` | `9000` | Toast duration in milliseconds. |
 | `showOnIdle` | `true` | Show a toast on the idle trigger. |
 | `showOnQuestion` | `true` | Show a toast after a question/assistant response. |
@@ -371,8 +353,8 @@ Existing `experimental.quotaToast` settings still work when no sidecar file exis
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `tuiSidebarPanel.enabled` | `true` | Show the Sidebar `Quota` panel when the TUI plugin is installed. Click the panel header to toggle between compact summary and detailed all-windows views; OpenCode remembers the last state. |
-| `tuiCompactStatus.enabled` | `false` | Opt in to Compact status line UI surfaces. |
+| `tuiSidebarPanel.enabled` | `false` | Show the Sidebar `Quota` panel when the TUI plugin is installed. Click the panel header to toggle between compact summary and detailed all-windows views; OpenCode remembers the last state. |
+| `tuiCompactStatus.enabled` | `true` | Opt in to Compact status line UI surfaces. |
 | `tuiCompactStatus.homeBottom` | `true` | Show the Compact status line at the home bottom location. |
 | `tuiCompactStatus.sessionPrompt` | `true` | Show the Compact status line by wrapping the TUI session prompt. Disable this if you only want the home-bottom line. |
 | `tuiCompactStatus.suppressWhenNativeProviderQuota` | `true` | Hide the Compact status line when OpenCode exposes native provider-quota support. |
@@ -501,20 +483,16 @@ Start here when quota or token data looks wrong.
 1. Run `/quota_status`.
 2. Confirm the expected provider appears in the detected provider list.
 3. Confirm companion auth plugins are before `@npv12/opencode-quota` in `opencode.json`.
-4. If token reports are empty, start OpenCode once so it creates `opencode.db`, then run a session with model usage.
-5. Use the provider-specific table below for the failing provider.
+4. Use the provider-specific table below for the failing provider.
 
 ### Common symptoms
 
 | Symptom | Try this |
 | --- | --- |
-| `/quota` shows no providers | Run `/quota_status`, then check provider detection and auth. |
 | Sidebar panel does not appear | Confirm `tui.json` includes `@npv12/opencode-quota`, restart OpenCode, and check `tuiSidebarPanel.enabled`. |
 | Compact status line does not appear anywhere | Confirm `tui.json` includes `@npv12/opencode-quota`, restart OpenCode, check `tuiCompactStatus.enabled`, and check whether `tuiCompactStatus.suppressWhenNativeProviderQuota` is hiding it because OpenCode exposes native provider-quota support. |
 | Compact status appears on home but not in chat/session | Check `tuiCompactStatus.sessionPrompt`; set it to `true` to show the chat/session prompt line. |
 | Popup toasts do not appear | Check `enableToast`, `showOnIdle`, `showOnQuestion`, and `showOnCompact`. |
-| Token reports are empty | Start OpenCode once so `opencode.db` exists, then run a session with model usage. |
-| Pricing looks stale | Run `/pricing_refresh`. |
 
 ### Provider troubleshooting
 
@@ -571,7 +549,7 @@ Run `/quota_status` and check the Cursor section.
 | Cursor auth missing | Run `opencode auth login --provider cursor`. |
 | Quota appears but no remaining percentage | Set `cursorPlan` or `cursorIncludedApiUsd` in `opencode-quota/quota-toast.json`. |
 | Billing cycle looks wrong | Set `cursorBillingCycleStartDay` in `opencode-quota/quota-toast.json` to your local billing anchor day. |
-| Unknown Cursor pricing | Run `/pricing_refresh`; if still unknown, check `/quota_status` for unknown model ids. |
+| Unknown Cursor pricing | Check `/quota_status` for unknown model ids. |
 
 </details>
 
@@ -668,26 +646,14 @@ Run `/quota_status` and check the `opencode_go` section.
 
 </details>
 
-<details>
-<summary><strong>Token reports</strong></summary>
 
-Run `/quota_status` and check pricing snapshot health plus OpenCode database paths.
-
-| Symptom | Fix |
-| --- | --- |
-| `/tokens_*` is empty | Start OpenCode once so it creates `opencode.db`, then run a session with model usage. |
-| Pricing looks stale | Run `/pricing_refresh`. |
-| Runtime pricing does not change output | Check `pricingSnapshot.source` in `opencode-quota/quota-toast.json`; `bundled` keeps packaged pricing active. |
-| Cursor model has unknown pricing | Run `/pricing_refresh`; Cursor `auto` and `composer*` use bundled deterministic pricing. |
-
-</details>
 
 ## Contributors
 
 Thanks to everyone who has contributed to OpenCode Quota.
 
-<a href="https://github.com/slkiser/opencode-quota/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=slkiser/opencode-quota" />
+<a href="https://github.com/npv12/opencode-quota/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=npv12/opencode-quota" />
 </a>
 
 ## License
@@ -700,4 +666,4 @@ OpenCode Quota is not built by the OpenCode team and is not affiliated with Open
 
 ## Star history
 
-[![Star History Chart](https://api.star-history.com/chart?repos=slkiser/opencode-quota&type=date&legend=bottom-right)](https://www.star-history.com/?repos=slkiser%2Fopencode-quota&type=date&legend=bottom-right)
+[![Star History Chart](https://api.star-history.com/chart?repos=npv12/opencode-quota&type=date&legend=bottom-right)](https://www.star-history.com/?repos=npv12%2Fopencode-quota&type=date&legend=bottom-right)
