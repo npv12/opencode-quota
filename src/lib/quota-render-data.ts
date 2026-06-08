@@ -7,13 +7,10 @@ import type {
   QuotaProviderResult,
   QuotaToastEntry,
   QuotaToastError,
-  SessionTokensData,
 } from "./entries.js";
-import type { SessionTokenError } from "./quota-status.js";
 import type { QuotaFormatStyle } from "./quota-format-style.js";
 
 import { isPercentEntry } from "./entries.js";
-import { fetchSessionTokensForDisplay } from "./session-tokens.js";
 import { getQuotaProviderDisplayLabel, normalizeQuotaProviderId } from "./provider-metadata.js";
 import { isCursorProviderId } from "./cursor-pricing.js";
 import { fetchQuotaProviderResult } from "./quota-state.js";
@@ -38,7 +35,6 @@ export type QuotaRequestContext = {
 export type QuotaRenderData = {
   entries: QuotaToastEntry[];
   errors: QuotaToastError[];
-  sessionTokens?: SessionTokensData;
 };
 
 export type QuotaRenderSelection = {
@@ -84,7 +80,6 @@ export type CollectQuotaRenderDataResult = {
   hasExplicitProviderIssues: boolean;
   data: QuotaRenderData | null;
   allWindowsData?: QuotaRenderData | null;
-  sessionTokenError?: SessionTokenError;
 };
 
 export type QuotaStatusLiveProbe = {
@@ -625,21 +620,10 @@ export async function collectQuotaRenderData(params: {
     }
   }
 
-  let sessionTokens: SessionTokensData | undefined;
-  let sessionTokenError: SessionTokenError | undefined;
-  if (params.config.showSessionTokens && params.request?.sessionID) {
-    const sessionTokenResult = await fetchSessionTokensForDisplay({
-      enabled: params.config.showSessionTokens,
-      sessionID: params.request.sessionID,
-    });
-    sessionTokens = sessionTokenResult.sessionTokens;
-    sessionTokenError = sessionTokenResult.error;
-  }
-
   const data =
-    entries.length === 0 && errors.length === 0 && !sessionTokens
+    entries.length === 0 && errors.length === 0
       ? null
-      : { entries, errors, sessionTokens };
+      : { entries, errors };
 
   let allWindowsData: QuotaRenderData | null | undefined;
   if (params.includeAllWindowsData) {
@@ -648,9 +632,9 @@ export async function collectQuotaRenderData(params: {
       : results.flatMap((result) =>
           projectProviderResultToStyle(result, "allWindows"),
         ) as QuotaToastEntry[];
-    allWindowsData = (allWindowsEntries.length === 0 && errors.length === 0 && !sessionTokens)
+    allWindowsData = (allWindowsEntries.length === 0 && errors.length === 0)
       ? null
-      : { entries: allWindowsEntries, errors: [...errors], sessionTokens };
+      : { entries: allWindowsEntries, errors: [...errors] };
   }
 
   return {
@@ -661,6 +645,5 @@ export async function collectQuotaRenderData(params: {
     hasExplicitProviderIssues,
     data,
     allWindowsData,
-    sessionTokenError,
   };
 }

@@ -94,7 +94,6 @@ function cloneCliConfig(config: QuotaToastConfig): QuotaToastConfig {
     opencodeGoWindows: [...config.opencodeGoWindows],
     pricingSnapshot: { ...config.pricingSnapshot },
     layout: { ...config.layout },
-    showSessionTokens: false,
   };
 }
 

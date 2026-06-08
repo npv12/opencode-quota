@@ -12,7 +12,6 @@ import {
   createPricingModuleMock,
   createProvidersRegistryModuleMock,
   createQwenAuthModuleMock,
-  createSessionTokensModuleMock,
   getPromptText,
   getToastMessage,
   seedDefaultPluginBootstrapMocks,
@@ -32,7 +31,6 @@ const mocks = vi.hoisted(() => ({
   setPricingSnapshotSelection: vi.fn(),
   resolveQwenLocalPlanCached: vi.fn(),
   resolveAlibabaCodingPlanAuthCached: vi.fn(),
-  fetchSessionTokensForDisplay: vi.fn(),
 }));
 
 vi.mock("@opencode-ai/plugin", () => createPluginToolMockModule());
@@ -44,10 +42,6 @@ vi.mock("../src/providers/registry.js", () =>
 );
 
 vi.mock("../src/lib/modelsdev-pricing.js", () => createPricingModuleMock(mocks));
-
-vi.mock("../src/lib/session-tokens.js", () =>
-  createSessionTokensModuleMock(mocks.fetchSessionTokensForDisplay),
-);
 
 vi.mock("../src/lib/qwen-auth.js", () =>
   createQwenAuthModuleMock(mocks.resolveQwenLocalPlanCached),
@@ -71,7 +65,7 @@ describe("/quota command behavior", () => {
       configOverrides: {
         enabled: true,
         showOnQuestion: false,
-        showSessionTokens: false,
+
         minIntervalMs: 60_000,
       },
       resetPluginState: true,
@@ -95,7 +89,6 @@ describe("/quota command behavior", () => {
       enabled: true,
       pricingSnapshot: { source: "bundled", autoRefresh: 7 },
       showOnQuestion: false,
-      showSessionTokens: false,
       minIntervalMs: 60_000,
     });
 
@@ -134,7 +127,6 @@ describe("/quota command behavior", () => {
       showOnIdle: false,
       showOnCompact: false,
       showOnQuestion: false,
-      showSessionTokens: false,
       minIntervalMs: 60_000,
     });
 
@@ -168,7 +160,6 @@ describe("/quota command behavior", () => {
       showOnIdle: true,
       showOnCompact: false,
       showOnQuestion: false,
-      showSessionTokens: false,
       minIntervalMs: 60_000,
     });
 
@@ -205,7 +196,6 @@ describe("/quota command behavior", () => {
       showOnIdle: true,
       showOnCompact: false,
       showOnQuestion: false,
-      showSessionTokens: false,
       minIntervalMs: 60_000,
     });
 
@@ -246,7 +236,6 @@ describe("/quota command behavior", () => {
       showOnIdle: true,
       showOnCompact: false,
       showOnQuestion: false,
-      showSessionTokens: false,
       percentDisplayMode: "used",
       minIntervalMs: 60_000,
     });
@@ -291,7 +280,6 @@ describe("/quota command behavior", () => {
       enabled: true,
       enabledProviders: ["openai"],
       showOnQuestion: false,
-      showSessionTokens: false,
       percentDisplayMode: "used",
       minIntervalMs: 60_000,
     });
@@ -417,7 +405,7 @@ describe("/quota command behavior", () => {
         showOnIdle: true,
         showOnCompact: false,
         showOnQuestion: false,
-        showSessionTokens: false,
+
         minIntervalMs: 60_000,
       });
 
@@ -471,7 +459,7 @@ describe("/quota command behavior", () => {
         showOnCompact: false,
         showOnQuestion: false,
         showOnBothFail: false,
-        showSessionTokens: false,
+
         minIntervalMs: 60_000,
       });
 
@@ -523,7 +511,7 @@ describe("/quota command behavior", () => {
         showOnIdle: true,
         showOnCompact: false,
         showOnQuestion: false,
-        showSessionTokens: false,
+
         minIntervalMs: 60_000,
       });
 
@@ -576,7 +564,6 @@ describe("/quota command behavior", () => {
       showOnIdle: true,
       showOnCompact: true,
       showOnQuestion: false,
-      showSessionTokens: false,
       minIntervalMs: 60_000,
     });
 
@@ -622,7 +609,6 @@ describe("/quota command behavior", () => {
       enabled: true,
       enabledProviders: ["cursor"],
       showOnQuestion: false,
-      showSessionTokens: false,
       minIntervalMs: 60_000,
     });
 
@@ -660,7 +646,6 @@ describe("/quota command behavior", () => {
       enabled: true,
       enabledProviders: ["anthropic"],
       showOnQuestion: false,
-      showSessionTokens: false,
       minIntervalMs: 60_000,
     });
 
@@ -703,7 +688,6 @@ describe("/quota command behavior", () => {
       enabled: true,
       enabledProviders: "auto",
       showOnQuestion: false,
-      showSessionTokens: false,
       minIntervalMs: 60_000,
     });
 
@@ -746,7 +730,6 @@ describe("/quota command behavior", () => {
       enabled: true,
       onlyCurrentModel: true,
       showOnQuestion: false,
-      showSessionTokens: false,
       minIntervalMs: 60_000,
     });
 
@@ -784,7 +767,6 @@ describe("/quota command behavior", () => {
       enabled: true,
       onlyCurrentModel: true,
       showOnQuestion: false,
-      showSessionTokens: false,
       minIntervalMs: 60_000,
     });
 
@@ -840,7 +822,6 @@ describe("/quota command behavior", () => {
       enabled: true,
       onlyCurrentModel: false,
       showOnQuestion: false,
-      showSessionTokens: false,
       minIntervalMs: 60_000,
     });
 
@@ -885,7 +866,6 @@ describe("/quota command behavior", () => {
       showOnIdle: true,
       showOnCompact: false,
       showOnQuestion: false,
-      showSessionTokens: false,
       minIntervalMs: 60_000,
     });
 
@@ -930,106 +910,6 @@ describe("/quota command behavior", () => {
     expect(getToastMessage(client, 1)).toContain("openai/gpt-4.1");
     expect(getToastMessage(client, 0)).not.toContain("openai/gpt-4.1");
     expect(getToastMessage(client, 1)).not.toContain("openai/gpt-5");
-  });
-
-  it("keeps concurrent /quota session-token output isolated per session", async () => {
-    mocks.loadConfig.mockResolvedValueOnce({
-      ...DEFAULT_CONFIG,
-      enabled: true,
-      showOnQuestion: false,
-      showSessionTokens: true,
-      minIntervalMs: 60_000,
-    });
-
-    const provider = {
-      id: "openai",
-      isAvailable: vi.fn().mockResolvedValue(true),
-      fetch: vi.fn().mockResolvedValue({
-        attempted: true,
-        entries: [{ name: "OpenAI Pro", percentRemaining: 88 }],
-        errors: [],
-      }),
-    };
-    mocks.getProviders.mockReturnValue([provider]);
-
-    let resolveSessionA: ((value: any) => void) | undefined;
-    let resolveSessionB: ((value: any) => void) | undefined;
-    mocks.fetchSessionTokensForDisplay.mockImplementation(
-      ({ sessionID }: { sessionID: string }) =>
-        new Promise((resolve) => {
-          if (sessionID === "session-a") {
-            resolveSessionA = resolve;
-            return;
-          }
-          if (sessionID === "session-b") {
-            resolveSessionB = resolve;
-            return;
-          }
-          resolve({ sessionTokens: undefined, error: undefined });
-        }),
-    );
-
-    const { QuotaToastPlugin } = await import("../src/plugin.js");
-    const client = createClient({ modelID: "openai/gpt-5", providerID: "openai" });
-    const hooks = await QuotaToastPlugin({ client } as any);
-
-    const firstRun = hooks["command.execute.before"]?.({
-      command: "quota",
-      sessionID: "session-a",
-    } as any);
-    const secondRun = hooks["command.execute.before"]?.({
-      command: "quota",
-      sessionID: "session-b",
-    } as any);
-
-    for (let attempt = 0; attempt < 20; attempt++) {
-      if (
-        mocks.fetchSessionTokensForDisplay.mock.calls.length === 2 &&
-        typeof resolveSessionA === "function" &&
-        typeof resolveSessionB === "function"
-      ) {
-        break;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-
-    expect(mocks.fetchSessionTokensForDisplay).toHaveBeenCalledTimes(2);
-    expect(resolveSessionA).toBeTypeOf("function");
-    expect(resolveSessionB).toBeTypeOf("function");
-
-    resolveSessionB?.({
-      sessionTokens: {
-        models: [{ modelID: "session-b-model", input: 222, output: 22 }],
-        totalInput: 222,
-        totalOutput: 22,
-      },
-      error: undefined,
-    });
-    resolveSessionA?.({
-      sessionTokens: {
-        models: [{ modelID: "session-a-model", input: 111, output: 11 }],
-        totalInput: 111,
-        totalOutput: 11,
-      },
-      error: undefined,
-    });
-
-    await expect(secondRun).rejects.toThrow(COMMAND_HANDLED_SENTINEL);
-    await expect(firstRun).rejects.toThrow(COMMAND_HANDLED_SENTINEL);
-
-    const promptOutputs = client.session.prompt.mock.calls.map((call) => ({
-      sessionID: call?.[0]?.path?.id,
-      text: call?.[0]?.body?.parts?.[0]?.text ?? "",
-    }));
-    const sessionAOutput =
-      promptOutputs.find((output) => output.sessionID === "session-a")?.text ?? "";
-    const sessionBOutput =
-      promptOutputs.find((output) => output.sessionID === "session-b")?.text ?? "";
-
-    expect(sessionAOutput).toContain("session-a-model");
-    expect(sessionAOutput).not.toContain("session-b-model");
-    expect(sessionBOutput).toContain("session-b-model");
-    expect(sessionBOutput).not.toContain("session-a-model");
   });
 
   it("keeps qwen local request-plan quota live across repeated /quota commands", async () => {
@@ -1170,7 +1050,6 @@ describe("/quota command behavior", () => {
       enabled: true,
       pricingSnapshot: { source: "bundled", autoRefresh: 7 },
       showOnQuestion: false,
-      showSessionTokens: false,
       minIntervalMs: 60_000,
     });
     mocks.getPricingSnapshotSource.mockReturnValue("bundled");

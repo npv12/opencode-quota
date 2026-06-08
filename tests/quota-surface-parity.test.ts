@@ -149,7 +149,6 @@ describe("quota surface parity regressions", () => {
             enabledProviders: ["synthetic"],
             formatStyle: "allWindows",
             showOnQuestion: false,
-            showSessionTokens: false,
             minIntervalMs: 60_000,
           },
         },
@@ -261,7 +260,6 @@ describe("quota surface parity regressions", () => {
             enabledProviders: ["synthetic"],
             formatStyle: "allWindows",
             showOnQuestion: false,
-            showSessionTokens: false,
             minIntervalMs: 60_000,
           },
         },
@@ -343,7 +341,6 @@ describe("quota surface parity regressions", () => {
             enabledProviders: ["synthetic"],
             formatStyle: "allWindows",
             showOnQuestion: false,
-            showSessionTokens: false,
             minIntervalMs: 60_000,
           },
         },
@@ -360,7 +357,6 @@ describe("quota surface parity regressions", () => {
             enabledProviders: ["openai"],
             formatStyle: "allWindows",
             showOnQuestion: false,
-            showSessionTokens: false,
             minIntervalMs: 60_000,
           },
         },
@@ -454,7 +450,6 @@ describe("quota surface parity regressions", () => {
       enabledProviders: ["synthetic"],
       formatStyle: "allWindows",
       showOnQuestion: false,
-      showSessionTokens: false,
       minIntervalMs: 60_000,
     };
 
@@ -539,7 +534,6 @@ describe("quota surface parity regressions", () => {
       enabledProviders: ["openai"],
       formatStyle: "singleWindow",
       showOnQuestion: false,
-      showSessionTokens: false,
       minIntervalMs: 60_000,
     };
 

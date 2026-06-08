@@ -7,13 +7,12 @@
  * - Includes session token summary (input/output per model)
  */
 
-import type { QuotaToastEntry, QuotaToastError, SessionTokensData } from "./entries.js";
+import type { QuotaToastEntry, QuotaToastError } from "./entries.js";
 import { isValueEntry } from "./entries.js";
 import { bar, clampInt, padRight } from "./format-utils.js";
 import { formatGroupedHeader } from "./grouped-header-format.js";
 import { groupQuotaEntries } from "./grouped-entry-normalization.js";
 import { renderPlainTextReport, type ReportDocument, type ReportSection } from "./report-document.js";
-import { buildSessionTokenSectionModel } from "./session-tokens-format.js";
 
 /**
  * Format reset time in compact form (different from toast countdown).
@@ -44,7 +43,6 @@ function getGroupedLeftText(entry: QuotaToastEntry): string {
 function buildQuotaCommandDocument(params: {
   entries: QuotaToastEntry[];
   errors: QuotaToastError[];
-  sessionTokens?: SessionTokensData;
   generatedAtMs?: number;
 }): ReportDocument {
   const groups = groupQuotaEntries(params.entries, "quota");
@@ -81,15 +79,6 @@ function buildQuotaCommandDocument(params: {
     };
   });
 
-  const tokenSection = buildSessionTokenSectionModel(params.sessionTokens);
-  if (tokenSection) {
-    sections.push({
-      id: "session-tokens",
-      title: tokenSection.heading,
-      blocks: [{ kind: "lines", lines: tokenSection.lines }],
-    });
-  }
-
   if (params.errors.length > 0) {
     sections.push({
       id: "errors",
@@ -114,7 +103,6 @@ function buildQuotaCommandDocument(params: {
 export function formatQuotaCommand(params: {
   entries: QuotaToastEntry[];
   errors: QuotaToastError[];
-  sessionTokens?: SessionTokensData;
   generatedAtMs?: number;
 }): string {
   return renderPlainTextReport(buildQuotaCommandDocument(params));

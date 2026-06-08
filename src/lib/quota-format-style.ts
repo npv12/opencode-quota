@@ -10,15 +10,12 @@ export type QuotaFormatStyle = CanonicalQuotaFormatStyle | "classic" | "grouped"
 
 export type QuotaFormatProjection = "singleWindowPerProvider" | "allWindows";
 export type QuotaFormatRenderer = "classic" | "grouped";
-export type QuotaFormatSessionTokens = "summary" | "detailed";
-
 export type QuotaFormatStyleDefinition = {
   id: CanonicalQuotaFormatStyle;
   aliases: readonly QuotaFormatStyle[];
   label: string;
   projection: QuotaFormatProjection;
   renderer: QuotaFormatRenderer;
-  sessionTokens: QuotaFormatSessionTokens;
 };
 
 const QUOTA_FORMAT_STYLE_DEFINITIONS = {
@@ -28,7 +25,6 @@ const QUOTA_FORMAT_STYLE_DEFINITIONS = {
     label: "Single window",
     projection: "singleWindowPerProvider",
     renderer: "classic",
-    sessionTokens: "summary",
   },
   [ALL_WINDOWS_FORMAT_STYLE]: {
     id: ALL_WINDOWS_FORMAT_STYLE,
@@ -36,7 +32,6 @@ const QUOTA_FORMAT_STYLE_DEFINITIONS = {
     label: "All windows",
     projection: "allWindows",
     renderer: "grouped",
-    sessionTokens: "detailed",
   },
 } as const satisfies Record<CanonicalQuotaFormatStyle, QuotaFormatStyleDefinition>;
 

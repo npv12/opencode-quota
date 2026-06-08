@@ -73,7 +73,7 @@ describe("collectQuotaRenderData shared quota state", () => {
       config: {
         ...DEFAULT_CONFIG,
         enabledProviders: ["custom-runtime"],
-        showSessionTokens: false,
+
       },
       surfaceExplicitProviderIssues: true,
       formatStyle: "allWindows",
@@ -112,7 +112,7 @@ describe("collectQuotaRenderData shared quota state", () => {
       config: {
         ...DEFAULT_CONFIG,
         enabledProviders: ["test-provider"],
-        showSessionTokens: false,
+
       },
       surfaceExplicitProviderIssues: true,
       formatStyle: "singleWindow",
@@ -143,7 +143,7 @@ describe("collectQuotaRenderData shared quota state", () => {
       config: {
         ...DEFAULT_CONFIG,
         enabledProviders: ["test-provider"],
-        showSessionTokens: false,
+
       },
       surfaceExplicitProviderIssues: true,
       formatStyle: "singleWindow",
@@ -173,7 +173,7 @@ describe("collectQuotaRenderData shared quota state", () => {
       config: {
         ...DEFAULT_CONFIG,
         enabledProviders: ["test-provider"],
-        showSessionTokens: false,
+
       },
       surfaceExplicitProviderIssues: true,
       formatStyle: "allWindows",
@@ -219,7 +219,7 @@ describe("collectQuotaRenderData shared quota state", () => {
       config: {
         ...DEFAULT_CONFIG,
         enabledProviders: ["copilot", "openai"],
-        showSessionTokens: false,
+
       },
       surfaceExplicitProviderIssues: true,
       formatStyle: "singleWindow",
@@ -234,7 +234,6 @@ describe("collectQuotaRenderData shared quota state", () => {
     expect(result.data).toEqual({
       entries: [{ name: "[OpenAI] (Pro) 5h", percentRemaining: 75 }],
       errors: [{ label: "Copilot", message: "Unavailable (not detected)" }],
-      sessionTokens: undefined,
     });
   });
 
@@ -252,7 +251,7 @@ describe("collectQuotaRenderData shared quota state", () => {
       config: {
         ...DEFAULT_CONFIG,
         enabledProviders: ["copilot"],
-        showSessionTokens: false,
+
       },
       surfaceExplicitProviderIssues: true,
       formatStyle: "singleWindow",
@@ -281,7 +280,7 @@ describe("collectQuotaRenderData shared quota state", () => {
       config: {
         ...DEFAULT_CONFIG,
         enabledProviders: "auto",
-        showSessionTokens: false,
+
       },
       surfaceExplicitProviderIssues: true,
       formatStyle: "singleWindow",
@@ -308,7 +307,7 @@ describe("collectQuotaRenderData shared quota state", () => {
         ...DEFAULT_CONFIG,
         enabledProviders: ["copilot"],
         onlyCurrentModel: true,
-        showSessionTokens: false,
+
       },
       request: {
         sessionID: "fresh-session",
@@ -353,7 +352,7 @@ describe("collectQuotaRenderData shared quota state", () => {
         ...DEFAULT_CONFIG,
         enabledProviders: ["openai", "copilot"],
         onlyCurrentModel: true,
-        showSessionTokens: false,
+
       },
       request: {
         sessionID: "provider-only-session",
@@ -439,7 +438,7 @@ describe("collectQuotaRenderData shared quota state", () => {
         ...DEFAULT_CONFIG,
         enabledProviders: ["synthetic"],
         minIntervalMs: 60_000,
-        showSessionTokens: false,
+
       },
       surfaceExplicitProviderIssues: true,
     };
@@ -538,7 +537,7 @@ describe("collectQuotaRenderData shared quota state", () => {
         ...DEFAULT_CONFIG,
         enabledProviders: ["google-gemini-cli"],
         minIntervalMs: 60_000,
-        showSessionTokens: false,
+
       },
       surfaceExplicitProviderIssues: true,
     };
@@ -625,7 +624,7 @@ describe("collectQuotaRenderData shared quota state", () => {
         ...DEFAULT_CONFIG,
         enabledProviders: ["cursor"],
         minIntervalMs: 60_000,
-        showSessionTokens: false,
+
       },
       surfaceExplicitProviderIssues: true,
       formatStyle: "singleWindow" as const,
@@ -689,7 +688,7 @@ describe("collectQuotaRenderData shared quota state", () => {
       config: {
         ...DEFAULT_CONFIG,
         minIntervalMs: 60_000,
-        showSessionTokens: false,
+
       },
       formatStyle: "singleWindow" as const,
       providers: [syntheticProvider, openaiProvider],
@@ -772,7 +771,7 @@ describe("collectQuotaRenderData shared quota state", () => {
         ...DEFAULT_CONFIG,
         enabledProviders: ["synthetic"],
         minIntervalMs: 60_000,
-        showSessionTokens: false,
+
       },
       surfaceExplicitProviderIssues: true,
     };

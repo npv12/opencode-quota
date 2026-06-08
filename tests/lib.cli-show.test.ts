@@ -96,7 +96,6 @@ describe("runCliShowCommand", () => {
         experimental: {
           quotaToast: {
             enabledProviders: ["synthetic"],
-            showSessionTokens: true,
           },
         },
       }),

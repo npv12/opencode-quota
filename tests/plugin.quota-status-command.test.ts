@@ -11,7 +11,6 @@ import {
   createPricingModuleMock,
   createProvidersRegistryModuleMock,
   createQwenAuthModuleMock,
-  createSessionTokensModuleMock,
   seedDefaultPluginBootstrapMocks,
 } from "./helpers/plugin-test-harness.js";
 
@@ -27,7 +26,6 @@ const mocks = vi.hoisted(() => ({
   setPricingSnapshotSelection: vi.fn(),
   resolveQwenLocalPlanCached: vi.fn(),
   resolveAlibabaCodingPlanAuthCached: vi.fn(),
-  fetchSessionTokensForDisplay: vi.fn(),
   collectQuotaStatusLiveProbes: vi.fn(),
   buildQuotaStatusReport: vi.fn(),
   inspectTuiConfig: vi.fn(),
@@ -43,10 +41,6 @@ vi.mock("../src/providers/registry.js", () =>
 );
 
 vi.mock("../src/lib/modelsdev-pricing.js", () => createPricingModuleMock(mocks));
-
-vi.mock("../src/lib/session-tokens.js", () =>
-  createSessionTokensModuleMock(mocks.fetchSessionTokensForDisplay),
-);
 
 vi.mock("../src/lib/qwen-auth.js", () =>
   createQwenAuthModuleMock(mocks.resolveQwenLocalPlanCached),
@@ -87,7 +81,6 @@ describe("/quota_status command behavior", () => {
         enabled: true,
         enabledProviders: ["openai", "synthetic", "copilot", "cursor"],
         showOnQuestion: false,
-        showSessionTokens: false,
         minIntervalMs: 60_000,
       },
       resetModules: true,

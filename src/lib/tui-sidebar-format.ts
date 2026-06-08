@@ -24,7 +24,6 @@ export function buildSidebarQuotaPanelLines(params: {
     errors: data.errors,
     style: params.config.formatStyle,
     percentDisplayMode: params.config.percentDisplayMode,
-    sessionTokens: data.sessionTokens,
   });
   return quotaBody ? quotaBody.split("\n") : [];
 }

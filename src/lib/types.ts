@@ -116,8 +116,6 @@ export interface QuotaToastConfig {
    * uses a one-line total summary.
    * The `/quota` command keeps its detailed per-model rendering.
    */
-  showSessionTokens: boolean;
-
   /** TUI sidebar panel visibility when the TUI plugin is installed. */
   tuiSidebarPanel: TuiSidebarPanelConfig;
 
@@ -168,7 +166,6 @@ export const DEFAULT_CONFIG: QuotaToastConfig = {
   showOnBothFail: true,
   toastDurationMs: 9000,
   onlyCurrentModel: false,
-  showSessionTokens: true,
   tuiSidebarPanel: {
     enabled: true,
   },

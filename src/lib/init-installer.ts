@@ -53,7 +53,6 @@ export interface InitInstallerSelections {
   manualProviders: string[];
   formatStyle: CanonicalQuotaFormatStyle;
   percentDisplayMode: QuotaToastConfig["percentDisplayMode"];
-  showSessionTokens: boolean;
 }
 
 export interface InitInstallerQuickSetupNote {
@@ -690,13 +689,6 @@ async function planQuotaConfigEdit(params: {
   );
   addSettingIfMissing(
     quotaToast,
-    "showSessionTokens",
-    params.selections.showSessionTokens,
-    "quotaToast.showSessionTokens",
-    edit,
-  );
-  addSettingIfMissing(
-    quotaToast,
     "enabledProviders",
     resolveRequestedProviders(params.selections),
     "quotaToast.enabledProviders",
@@ -790,7 +782,6 @@ function buildPlanSummary(plan: InitInstallerPlan): string[] {
     `Provider mode: ${getProviderModeLabel(plan.selections.providerMode)}`,
     `Quota reset periods: ${getQuotaFormatStyleLabel(plan.selections.formatStyle)}`,
     `Quota percentage meaning: ${getPercentDisplayModeLabel(plan.selections.percentDisplayMode)}`,
-    `Session token details: ${plan.selections.showSessionTokens ? "Show" : "Hide"}`,
   ];
 
   if (quotaUiIntent.enableCompactStatus) {
@@ -1023,15 +1014,6 @@ async function promptForSelections(
   });
   if (prompts.isCancel(percentDisplayMode)) return null;
 
-  const showSessionTokens = await prompts.select({
-    message: "Session token details",
-    options: [
-      { label: "Hide session tokens", value: "no", hint: "keep quota output shorter" },
-      { label: "Show session tokens", value: "yes", hint: "include current session input/output token counts when available" },
-    ],
-  });
-  if (prompts.isCancel(showSessionTokens)) return null;
-
   return {
     scope: scope as InitInstallerScope,
     quotaUi: quotaUi.filter((value): value is InitQuotaUiChoice => typeof value === "string"),
@@ -1039,7 +1021,6 @@ async function promptForSelections(
     manualProviders,
     formatStyle: formatStyle as CanonicalQuotaFormatStyle,
     percentDisplayMode: percentDisplayMode as QuotaToastConfig["percentDisplayMode"],
-    showSessionTokens: showSessionTokens === "yes",
   };
 }
 

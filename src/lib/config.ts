@@ -52,7 +52,6 @@ export const QUOTA_TOAST_SETTING_SOURCE_KEYS = [
   "showOnBothFail",
   "toastDurationMs",
   "onlyCurrentModel",
-  "showSessionTokens",
   "tuiSidebarPanel.enabled",
   "tuiCompactStatus.enabled",
   "tuiCompactStatus.homeBottom",
@@ -144,7 +143,6 @@ type ValidatedQuotaToastPatch = {
   showOnBothFail?: boolean;
   toastDurationMs?: number;
   onlyCurrentModel?: boolean;
-  showSessionTokens?: boolean;
   tuiSidebarPanel?: TuiSidebarPanelPatch;
   tuiCompactStatus?: TuiCompactStatusPatch;
   layout?: LayoutPatch;
@@ -574,13 +572,6 @@ function extractValidatedQuotaToastPatch(
     patch.onlyCurrentModel = quotaToastConfig.onlyCurrentModel;
   }
 
-  if (
-    hasOwnKey(quotaToastConfig, "showSessionTokens") &&
-    typeof quotaToastConfig.showSessionTokens === "boolean"
-  ) {
-    patch.showSessionTokens = quotaToastConfig.showSessionTokens;
-  }
-
   if (hasOwnKey(quotaToastConfig, "tuiSidebarPanel")) {
     const tuiSidebarPanel = extractTuiSidebarPanelPatch(quotaToastConfig.tuiSidebarPanel);
     if (tuiSidebarPanel) {
@@ -737,11 +728,6 @@ function applyValidatedQuotaToastPatch(
   if (hasOwnKey(patch, "onlyCurrentModel")) {
     config.onlyCurrentModel = patch.onlyCurrentModel!;
     applySettingSource(settingSources, "onlyCurrentModel", sourcePath);
-  }
-
-  if (hasOwnKey(patch, "showSessionTokens")) {
-    config.showSessionTokens = patch.showSessionTokens!;
-    applySettingSource(settingSources, "showSessionTokens", sourcePath);
   }
 
   if (patch.tuiSidebarPanel) {

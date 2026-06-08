@@ -279,7 +279,7 @@ describe("tui runtime helpers", () => {
       data: {
         entries: [],
         errors: [],
-        sessionTokens: undefined,
+
       },
     });
     buildSidebarQuotaPanelLines.mockReturnValue(["Quota line"]);
@@ -345,7 +345,7 @@ describe("tui runtime helpers", () => {
       data: {
         entries: [],
         errors: [],
-        sessionTokens: undefined,
+
       },
       config: expect.objectContaining({
         formatStyle: "allWindows",
@@ -374,7 +374,7 @@ describe("tui runtime helpers", () => {
       data: {
         entries: [],
         errors: [],
-        sessionTokens: undefined,
+
       },
     });
     buildSidebarQuotaPanelLines.mockReturnValue(["Quota line"]);
@@ -483,7 +483,7 @@ describe("tui runtime helpers", () => {
         },
       ],
       errors: [],
-      sessionTokens: undefined,
+
     };
 
     collectQuotaRenderData.mockResolvedValue({ active: [], data });
@@ -547,7 +547,7 @@ describe("tui runtime helpers", () => {
         },
       ],
       errors: [],
-      sessionTokens: undefined,
+
     };
 
     collectQuotaRenderData.mockResolvedValue({ active: [], data: weeklyData });
@@ -607,7 +607,7 @@ describe("tui runtime helpers", () => {
         data: {
           entries: [],
           errors: [],
-          sessionTokens: undefined,
+  
         },
       };
     });
@@ -800,7 +800,7 @@ describe("tui runtime helpers", () => {
         },
       ],
       errors: [],
-      sessionTokens: undefined,
+
     };
     collectQuotaRenderData.mockResolvedValue({ active: [], data });
     buildSidebarQuotaPanelLines.mockReturnValue(["Sidebar quota"]);
@@ -910,7 +910,7 @@ describe("tui runtime helpers", () => {
         },
       ],
       errors: [],
-      sessionTokens: undefined,
+
     };
     collectQuotaRenderData.mockResolvedValue({ active: [], data });
     buildSidebarQuotaPanelLines.mockReturnValue(["Sidebar quota"]);
@@ -1094,7 +1094,7 @@ describe("tui runtime helpers", () => {
     const data = {
       entries: [],
       errors: [],
-      sessionTokens: undefined,
+
     };
     collectQuotaRenderData.mockResolvedValue({ active: [], data });
     buildCompactQuotaStatusLine.mockReturnValue("");
@@ -1181,7 +1181,7 @@ describe("tui runtime helpers", () => {
     const data = {
       entries: [],
       errors: [],
-      sessionTokens: undefined,
+
     };
     collectQuotaRenderData.mockResolvedValue({ active: [], data });
     buildCompactQuotaStatusLine.mockReturnValue("Home compact quota");
@@ -1256,7 +1256,6 @@ describe("tui runtime helpers", () => {
           quotaToast: {
             enabled: true,
             onlyCurrentModel: true,
-            showSessionTokens: true,
             percentDisplayMode: "used",
             tuiCompactStatus: {
               enabled: true,
@@ -1277,13 +1276,12 @@ describe("tui runtime helpers", () => {
         },
       ],
       errors: [],
-      sessionTokens: undefined,
+
     };
     collectQuotaRenderData.mockImplementation(async ({ config, request }) => {
       expect(config).toEqual(
         expect.objectContaining({
           onlyCurrentModel: false,
-          showSessionTokens: false,
           percentDisplayMode: "used",
         }),
       );

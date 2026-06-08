@@ -105,13 +105,6 @@ import {
 } from "./opencode-go-config.js";
 import { queryOpenCodeGoQuota } from "./opencode-go.js";
 
-/** Session token fetch error info for status report */
-export interface SessionTokenError {
-  sessionID: string;
-  error: string;
-  checkedPath?: string;
-}
-
 type BasicApiKeyDiagnostics = {
   configured: boolean;
   source: string | null;
@@ -649,7 +642,6 @@ export async function buildQuotaStatusReport(params: {
     successCount?: number;
     failures?: Array<{ email?: string; error: string }>;
   };
-  sessionTokenError?: SessionTokenError;
   geminiCliClient?: ConfigClient;
   generatedAtMs?: number;
 }): Promise<string> {
@@ -1582,20 +1574,6 @@ export async function buildQuotaStatusReport(params: {
       googleRefreshRows.push({ key: f.email ?? "Unknown", value: f.error });
     }
     sections.push(createKvSection("google_token_refresh", "google_token_refresh:", googleRefreshRows));
-  }
-
-  // === session token errors ===
-  if (params.sessionTokenError) {
-    const sessionTokenErrorRows: ReportKvRow[] = [
-      { key: "session_id", value: params.sessionTokenError.sessionID },
-      { key: "error", value: params.sessionTokenError.error },
-    ];
-    if (params.sessionTokenError.checkedPath) {
-      sessionTokenErrorRows.push({ key: "checked_path", value: params.sessionTokenError.checkedPath });
-    }
-    sections.push(
-      createKvSection("session_tokens_error", "session_tokens_error:", sessionTokenErrorRows),
-    );
   }
 
   // === storage scan ===

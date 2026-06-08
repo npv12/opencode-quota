@@ -50,16 +50,6 @@ describe("formatQuotaCommand", () => {
         },
       ],
       errors: [{ label: "Z.ai", message: "Authentication expired" }],
-      sessionTokens: {
-        models: [
-          { modelID: "openai/gpt-5", input: 1234, cachedInput: 456, totalInput: 1690, output: 567 },
-          { modelID: "github-copilot/claude-sonnet-4.5", input: 987, output: 654 },
-        ],
-        totalInput: 2221,
-        totalCachedInput: 456,
-        totalCombinedInput: 2677,
-        totalOutput: 1221,
-      },
     });
 
     const lines = out.split("\n");
@@ -78,10 +68,6 @@ describe("formatQuotaCommand", () => {
 
       → [Google Antigravity] (acct)
         Claude:          ████████████░░░░░░  67% left (resets in 3h)
-
-      Session input/output tokens
-        openai/gpt-5          1.2K (456) in     567 out
-        github-copilot/clau…     987 in     654 out
 
       Z.ai: Authentication expired"
     `);

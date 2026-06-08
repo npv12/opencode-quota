@@ -11,7 +11,6 @@ import type {
   QuotaProviderResult,
   QuotaToastEntry,
   QuotaToastError,
-  SessionTokensData,
 } from "./entries.js";
 import { isValueEntry } from "./entries.js";
 
@@ -81,24 +80,9 @@ export function sanitizeQuotaProviderResult(result: QuotaProviderResult): QuotaP
   };
 }
 
-export function sanitizeSessionTokensData(
-  data?: SessionTokensData,
-): SessionTokensData | undefined {
-  if (!data) return undefined;
-
-  return {
-    ...data,
-    models: data.models.map((model) => ({
-      ...model,
-      modelID: sanitizeDisplayText(model.modelID),
-    })),
-  };
-}
-
 export function sanitizeQuotaRenderData(data: QuotaRenderData): QuotaRenderData {
   return {
     entries: data.entries.map(sanitizeQuotaToastEntry),
     errors: data.errors.map(sanitizeQuotaToastError),
-    sessionTokens: sanitizeSessionTokensData(data.sessionTokens),
   };
 }

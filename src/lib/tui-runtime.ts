@@ -332,7 +332,6 @@ export async function loadTuiHomeBottomStatus(params: {
     config: {
       ...runtime.config,
       onlyCurrentModel: false,
-      showSessionTokens: false,
     },
     session: {},
   };
@@ -376,7 +375,6 @@ export async function loadTuiHomeCompactStatus(params: {
     config: {
       ...runtime.config,
       onlyCurrentModel: false,
-      showSessionTokens: false,
     },
     session: {},
   };

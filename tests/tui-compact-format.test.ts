@@ -164,38 +164,6 @@ describe("buildCompactQuotaStatusLine", () => {
     expect(used).toBe(remaining);
   });
 
-  it("joins multiple entry and session-token aggregate segments", () => {
-    const line = buildCompactQuotaStatusLine({
-      percentDisplayMode: "remaining",
-      maxWidth: 96,
-      data: {
-        entries: [
-          {
-            name: "Copilot rolling window",
-            group: "Copilot",
-            label: "5h:",
-            percentRemaining: 82,
-          },
-          {
-            kind: "value",
-            name: "Cursor API",
-            value: "$2.40",
-          },
-        ],
-        errors: [],
-        sessionTokens: {
-          models: [{ modelID: "openai/gpt-5", input: 12_400, cachedInput: 5_600, totalInput: 18_000, output: 3_100 }],
-          totalInput: 12_400,
-          totalCachedInput: 5_600,
-          totalCombinedInput: 18_000,
-          totalOutput: 3_100,
-        },
-      },
-    });
-
-    expect(line).toBe("Copilot 82% | Cursor API $2.40 | tok 12.4K (5.6K) in / 3.1K out");
-  });
-
   it("summarizes errors as issue counts when quota segments exist and the count fits", () => {
     const line = buildCompactQuotaStatusLine({
       percentDisplayMode: "remaining",

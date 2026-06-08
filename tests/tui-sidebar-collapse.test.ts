@@ -115,7 +115,6 @@ describe("tui-runtime linesExpanded", () => {
     const data = {
       entries: [{ name: "Copilot 5h", percentRemaining: 18 }],
       errors: [],
-      sessionTokens: undefined,
     };
     const allWindowsData = {
       entries: [
@@ -123,7 +122,6 @@ describe("tui-runtime linesExpanded", () => {
         { name: "Copilot Daily", percentRemaining: 42 },
       ],
       errors: [],
-      sessionTokens: undefined,
     };
 
     collectQuotaRenderDataMock.mockResolvedValue({

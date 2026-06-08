@@ -26,10 +26,6 @@ interface PricingMocks {
   setPricingSnapshotSelection: MockFunction;
 }
 
-interface SessionTokenMocks {
-  fetchSessionTokensForDisplay: MockFunction;
-}
-
 interface AuthPlanMocks {
   resolveAlibabaCodingPlanAuthCached?: MockFunction;
   resolveQwenLocalPlanCached?: MockFunction;
@@ -38,7 +34,6 @@ interface AuthPlanMocks {
 interface PluginBootstrapMocks extends PricingMocks, AuthPlanMocks {
   loadConfig: MockFunction;
   getProviders?: MockFunction;
-  fetchSessionTokensForDisplay?: MockFunction;
 }
 
 interface PluginBootstrapOptions {
@@ -47,7 +42,6 @@ interface PluginBootstrapOptions {
   resetModules?: boolean;
   resetPluginState?: boolean;
   seedAuthPlans?: boolean;
-  seedSessionTokens?: boolean;
 }
 
 interface PluginRuntimeRoot {
@@ -127,10 +121,6 @@ export function createPricingModuleMock(mocks: PricingMocks) {
     setPricingSnapshotAutoRefresh: mocks.setPricingSnapshotAutoRefresh,
     setPricingSnapshotSelection: mocks.setPricingSnapshotSelection,
   };
-}
-
-export function createSessionTokensModuleMock(fetchSessionTokensForDisplay: MockFunction) {
-  return { fetchSessionTokensForDisplay };
 }
 
 export function createQwenAuthModuleMock(resolveQwenLocalPlanCached: MockFunction) {
@@ -258,13 +248,6 @@ export function seedDefaultPricingMocks(mocks: PricingMocks): void {
   });
 }
 
-export function seedDefaultSessionTokenMocks(mocks: SessionTokenMocks): void {
-  mocks.fetchSessionTokensForDisplay.mockResolvedValue({
-    sessionTokens: undefined,
-    error: undefined,
-  });
-}
-
 export function seedDefaultAuthPlanMocks(mocks: AuthPlanMocks): void {
   mocks.resolveQwenLocalPlanCached?.mockResolvedValue({ state: "none" });
   mocks.resolveAlibabaCodingPlanAuthCached?.mockResolvedValue({ state: "none" });
@@ -287,10 +270,6 @@ export function seedDefaultPluginBootstrapMocks(
 
   mocks.loadConfig.mockResolvedValue(makeQuotaToastTestConfig(options.configOverrides));
   mocks.getProviders?.mockReturnValue(options.providers ?? []);
-
-  if (mocks.fetchSessionTokensForDisplay && options.seedSessionTokens !== false) {
-    seedDefaultSessionTokenMocks(mocks);
-  }
 
   if (options.seedAuthPlans !== false) {
     seedDefaultAuthPlanMocks(mocks);

@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { formatQuotaRows } from "../src/lib/format.js";
-import { SESSION_TOKEN_SECTION_HEADING } from "../src/lib/session-tokens-format.js";
 import {
   buildSidebarQuotaPanelLines,
   TUI_SIDEBAR_LAYOUT,
@@ -13,7 +12,7 @@ describe("buildSidebarQuotaPanelLines", () => {
     vi.useRealTimers();
   });
 
-  it("sanitizes structured entry, error, and session-token text before rendering", () => {
+  it("sanitizes structured entry and error text before rendering", () => {
     const lines = buildSidebarQuotaPanelLines({
       config: {
         formatStyle: "allWindows",
@@ -36,21 +35,6 @@ describe("buildSidebarQuotaPanelLines", () => {
             message: "Bad\u0003",
           },
         ],
-        sessionTokens: {
-          totalInput: 12,
-          totalCachedInput: 5,
-          totalCombinedInput: 17,
-          totalOutput: 34,
-          models: [
-            {
-              modelID: "gpt-5\u001b[99m",
-              input: 12,
-              cachedInput: 5,
-              totalInput: 17,
-              output: 34,
-            },
-          ],
-        },
       },
     });
 
@@ -61,9 +45,6 @@ describe("buildSidebarQuotaPanelLines", () => {
     expect(rendered).not.toContain("\u0002");
     expect(rendered).not.toContain("\u0003");
     expect(rendered).toContain("Err: Bad");
-    expect(rendered).toContain(SESSION_TOKEN_SECTION_HEADING);
-    expect(rendered).toContain("12 (5) in  34 out");
-    expect(rendered).toContain("gpt-5");
   });
 
   it("uses the fixed sidebar layout instead of toast layout settings", () => {
@@ -76,7 +57,7 @@ describe("buildSidebarQuotaPanelLines", () => {
         },
       ],
       errors: [],
-      sessionTokens: undefined,
+
     };
     const expected = formatQuotaRows({
       version: "1.0.0",
@@ -85,7 +66,6 @@ describe("buildSidebarQuotaPanelLines", () => {
       errors: data.errors,
       style: "singleWindow",
       percentDisplayMode: "remaining",
-      sessionTokens: data.sessionTokens,
     }).split("\n");
 
     const lines = buildSidebarQuotaPanelLines({
@@ -114,7 +94,7 @@ describe("buildSidebarQuotaPanelLines", () => {
         },
       ],
       errors: [],
-      sessionTokens: undefined,
+
     };
     const expected = formatQuotaRows({
       version: "1.0.0",
@@ -123,7 +103,6 @@ describe("buildSidebarQuotaPanelLines", () => {
       errors: data.errors,
       style: "allWindows",
       percentDisplayMode: "remaining",
-      sessionTokens: data.sessionTokens,
     }).split("\n");
 
     const lines = buildSidebarQuotaPanelLines({
@@ -156,7 +135,7 @@ describe("buildSidebarQuotaPanelLines", () => {
           { name: "Kimi Code Fast", group: "Kimi Code", label: "Fast:", percentRemaining: 80 },
         ],
         errors: [],
-        sessionTokens: undefined,
+  
       },
     });
 
@@ -180,7 +159,7 @@ describe("buildSidebarQuotaPanelLines", () => {
           { name: "G3Pro (acct)", percentRemaining: 67 },
         ],
         errors: [],
-        sessionTokens: undefined,
+  
       },
     });
 
@@ -210,7 +189,7 @@ describe("buildSidebarQuotaPanelLines", () => {
           },
         ],
         errors: [],
-        sessionTokens: undefined,
+  
       },
     });
 
@@ -243,7 +222,7 @@ describe("buildSidebarQuotaPanelLines", () => {
           },
         ],
         errors: [],
-        sessionTokens: undefined,
+  
       },
     });
 
@@ -269,7 +248,7 @@ describe("buildSidebarQuotaPanelLines", () => {
           },
         ],
         errors: [],
-        sessionTokens: undefined,
+  
       },
     });
 
@@ -297,7 +276,7 @@ describe("buildSidebarQuotaPanelLines", () => {
           },
         ],
         errors: [],
-        sessionTokens: undefined,
+  
       },
     });
 
@@ -328,7 +307,7 @@ describe("buildSidebarQuotaPanelLines", () => {
           },
         ],
         errors: [],
-        sessionTokens: undefined,
+  
       },
     });
 
@@ -354,7 +333,7 @@ describe("buildSidebarQuotaPanelLines", () => {
           },
         ],
         errors: [],
-        sessionTokens: undefined,
+  
       },
     });
 
@@ -380,7 +359,7 @@ describe("buildSidebarQuotaPanelLines", () => {
           },
         ],
         errors: [],
-        sessionTokens: undefined,
+  
       },
     });
 
@@ -403,7 +382,7 @@ describe("buildSidebarQuotaPanelLines", () => {
           },
         ],
         errors: [],
-        sessionTokens: undefined,
+  
       },
     });
 
@@ -430,7 +409,7 @@ describe("buildSidebarQuotaPanelLines", () => {
           },
         ],
         errors: [],
-        sessionTokens: undefined,
+  
       },
     });
 
@@ -454,79 +433,13 @@ describe("buildSidebarQuotaPanelLines", () => {
           },
         ],
         errors: [],
-        sessionTokens: undefined,
+  
       },
     });
 
     const barLine = lines[1] ?? "";
     expect(barLine).toContain("0% left");
     expect(barLine).not.toContain("-%");
-  });
-
-  it("renders all-window sidebar session tokens with detailed per-model rows", () => {
-    const lines = buildSidebarQuotaPanelLines({
-      config: {
-        formatStyle: "allWindows",
-        percentDisplayMode: "remaining",
-      },
-      data: {
-        entries: [],
-        errors: [],
-        sessionTokens: {
-          totalInput: 372,
-          totalCachedInput: 120,
-          totalCombinedInput: 492,
-          totalOutput: 41,
-          models: [
-            {
-              modelID: "openai/gpt-5.4-mini",
-              input: 372,
-              cachedInput: 120,
-              totalInput: 492,
-              output: 41,
-            },
-          ],
-        },
-      },
-    });
-
-    expect(lines.every((line) => line.length <= TUI_SIDEBAR_MAX_WIDTH)).toBe(true);
-    expect(lines).toEqual([
-      SESSION_TOKEN_SECTION_HEADING,
-      "  openai/gpt-5.4-mini",
-      "    372 (120) in  41 out",
-    ]);
-  });
-
-  it("renders single-window sidebar session tokens as a standalone one-line summary", () => {
-    const lines = buildSidebarQuotaPanelLines({
-      config: {
-        formatStyle: "singleWindow",
-        percentDisplayMode: "remaining",
-      },
-      data: {
-        entries: [],
-        errors: [],
-        sessionTokens: {
-          totalInput: 372,
-          totalCachedInput: 120,
-          totalCombinedInput: 492,
-          totalOutput: 41,
-          models: [
-            {
-              modelID: "openai/gpt-5.4-mini",
-              input: 372,
-              cachedInput: 120,
-              totalInput: 492,
-              output: 41,
-            },
-          ],
-        },
-      },
-    });
-
-    expect(lines.every((line) => line.length <= TUI_SIDEBAR_MAX_WIDTH)).toBe(true);
-    expect(lines).toEqual([SESSION_TOKEN_SECTION_HEADING, "  372 (120) in  41 out"]);
   });
 
   it("keeps value-only rows unchanged when percentDisplayMode is used", () => {
@@ -540,7 +453,7 @@ describe("buildSidebarQuotaPanelLines", () => {
         },
       ],
       errors: [],
-      sessionTokens: undefined,
+
     };
 
     const remaining = buildSidebarQuotaPanelLines({

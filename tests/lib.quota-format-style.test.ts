@@ -39,7 +39,6 @@ describe("quota format style helpers", () => {
       id: "allWindows",
       projection: "allWindows",
       renderer: "grouped",
-      sessionTokens: "detailed",
     });
   });
 });

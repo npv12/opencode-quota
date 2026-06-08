@@ -84,7 +84,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: ["openai", "anthropic"],
         formatStyle: "allWindows",
         percentDisplayMode: "used",
-        showSessionTokens: false,
+
       },
     });
 
@@ -117,7 +117,6 @@ describe("init installer planning and merge behavior", () => {
       enabledProviders: ["openai", "anthropic"],
       formatStyle: "allWindows",
       percentDisplayMode: "used",
-      showSessionTokens: false,
     });
   });
 
@@ -135,7 +134,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: ["openai"],
         formatStyle: "allWindows",
         percentDisplayMode: "used",
-        showSessionTokens: false,
+
       },
     });
 
@@ -154,7 +153,6 @@ describe("init installer planning and merge behavior", () => {
       enabledProviders: ["openai"],
       formatStyle: "allWindows",
       percentDisplayMode: "used",
-      showSessionTokens: false,
     });
   });
 
@@ -174,7 +172,6 @@ describe("init installer planning and merge behavior", () => {
           "quotaToast": {
             "toastStyle": "grouped",
             "enableToast": true,
-            "showSessionTokens": true,
             "enabledProviders": ["openai"]
           }
         },
@@ -206,7 +203,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: ["cursor", "opencode-go"],
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: false,
+
       },
     });
 
@@ -235,7 +232,6 @@ describe("init installer planning and merge behavior", () => {
     expect(quotaEdit?.updatedKeys).toContain("quotaToast.enableToast");
     expect(quotaEdit?.skippedValues).toEqual(
       expect.arrayContaining([
-        "quotaToast.showSessionTokens preserved existing value",
         "quotaToast.enabledProviders preserved existing value",
       ]),
     );
@@ -250,7 +246,6 @@ describe("init installer planning and merge behavior", () => {
     expect(opencode.experimental.quotaToast).toMatchObject({
       toastStyle: "grouped",
       enableToast: true,
-      showSessionTokens: true,
       enabledProviders: ["openai"],
     });
     expect(opencode.experimental.quotaToast.formatStyle).toBeUndefined();
@@ -260,7 +255,6 @@ describe("init installer planning and merge behavior", () => {
       formatStyle: "allWindows",
       percentDisplayMode: "remaining",
       enableToast: false,
-      showSessionTokens: true,
       enabledProviders: ["openai"],
     });
 
@@ -292,7 +286,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: [],
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
       },
     });
 
@@ -329,7 +323,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: [],
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
       },
     });
 
@@ -364,7 +358,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: [],
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
       },
     });
 
@@ -393,7 +387,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: [],
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
       },
     });
 
@@ -412,7 +406,7 @@ describe("init installer planning and merge behavior", () => {
       enabledProviders: "auto",
       formatStyle: "singleWindow",
       percentDisplayMode: "remaining",
-      showSessionTokens: true,
+
       tuiSidebarPanel: { enabled: true },
     });
     expect(tui).toEqual({
@@ -434,7 +428,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: [],
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
       },
     });
 
@@ -463,7 +457,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: [],
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
       },
     });
 
@@ -496,7 +490,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: [],
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
       },
     });
 
@@ -527,7 +521,7 @@ describe("init installer planning and merge behavior", () => {
         enabledProviders: "auto",
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
         tuiSidebarPanel: {
           enabled: true,
         },
@@ -544,7 +538,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: [],
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
       },
     });
 
@@ -571,7 +565,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: [],
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
       },
     });
     expect(emptyPlan.selections.quotaUi).toEqual(["none"]);
@@ -586,7 +580,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: [],
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
       },
     });
     expect(mixedNonePlan.selections.quotaUi).toEqual(["toast", "sidebar"]);
@@ -606,7 +600,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: [],
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
       } as any,
     });
 
@@ -633,7 +627,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: [],
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
         tuiCompactStatus: "home_bottom_session_prompt",
       } as any,
     });
@@ -661,7 +655,7 @@ describe("init installer planning and merge behavior", () => {
         enabledProviders: "auto",
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
         tuiSidebarPanel: {
           enabled: false,
         },
@@ -683,7 +677,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: [],
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
       },
     });
 
@@ -735,7 +729,7 @@ describe("init installer planning and merge behavior", () => {
         enabledProviders: "auto",
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
         tuiSidebarPanel: {
           enabled: true,
         },
@@ -756,7 +750,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: [],
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
       },
     });
 
@@ -799,7 +793,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: [],
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
         tuiCompactStatus: "home_bottom",
       } as any,
     });
@@ -834,11 +828,6 @@ describe("init installer planning and merge behavior", () => {
       { label: "Compact status line", value: "compact_status", hint: "short quota summary in the TUI status area" },
       { label: "Terminal/slash commands only", value: "none", hint: "no toast, sidebar, or compact status UI" },
     ]);
-    const sessionTokenCall = prompts.selectCalls.find((call) => call.message === "Session token details");
-    expect(sessionTokenCall?.options).toEqual([
-      { label: "Hide session tokens", value: "no", hint: "keep quota output shorter" },
-      { label: "Show session tokens", value: "yes", hint: "include current session input/output token counts when available" },
-    ]);
     const messages = prompts.selectCalls.map((call) => call.message);
     expect(messages).not.toContain("Compact TUI status");
     const quotaConfig = readJson(join(tempDir, "opencode-quota", "quota-toast.json"));
@@ -864,7 +853,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: [],
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
       },
     });
 
@@ -886,7 +875,7 @@ describe("init installer planning and merge behavior", () => {
       enabledProviders: "auto",
       formatStyle: "singleWindow",
       percentDisplayMode: "remaining",
-      showSessionTokens: true,
+
       tuiSidebarPanel: { enabled: true },
     });
     expect(tui).toEqual({
@@ -908,7 +897,7 @@ describe("init installer planning and merge behavior", () => {
         manualProviders: [],
         formatStyle: "singleWindow",
         percentDisplayMode: "remaining",
-        showSessionTokens: true,
+
       },
     });
 
@@ -993,7 +982,7 @@ describe("init installer planning and merge behavior", () => {
           manualProviders: [],
           formatStyle: "singleWindow",
           percentDisplayMode: "remaining",
-          showSessionTokens: true,
+  
         },
       }),
     ).rejects.toThrow(/plugin is not an array/i);

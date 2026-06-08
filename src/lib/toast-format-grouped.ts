@@ -6,7 +6,7 @@
  */
 
 import type { QuotaToastConfig } from "./types.js";
-import type { QuotaToastEntry, QuotaToastError, SessionTokensData } from "./entries.js";
+import type { QuotaToastEntry, QuotaToastError } from "./entries.js";
 import { isValueEntry } from "./entries.js";
 import {
   bar,
@@ -19,7 +19,6 @@ import {
 } from "./format-utils.js";
 import { formatGroupedHeader } from "./grouped-header-format.js";
 import { normalizeGroupedQuotaEntries } from "./grouped-entry-normalization.js";
-import { renderSessionTokensLines } from "./session-tokens-format.js";
 
 function normalizeLabelText(value?: string): string {
   return value?.trim().replace(/:+$/u, "").trim() ?? "";
@@ -63,7 +62,6 @@ export function formatQuotaRowsGrouped(params: {
   entries?: QuotaToastEntry[];
   errors?: QuotaToastError[];
   percentDisplayMode?: QuotaToastConfig["percentDisplayMode"];
-  sessionTokens?: SessionTokensData;
 }): string {
   const layout = params.layout ?? { maxWidth: 50, narrowAt: 42, tinyAt: 32 };
   const maxWidth = layout.maxWidth;
@@ -196,13 +194,6 @@ export function formatQuotaRowsGrouped(params: {
   for (const err of params.errors ?? []) {
     if (lines.length > 0) lines.push("");
     lines.push(`${err.label}: ${err.message}`);
-  }
-
-  // Add session token summary (if data available and non-empty)
-  const tokenLines = renderSessionTokensLines(params.sessionTokens, { maxWidth });
-  if (tokenLines.length > 0) {
-    if (lines.length > 0) lines.push("");
-    lines.push(...tokenLines);
   }
 
   return lines.join("\n");

@@ -3,7 +3,7 @@
  */
 
 import type { QuotaToastConfig } from "./types.js";
-import type { QuotaToastEntry, QuotaToastError, SessionTokensData } from "./entries.js";
+import type { QuotaToastEntry, QuotaToastError } from "./entries.js";
 import type { QuotaFormatStyle } from "./quota-format-style.js";
 import { isValueEntry } from "./entries.js";
 import {
@@ -16,10 +16,6 @@ import {
   resolveDisplayedPercent,
 } from "./format-utils.js";
 import { formatQuotaRowsGrouped } from "./toast-format-grouped.js";
-import {
-  renderSessionTokensLines,
-  renderSidebarSessionTokenSummaryLines,
-} from "./session-tokens-format.js";
 import { getQuotaFormatStyleDefinition } from "./quota-format-style.js";
 import { buildSingleWindowPercentEntryDisplayName } from "./quota-entry-display.js";
 
@@ -98,7 +94,6 @@ export function formatQuotaRows(params: {
   errors?: QuotaToastError[];
   style?: QuotaFormatStyle;
   percentDisplayMode?: QuotaToastConfig["percentDisplayMode"];
-  sessionTokens?: SessionTokensData;
 }): string {
   const styleDefinition = getQuotaFormatStyleDefinition(params.style);
 
@@ -108,7 +103,6 @@ export function formatQuotaRows(params: {
       entries: params.entries,
       errors: params.errors,
       percentDisplayMode: params.percentDisplayMode,
-      sessionTokens: params.sessionTokens,
     });
   }
 
@@ -241,16 +235,6 @@ export function formatQuotaRows(params: {
   // Add error rows (rendered as "label: message")
   for (const err of params.errors ?? []) {
     lines.push(`${err.label}: ${err.message}`);
-  }
-
-  // Add session token section (if data available and non-empty)
-  const tokenLines =
-    styleDefinition.sessionTokens === "detailed"
-      ? renderSessionTokensLines(params.sessionTokens, { maxWidth })
-      : renderSidebarSessionTokenSummaryLines(params.sessionTokens, { maxWidth });
-  if (tokenLines.length > 0) {
-    if (lines.length > 0) lines.push("");
-    lines.push(...tokenLines);
   }
 
   return lines.join("\n");

@@ -22,7 +22,7 @@ import {
   type SessionTreeNode,
 } from "./lib/quota-stats.js";
 import { formatQuotaStatsReport } from "./lib/quota-stats-format.js";
-import { buildQuotaStatusReport, type SessionTokenError } from "./lib/quota-status.js";
+import { buildQuotaStatusReport } from "./lib/quota-status.js";
 import { inspectTuiConfig } from "./lib/tui-config-diagnostics.js";
 import {
   getPricingSnapshotMeta,
@@ -377,9 +377,6 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
   let configInFlight: Promise<void> | null = null;
   let configMeta: LoadConfigMeta = createLoadConfigMeta();
   let runtimeProviders = getProviders();
-
-  // Track last session token error for /quota_status diagnostics
-  let lastSessionTokenError: SessionTokenError | undefined;
 
   const deferredQuotaRefreshes = new Map<string, DeferredQuotaRefreshState>();
 
@@ -828,7 +825,6 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
       `formatStyle=${formatStyle}`,
       `percentDisplayMode=${config.percentDisplayMode}`,
       `layout=${JSON.stringify(config.layout)}`,
-      `showSessionTokens=${config.showSessionTokens ? "yes" : "no"}`,
       `onlyCurrentModel=${config.onlyCurrentModel ? "yes" : "no"}`,
       `currentModel=${currentModel}`,
       `currentProviderID=${currentProviderID}`,
@@ -928,14 +924,10 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
     const { selection, availability, active, attemptedAny, hasExplicitProviderIssues, data } =
       quotaResult;
 
-    if (runtimeConfig.showSessionTokens && params.sessionID) {
-      lastSessionTokenError = quotaResult.sessionTokenError;
-    }
-
     const currentModel = selection?.currentModel;
     const errors = data?.errors ?? [];
     const hasProviderQuotaRows = Boolean(data?.entries.length);
-    const hasQuotaRows = Boolean(hasProviderQuotaRows || data?.sessionTokens);
+    const hasQuotaRows = Boolean(hasProviderQuotaRows);
     const providerFetchFailureOnly = attemptedAny && isProviderFetchFailureOnly(errors);
     const retryableAvailabilityFailure =
       active.length === 0 && availability.some((item) => !item.ok && item.error === true);
@@ -971,7 +963,6 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
         errors: data?.errors ?? [],
         style: resolveQuotaFormatStyle(runtimeConfig.formatStyle),
         percentDisplayMode: runtimeConfig.percentDisplayMode,
-        sessionTokens: data?.sessionTokens,
       });
 
       const retryableMaskedProviderFailure = !hasProviderQuotaRows && providerFetchFailureOnly;
@@ -1258,10 +1249,6 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
       providers: runtime.providers,
     });
 
-    if (runtime.config.showSessionTokens && request.sessionID) {
-      lastSessionTokenError = quotaResult.sessionTokenError;
-    }
-
     return quotaResult.data;
   }
 
@@ -1425,7 +1412,6 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
             failures: refresh.failures,
           }
         : { attempted: false },
-      sessionTokenError: lastSessionTokenError,
       geminiCliClient: typedClient,
       generatedAtMs: params.generatedAtMs,
     });

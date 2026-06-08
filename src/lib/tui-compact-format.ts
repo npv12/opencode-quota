@@ -153,40 +153,6 @@ function formatCompactEntrySegments(params: {
     .filter((segment): segment is string => Boolean(segment));
 }
 
-function formatCompactTokenCount(count: number): string {
-  if (!Number.isFinite(count)) return "0";
-  if (Math.abs(count) >= 1_000_000) {
-    return `${(count / 1_000_000).toFixed(1).replace(/\.0$/u, "")}M`;
-  }
-  if (Math.abs(count) >= 1_000) {
-    return `${(count / 1_000).toFixed(1).replace(/\.0$/u, "")}K`;
-  }
-  return String(Math.trunc(count));
-}
-
-function formatCompactSessionTokensSegment(data: QuotaRenderData): string | null {
-  const sessionTokens = data.sessionTokens;
-  if (!sessionTokens) return null;
-
-  const hasTokenData =
-    sessionTokens.models.length > 0 ||
-    sessionTokens.totalInput > 0 ||
-    (sessionTokens.totalCachedInput ?? 0) > 0 ||
-    sessionTokens.totalOutput > 0;
-  if (!hasTokenData) return null;
-
-  const totalCached = sessionTokens.totalCachedInput ?? 0;
-  const inputSegment = totalCached > 0
-    ? `${formatCompactTokenCount(sessionTokens.totalInput)} (${formatCompactTokenCount(totalCached)})`
-    : formatCompactTokenCount(sessionTokens.totalInput);
-
-  return compactText(
-    `tok ${inputSegment} in / ${formatCompactTokenCount(
-      sessionTokens.totalOutput,
-    )} out`,
-  );
-}
-
 function formatIssueCount(count: number): string {
   return `+${count} issue${count === 1 ? "" : "s"}`;
 }
@@ -211,11 +177,6 @@ export function buildCompactQuotaStatusLine(params: {
   const data = sanitizeQuotaRenderData(params.data);
   const percentDisplayMode = params.percentDisplayMode ?? "remaining";
   const segments = formatCompactEntrySegments({ entries: data.entries, percentDisplayMode });
-
-  const sessionTokensSegment = formatCompactSessionTokensSegment(data);
-  if (sessionTokensSegment) {
-    segments.push(sessionTokensSegment);
-  }
 
   if (data.errors.length > 0) {
     if (segments.length === 0) {
