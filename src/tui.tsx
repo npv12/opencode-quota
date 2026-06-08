@@ -412,14 +412,19 @@ function SessionPromptWithCompactStatus(props: {
   const resource = useSessionQuotaResource(props.api, () => props.sessionID);
   const panel = () => resource().compact();
 
+  const ui = props.api.ui as TuiPluginApi["ui"] & {
+    Slot: (props: { name: string; session_id: string }) => JSX.Element;
+  };
+
   return (
     <box gap={0}>
-      <props.api.ui.Prompt
+      <ui.Prompt
         sessionID={props.sessionID}
         visible={props.visible}
         disabled={props.disabled}
         onSubmit={props.onSubmit}
         ref={props.promptRef}
+        right={<ui.Slot name="session_prompt_right" session_id={props.sessionID} />}
       />
       <CompactStatusLine api={props.api} panel={panel} justifyContent="flex-end" />
     </box>

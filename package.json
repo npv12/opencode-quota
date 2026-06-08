@@ -70,7 +70,7 @@
   },
   "homepage": "https://github.com/slkiser/opencode-quota#readme",
   "devDependencies": {
-    "@opencode-ai/plugin": "^1.4.3",
+    "@opencode-ai/plugin": "^1.15.10",
     "@types/node": "^22.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
@@ -87,7 +87,7 @@
     "xdg-basedir": "^5.1.0"
   },
   "peerDependencies": {
-    "@opencode-ai/plugin": "^1.4.3"
+    "@opencode-ai/plugin": "^1.15.10"
   },
   "engines": {
     "node": ">=18.0.0"
