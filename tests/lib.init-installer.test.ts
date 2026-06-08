@@ -561,105 +561,6 @@ describe("init installer planning and merge behavior", () => {
     expect(quotaConfig.tuiCompactStatus).toMatchObject({ enabled: true });
   });
 
-  it("writes maintainer announcements disabled without installing TUI solely for announcements", async () => {
-    const projectDir = join(tempDir, "project");
-    mkdirSync(projectDir, { recursive: true });
-
-    const plan = await planInitInstaller({
-      cwd: projectDir,
-      selections: {
-        scope: "project",
-        quotaUi: ["none"],
-        providerMode: "auto",
-        manualProviders: [],
-        formatStyle: "singleWindow",
-        percentDisplayMode: "remaining",
-        showSessionTokens: true,
-        maintainerAnnouncements: false,
-      },
-    });
-
-    expect(plan.summaryLines).toContain("Maintainer announcements: Disabled");
-    expect(plan.edits.map((edit) => edit.kind)).toEqual(["opencode", "quota"]);
-
-    await applyInitInstallerPlan(plan);
-
-    expect(existsSync(join(projectDir, "tui.json"))).toBe(false);
-    const quotaConfig = readJson(join(projectDir, "opencode-quota", "quota-toast.json"));
-    expect(quotaConfig.maintainerAnnouncements).toEqual({ enabled: false });
-  });
-
-  it("writes maintainer announcements enabled without installing TUI solely for announcements", async () => {
-    const projectDir = join(tempDir, "project");
-    mkdirSync(projectDir, { recursive: true });
-
-    const plan = await planInitInstaller({
-      cwd: projectDir,
-      selections: {
-        scope: "project",
-        quotaUi: ["none"],
-        providerMode: "auto",
-        manualProviders: [],
-        formatStyle: "singleWindow",
-        percentDisplayMode: "remaining",
-        showSessionTokens: true,
-        maintainerAnnouncements: true,
-      },
-    });
-
-    expect(plan.summaryLines).toContain("Maintainer announcements: Enabled");
-    expect(plan.summaryLines).not.toContain(
-      "TUI plugin: install for maintainer announcement home notices only",
-    );
-    expect(plan.edits.map((edit) => edit.kind)).toEqual(["opencode", "quota"]);
-
-    await applyInitInstallerPlan(plan);
-
-    expect(existsSync(join(projectDir, "tui.json"))).toBe(false);
-    const quotaConfig = readJson(join(projectDir, "opencode-quota", "quota-toast.json"));
-    expect(quotaConfig.maintainerAnnouncements).toEqual({ enabled: true, home: true });
-  });
-
-  it("rerun with maintainer announcements enabled restores installer-created opt-outs", async () => {
-    const projectDir = join(tempDir, "project");
-    mkdirSync(join(projectDir, "opencode-quota"), { recursive: true });
-    writeFileSync(
-      join(projectDir, "opencode-quota", "quota-toast.json"),
-      JSON.stringify({
-        enableToast: false,
-        enabledProviders: "auto",
-        formatStyle: "singleWindow",
-        percentDisplayMode: "remaining",
-        showSessionTokens: true,
-        maintainerAnnouncements: { enabled: false, home: false },
-      }),
-      "utf8",
-    );
-
-    const plan = await planInitInstaller({
-      cwd: projectDir,
-      selections: {
-        scope: "project",
-        quotaUi: ["none"],
-        providerMode: "auto",
-        manualProviders: [],
-        formatStyle: "singleWindow",
-        percentDisplayMode: "remaining",
-        showSessionTokens: true,
-        maintainerAnnouncements: true,
-      },
-    });
-
-    const quotaEdit = plan.edits.find((edit) => edit.kind === "quota");
-    expect(quotaEdit?.updatedKeys).toContain("quotaToast.maintainerAnnouncements.enabled");
-    expect(quotaEdit?.updatedKeys).toContain("quotaToast.maintainerAnnouncements.home");
-
-    await applyInitInstallerPlan(plan);
-
-    const quotaConfig = readJson(join(projectDir, "opencode-quota", "quota-toast.json"));
-    expect(quotaConfig.maintainerAnnouncements).toEqual({ enabled: true, home: true });
-  });
-
   it("normalizes empty and mixed none quota UI choices defensively", async () => {
     const emptyPlan = await planInitInstaller({
       cwd: tempDir,
@@ -940,10 +841,6 @@ describe("init installer planning and merge behavior", () => {
     ]);
     const messages = prompts.selectCalls.map((call) => call.message);
     expect(messages).not.toContain("Compact TUI status");
-    expect(prompts.confirmCalls[0]).toEqual({
-      message: "Show bundled maintainer notices automatically when available?",
-      initialValue: true,
-    });
     const quotaConfig = readJson(join(tempDir, "opencode-quota", "quota-toast.json"));
     expect(quotaConfig.tuiSidebarPanel).toEqual({ enabled: true });
     expect(quotaConfig.tuiCompactStatus).toMatchObject({
@@ -952,24 +849,6 @@ describe("init installer planning and merge behavior", () => {
       sessionPrompt: true,
       suppressWhenNativeProviderQuota: true,
     });
-  });
-
-  it("prompt No for maintainer announcements writes opt-out and does not install TUI only for notices", async () => {
-    const prompts = createPromptStub({
-      selectValues: ["project", "auto", "singleWindow", "remaining", "yes"],
-      multiselectValues: [["none"]],
-      confirmValues: [false, true],
-    });
-
-    const code = await runInitInstaller({
-      cwd: tempDir,
-      prompts: prompts as any,
-    });
-
-    expect(code).toBe(0);
-    expect(existsSync(join(tempDir, "tui.json"))).toBe(false);
-    const quotaConfig = readJson(join(tempDir, "opencode-quota", "quota-toast.json"));
-    expect(quotaConfig.maintainerAnnouncements).toEqual({ enabled: false });
   });
 
   it("creates both opencode and tui targets for toast + sidebar mode with popup toasts enabled", async () => {
@@ -1049,7 +928,7 @@ describe("init installer planning and merge behavior", () => {
     const prompts = createPromptStub({
       selectValues: ["project", "auto", "singleWindow", "remaining", "yes"],
       multiselectValues: [["toast"]],
-      confirmValues: [true, false],
+      confirmValues: [false],
     });
 
     const code = await runInitInstaller({

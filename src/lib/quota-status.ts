@@ -91,12 +91,10 @@ import type { QuotaProviderResult, QuotaToastEntry, QuotaToastError } from "./en
 import { isValueEntry } from "./entries.js";
 import type {
   CursorQuotaPlan,
-  MaintainerAnnouncementsConfig,
   OpenCodeGoWindow,
   OpenCodeGoWindowKey,
   PricingSnapshotSource,
 } from "./types.js";
-import type { MaintainerAnnouncementsSummary } from "./maintainer-announcements.js";
 import { queryMiniMaxQuota } from "../providers/minimax-coding-plan.js";
 import { queryZaiQuota } from "./zai.js";
 import { queryZhipuQuota } from "./zhipu.js";
@@ -652,10 +650,6 @@ export async function buildQuotaStatusReport(params: {
     failures?: Array<{ email?: string; error: string }>;
   };
   sessionTokenError?: SessionTokenError;
-  maintainerAnnouncements?: {
-    config: MaintainerAnnouncementsConfig;
-    summary: MaintainerAnnouncementsSummary;
-  };
   geminiCliClient?: ConfigClient;
   generatedAtMs?: number;
 }): Promise<string> {
@@ -717,22 +711,6 @@ export async function buildQuotaStatusReport(params: {
     toastLines.push(`  - ${p.id}: ${bits.join(" ")}`);
   }
   sections.push(createLinesSection("toast", "toast:", toastLines));
-
-  if (params.maintainerAnnouncements) {
-    const announcements = params.maintainerAnnouncements;
-    const summary = announcements.summary;
-    sections.push(
-      createLinesSection("maintainer_announcements", "maintainer_announcements:", [
-        `- enabled: ${announcements.config.enabled ? "true" : "false"}`,
-        `- home: ${announcements.config.home ? "true" : "false"}`,
-        `- source: ${summary.source}`,
-        `- network: ${summary.network ? "true" : "false"}`,
-        `- active: ${summary.activeCount}`,
-        `- future: ${summary.futureCount}`,
-        `- expired: ${summary.expiredCount}`,
-      ]),
-    );
-  }
 
   // === paths ===
   const pathsRows: ReportKvRow[] = [];

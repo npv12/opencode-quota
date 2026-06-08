@@ -160,7 +160,7 @@ describe("buildCompactQuotaStatusLine", () => {
       },
     });
 
-    expect(remaining).toBe("Cursor API - $2.40 / $20.00");
+    expect(remaining).toBe("Cursor API $2.40 / $20.00");
     expect(used).toBe(remaining);
   });
 
@@ -193,7 +193,7 @@ describe("buildCompactQuotaStatusLine", () => {
       },
     });
 
-    expect(line).toBe("Copilot 82% | Cursor API - $2.40 | tok 12.4K (5.6K) in / 3.1K out");
+    expect(line).toBe("Copilot 82% | Cursor API $2.40 | tok 12.4K (5.6K) in / 3.1K out");
   });
 
   it("summarizes errors as issue counts when quota segments exist and the count fits", () => {

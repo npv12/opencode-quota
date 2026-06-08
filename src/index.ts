@@ -31,7 +31,6 @@ export { QuotaToastPlugin } from "./plugin.js";
 // Re-export types for consumers (types are erased at runtime, so safe to export)
 export type {
   QuotaToastConfig,
-  MaintainerAnnouncementsConfig,
   GoogleModelId,
   PricingSnapshotSource,
   CopilotEnterpriseUsageResult,

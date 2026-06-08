@@ -66,48 +66,6 @@ describe("loadConfig", () => {
     return { config, meta };
   }
 
-  it("defaults maintainer announcements config and accepts validated nested overrides", async () => {
-    const defaults = await loadSdkConfig({});
-    expect(defaults.config.maintainerAnnouncements).toEqual(DEFAULT_CONFIG.maintainerAnnouncements);
-    expect(defaults.config.maintainerAnnouncements).not.toBe(DEFAULT_CONFIG.maintainerAnnouncements);
-
-    const explicit = await loadSdkConfig({
-      maintainerAnnouncements: {
-        enabled: false,
-        home: false,
-      },
-    });
-    expect(explicit.config.maintainerAnnouncements).toEqual({
-      enabled: false,
-      home: false,
-    });
-    expect(explicit.meta.settingSources).toEqual({
-      "maintainerAnnouncements.enabled": "client.config.get",
-      "maintainerAnnouncements.home": "client.config.get",
-    });
-    expect(explicit.meta.networkSettingSources).toEqual({});
-
-    const partialInvalid = await loadSdkConfig({
-      maintainerAnnouncements: {
-        enabled: true,
-        home: "no",
-      },
-    });
-    expect(partialInvalid.config.maintainerAnnouncements).toEqual({
-      ...DEFAULT_CONFIG.maintainerAnnouncements,
-      enabled: true,
-    });
-    expect(partialInvalid.meta.settingSources).toEqual({
-      "maintainerAnnouncements.enabled": "client.config.get",
-    });
-
-    const invalidNested = await loadSdkConfig({ maintainerAnnouncements: false });
-    expect(invalidNested.config.maintainerAnnouncements).toEqual(
-      DEFAULT_CONFIG.maintainerAnnouncements,
-    );
-    expect(invalidNested.meta.settingSources).toEqual({});
-  });
-
   it("defaults TUI sidebar panel config and accepts validated nested overrides", async () => {
     const defaults = await loadSdkConfig({});
     expect(defaults.config.tuiSidebarPanel).toEqual(DEFAULT_CONFIG.tuiSidebarPanel);
@@ -195,8 +153,6 @@ describe("loadConfig", () => {
     first.tuiSidebarPanel.enabled = false;
     first.tuiCompactStatus.enabled = true;
     first.tuiCompactStatus.maxWidth = 1;
-    first.maintainerAnnouncements.enabled = false;
-    first.maintainerAnnouncements.home = false;
 
     const second = await loadConfig(undefined, undefined, { cwd: isolatedCwd });
     expect(second.tuiSidebarPanel).toEqual(DEFAULT_CONFIG.tuiSidebarPanel);
@@ -208,11 +164,6 @@ describe("loadConfig", () => {
       sessionPrompt: true,
       suppressWhenNativeProviderQuota: true,
       maxWidth: 96,
-    });
-    expect(second.maintainerAnnouncements).toEqual(DEFAULT_CONFIG.maintainerAnnouncements);
-    expect(DEFAULT_CONFIG.maintainerAnnouncements).toEqual({
-      enabled: true,
-      home: true,
     });
   });
 

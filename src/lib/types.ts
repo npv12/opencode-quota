@@ -39,11 +39,6 @@ export interface TuiCompactStatusConfig {
   maxWidth: number;
 }
 
-export interface MaintainerAnnouncementsConfig {
-  enabled: boolean;
-  home: boolean;
-}
-
 /** Request timeout in milliseconds */
 export const REQUEST_TIMEOUT_MS = 5000;
 
@@ -129,9 +124,6 @@ export interface QuotaToastConfig {
   /** Opt-in compact quota/status text for TUI prompt/home surfaces. */
   tuiCompactStatus: TuiCompactStatusConfig;
 
-  /** Bundled-only maintainer announcement surfaces. */
-  maintainerAnnouncements: MaintainerAnnouncementsConfig;
-
   /** Responsive toast layout breakpoints (not used by the fixed-width TUI sidebar). */
   layout: {
     /** Default max width target for toast formatting */
@@ -186,10 +178,6 @@ export const DEFAULT_CONFIG: QuotaToastConfig = {
     sessionPrompt: true,
     suppressWhenNativeProviderQuota: true,
     maxWidth: 96,
-  },
-  maintainerAnnouncements: {
-    enabled: true,
-    home: true,
   },
   layout: {
     maxWidth: 50,

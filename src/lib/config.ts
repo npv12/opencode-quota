@@ -59,8 +59,6 @@ export const QUOTA_TOAST_SETTING_SOURCE_KEYS = [
   "tuiCompactStatus.sessionPrompt",
   "tuiCompactStatus.suppressWhenNativeProviderQuota",
   "tuiCompactStatus.maxWidth",
-  "maintainerAnnouncements.enabled",
-  "maintainerAnnouncements.home",
   "layout.maxWidth",
   "layout.narrowAt",
   "layout.tinyAt",
@@ -120,7 +118,6 @@ const NETWORK_SETTING_SOURCE_KEYS = [
 type PricingSnapshotPatch = Partial<QuotaToastConfig["pricingSnapshot"]>;
 type TuiSidebarPanelPatch = Partial<QuotaToastConfig["tuiSidebarPanel"]>;
 type TuiCompactStatusPatch = Partial<QuotaToastConfig["tuiCompactStatus"]>;
-type MaintainerAnnouncementsPatch = Partial<QuotaToastConfig["maintainerAnnouncements"]>;
 type LayoutPatch = Partial<QuotaToastConfig["layout"]>;
 
 type ValidatedQuotaToastPatch = {
@@ -150,7 +147,6 @@ type ValidatedQuotaToastPatch = {
   showSessionTokens?: boolean;
   tuiSidebarPanel?: TuiSidebarPanelPatch;
   tuiCompactStatus?: TuiCompactStatusPatch;
-  maintainerAnnouncements?: MaintainerAnnouncementsPatch;
   layout?: LayoutPatch;
 };
 
@@ -273,7 +269,6 @@ function cloneConfig(config: QuotaToastConfig): QuotaToastConfig {
     pricingSnapshot: { ...config.pricingSnapshot },
     tuiSidebarPanel: { ...config.tuiSidebarPanel },
     tuiCompactStatus: { ...config.tuiCompactStatus },
-    maintainerAnnouncements: { ...config.maintainerAnnouncements },
     layout: { ...config.layout },
   };
 }
@@ -404,25 +399,6 @@ function extractTuiCompactStatusPatch(value: unknown): TuiCompactStatusPatch | u
   if (hasOwnKey(value, "maxWidth") && isPositiveNumber(value.maxWidth)) {
     patch.maxWidth = value.maxWidth;
   }
-
-  return Object.keys(patch).length > 0 ? patch : undefined;
-}
-
-function extractMaintainerAnnouncementsPatch(value: unknown): MaintainerAnnouncementsPatch | undefined {
-  if (!isPlainObject(value)) {
-    return undefined;
-  }
-
-  const patch: MaintainerAnnouncementsPatch = {};
-
-  if (hasOwnKey(value, "enabled") && typeof value.enabled === "boolean") {
-    patch.enabled = value.enabled;
-  }
-
-  if (hasOwnKey(value, "home") && typeof value.home === "boolean") {
-    patch.home = value.home;
-  }
-
 
   return Object.keys(patch).length > 0 ? patch : undefined;
 }
@@ -619,15 +595,6 @@ function extractValidatedQuotaToastPatch(
     }
   }
 
-  if (hasOwnKey(quotaToastConfig, "maintainerAnnouncements")) {
-    const maintainerAnnouncements = extractMaintainerAnnouncementsPatch(
-      quotaToastConfig.maintainerAnnouncements,
-    );
-    if (maintainerAnnouncements) {
-      patch.maintainerAnnouncements = maintainerAnnouncements;
-    }
-  }
-
   if (hasOwnKey(quotaToastConfig, "layout")) {
     const layout = extractLayoutPatch(quotaToastConfig.layout);
     if (layout) {
@@ -814,19 +781,6 @@ function applyValidatedQuotaToastPatch(
       config.tuiCompactStatus.maxWidth = patch.tuiCompactStatus.maxWidth!;
       applySettingSource(settingSources, "tuiCompactStatus.maxWidth", sourcePath);
     }
-  }
-
-  if (patch.maintainerAnnouncements) {
-    if (hasOwnKey(patch.maintainerAnnouncements, "enabled")) {
-      config.maintainerAnnouncements.enabled = patch.maintainerAnnouncements.enabled!;
-      applySettingSource(settingSources, "maintainerAnnouncements.enabled", sourcePath);
-    }
-
-    if (hasOwnKey(patch.maintainerAnnouncements, "home")) {
-      config.maintainerAnnouncements.home = patch.maintainerAnnouncements.home!;
-      applySettingSource(settingSources, "maintainerAnnouncements.home", sourcePath);
-    }
-
   }
 
   if (patch.layout) {

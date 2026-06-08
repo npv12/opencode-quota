@@ -765,10 +765,7 @@ describe("tui runtime helpers", () => {
         hasNativeProviderQuota: true,
         suppressedByNativeProviderQuota: true,
       },
-      announcements: {
-        homeBottom: true,
-      },
-      homeBottom: true,
+      homeBottom: false,
     });
     expect(collectQuotaRenderData).not.toHaveBeenCalled();
   });
@@ -1126,7 +1123,7 @@ describe("tui runtime helpers", () => {
     });
   });
 
-  it("loads announcement-only home bottom without fetching quota data", async () => {
+  it("loads compact home bottom when compact is enabled and announcements are removed", async () => {
     writeFileSync(
       join(worktreeDir, "opencode.json"),
       JSON.stringify({
@@ -1136,10 +1133,6 @@ describe("tui runtime helpers", () => {
             tuiCompactStatus: {
               enabled: false,
               homeBottom: false,
-            },
-            maintainerAnnouncements: {
-              enabled: true,
-              home: true,
             },
           },
         },
@@ -1162,23 +1155,13 @@ describe("tui runtime helpers", () => {
         client: {},
       } as any,
       nowMs: Date.parse("2026-05-21T12:00:00.000Z"),
-      announcements: [
-        {
-          id: "copilot-credits",
-          message: "If you use Copilot, GitHub billing is moving to AI Credits.",
-        },
-      ],
     });
 
-    expect(bottom).toEqual({
-      status: "ready",
-      announcementText: "Notice: Maintainer announcement available. Run /quota_announcements.",
-      compact: { status: "disabled" },
-    });
+    expect(bottom).toEqual({ status: "disabled", compact: { status: "disabled" } });
     expect(collectQuotaRenderData).not.toHaveBeenCalled();
   });
 
-  it("loads announcement and compact quota in one home bottom state", async () => {
+  it("loads compact quota in home bottom state", async () => {
     writeFileSync(
       join(worktreeDir, "opencode.json"),
       JSON.stringify({
@@ -1188,10 +1171,6 @@ describe("tui runtime helpers", () => {
             tuiCompactStatus: {
               enabled: true,
               homeBottom: true,
-            },
-            maintainerAnnouncements: {
-              enabled: true,
-              home: true,
             },
           },
         },
@@ -1222,23 +1201,16 @@ describe("tui runtime helpers", () => {
         client: {},
       } as any,
       nowMs: Date.parse("2026-05-21T12:00:00.000Z"),
-      announcements: [
-        {
-          id: "copilot-credits",
-          message: "If you use Copilot, GitHub billing is moving to AI Credits.",
-        },
-      ],
     });
 
     expect(bottom).toEqual({
       status: "ready",
-      announcementText: "Notice: Maintainer announcement available. Run /quota_announcements.",
       compact: { status: "ready", text: "Home compact quota" },
     });
     expect(collectQuotaRenderData).toHaveBeenCalledOnce();
   });
 
-  it("does not render inactive announcement-only home bottom", async () => {
+  it("returns disabled home bottom when compact is disabled", async () => {
     writeFileSync(
       join(worktreeDir, "opencode.json"),
       JSON.stringify({
@@ -1248,10 +1220,6 @@ describe("tui runtime helpers", () => {
             tuiCompactStatus: {
               enabled: false,
               homeBottom: false,
-            },
-            maintainerAnnouncements: {
-              enabled: true,
-              home: true,
             },
           },
         },
@@ -1274,13 +1242,6 @@ describe("tui runtime helpers", () => {
         client: {},
       } as any,
       nowMs: Date.parse("2026-05-21T12:00:00.000Z"),
-      announcements: [
-        {
-          id: "copilot-credits",
-          message: "If you use Copilot, GitHub billing is moving to AI Credits.",
-          startsAt: "2026-06-01T00:00:00.000Z",
-        },
-      ],
     });
 
     expect(bottom).toEqual({ status: "disabled", compact: { status: "disabled" } });

@@ -166,7 +166,6 @@ describe("tui plugin smoke", () => {
         hasNativeProviderQuota: false,
         suppressedByNativeProviderQuota: false,
       },
-      announcements: { homeBottom: false },
       homeBottom: false,
     });
 
@@ -186,7 +185,6 @@ describe("tui plugin smoke", () => {
         hasNativeProviderQuota: false,
         suppressedByNativeProviderQuota: false,
       },
-      announcements: { homeBottom: true },
       homeBottom: true,
     });
 
@@ -206,7 +204,6 @@ describe("tui plugin smoke", () => {
         hasNativeProviderQuota: false,
         suppressedByNativeProviderQuota: false,
       },
-      announcements: { homeBottom: true },
       homeBottom: true,
     });
 
@@ -303,7 +300,6 @@ describe("tui plugin smoke", () => {
         hasNativeProviderQuota: false,
         suppressedByNativeProviderQuota: false,
       },
-      announcements: { homeBottom: true },
       homeBottom: true,
     });
 
@@ -329,7 +325,6 @@ describe("tui plugin smoke", () => {
         hasNativeProviderQuota: false,
         suppressedByNativeProviderQuota: false,
       },
-      announcements: { homeBottom: true },
       homeBottom: true,
     });
 
@@ -351,7 +346,6 @@ describe("tui plugin smoke", () => {
             type: "text",
             props: { children: " " },
           },
-          null,
           {
             type: "box",
             props: {
@@ -387,7 +381,6 @@ describe("tui plugin smoke", () => {
         hasNativeProviderQuota: false,
         suppressedByNativeProviderQuota: false,
       },
-      announcements: { homeBottom: false },
       homeBottom: false,
     });
 
@@ -408,12 +401,12 @@ describe("tui plugin smoke", () => {
     );
 
     expect(api.ui.Prompt).toHaveBeenCalledTimes(1);
-    expect(api.ui.Prompt).toHaveBeenCalledWith({
-      sessionID: "session-1",
-      visible: false,
-      disabled: true,
-      onSubmit,
-      ref,
-    });
+    const callArgs = (api.ui.Prompt as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(callArgs.sessionID).toBe("session-1");
+    expect(callArgs.visible).toBe(false);
+    expect(callArgs.disabled).toBe(true);
+    expect(callArgs.onSubmit).toBe(onSubmit);
+    expect(callArgs.ref).toBe(ref);
+    expect(callArgs.right).toBeDefined();
   });
 });

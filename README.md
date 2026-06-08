@@ -40,16 +40,14 @@ The installer adds missing plugin/config entries and keeps your unrelated settin
 | Quota reset periods | Show one reset period per provider, or all known reset periods. |
 | Quota percentage meaning | Show quota remaining, or quota already used. |
 | Session token details | Hide token counts for shorter output, or show them when available. |
-| Maintainer announcements | Keep bundled maintainer announcements enabled, or opt out. Yes is the default; Sidebar or Compact status installs the TUI plugin, where home notices can appear. |
 
 ### After install
 
 1. Restart OpenCode.
 2. Run `/quota`.
 3. If something looks wrong, run `/quota_status`.
-4. If you kept maintainer announcements enabled and installed the TUI plugin, the home screen can show `Notice: Maintainer announcement available. Run /quota_announcements.` or the plural count form. Without the TUI plugin, the same count-only notice can appear once after the first visible quota toast. Run `/quota_announcements` to read active notices.
-5. If you enabled the Sidebar panel, open the session sidebar and look for `Quota`.
-6. If you enabled Compact status line, look for the home-bottom quota line and the chat/session prompt quota line.
+4. If you enabled the Sidebar panel, open the session sidebar and look for `Quota`.
+5. If you enabled Compact status line, look for the home-bottom quota line and the chat/session prompt quota line.
 
 ### Terminal-only check
 
@@ -70,9 +68,9 @@ opencode-quota show --provider copilot
 - A `Quota` Sidebar panel in the TUI
 - Popup quota toasts in OpenCode
 - A Compact status line in the TUI
-- `/quota`, `/quota_status`, and `/quota_announcements` slash commands
+- `/quota` and `/quota_status` slash commands
 - Token reports such as `/tokens_today` and `/tokens_weekly`
-- Provider diagnostics for auth, quota sources, pricing, and bundled maintainer announcements
+- Provider diagnostics for auth, quota sources, and pricing
 
 <table>
   <tr>
@@ -120,9 +118,9 @@ This enables providers, slash commands, terminal checks, and popup toasts. Add t
 }
 ```
 
-### 2. Add the TUI plugin (for Sidebar panel, Compact status line, or announcement home notices)
+### 2. Add the TUI plugin (for Sidebar panel or Compact status line)
 
-If you want the Sidebar panel, Compact status line, or maintainer announcement home notices, also add this to `tui.json` or `tui.jsonc`:
+If you want the Sidebar panel or Compact status line, also add this to `tui.json` or `tui.jsonc`:
 
 ```jsonc
 {
@@ -151,10 +149,6 @@ Start with this, then adjust the UI choices in the next section:
   "tuiCompactStatus": {
     "enabled": false,
   },
-  "maintainerAnnouncements": {
-    "enabled": true,
-    "home": true,
-  },
 }
 ```
 
@@ -170,8 +164,7 @@ All UI surfaces use the same quota data. Put these settings in `opencode-quota/q
 | Sidebar panel | `tuiSidebarPanel.enabled: true` | Full `Quota` panel in OpenCode's session sidebar. Requires the TUI plugin entry above. |
 | Toast | `enableToast: true` | Popup toast after idle/question/compact events. Requires the server plugin entry above. |
 | Compact status line | `tuiCompactStatus.enabled: true` | Short text-only quota line at the home bottom and chat/session prompt locations, for example `Copilot 94% | OpenAI Pro 5h 100%, 7d 100%`. Requires the TUI plugin entry above. |
-| Maintainer announcement notice | `maintainerAnnouncements.enabled: true`, `maintainerAnnouncements.home: true` | Prefers the TUI home notice when the quota TUI plugin is configured. Without the TUI plugin, shows the same count-only notice once after the first visible quota toast. |
-| Terminal/slash only | `enableToast: false`, `tuiSidebarPanel.enabled: false`, `tuiCompactStatus.enabled: false`, `maintainerAnnouncements.enabled: false` | Keeps `/quota`, `/quota_status`, `/quota_announcements`, and terminal checks. |
+| Terminal/slash only | `enableToast: false`, `tuiSidebarPanel.enabled: false`, `tuiCompactStatus.enabled: false` | Keeps `/quota` and `/quota_status` and terminal checks. |
 
 Selecting Compact status line in the installer enables both compact surfaces by default. To keep compact status home-only, set `tuiCompactStatus.sessionPrompt: false`.
 
@@ -185,8 +178,7 @@ For more examples, see [Common configuration](#common-configuration). For every 
 | --- | --- |
 | `opencode-quota show` | Terminal quota-only quick glance |
 | `/quota` | Detailed quota report |
-| `/quota_status` | Config, provider, auth, pricing, `enabled`/`home` announcement config, `source=bundled_only`, `network=false`, and active/future/expired announcement counts |
-| `/quota_announcements` | List active bundled maintainer notices |
+| `/quota_status` | Config, provider, auth, and pricing diagnostics |
 | `/pricing_refresh` | Refresh local runtime pricing from `models.dev` |
 | `/tokens_today` | Tokens used today |
 | `/tokens_daily` | Tokens used in the last 24 hours |
@@ -235,10 +227,6 @@ Common locations:
 
 If you are unsure, run `/quota_status`; it prints the config path it loaded.
 
-### Maintainer announcements and privacy
-
-Announcements are bundled only: no remote fetches, announcement telemetry, or persisted dismiss state. Use `/quota_announcements` to read active notices and `/quota_status` for counts/diagnostics. See **Configure maintainer announcements** below for options.
-
 <details>
 <summary><strong>Choose providers explicitly</strong></summary>
 
@@ -282,22 +270,6 @@ Keeps `/quota`, `/quota_status`, terminal checks, and any enabled UI surfaces.
   "enableToast": false,
 }
 ```
-
-</details>
-
-<details>
-<summary><strong>Configure maintainer announcements</strong></summary>
-
-```jsonc
-{
-  "maintainerAnnouncements": {
-    "enabled": true,
-    "home": true,
-  },
-}
-```
-
-Set `enabled: false` to disable automatic announcement surfaces. `/quota_announcements` lists active bundled notices when announcements are enabled.
 
 </details>
 
@@ -406,13 +378,6 @@ Existing `experimental.quotaToast` settings still work when no sidecar file exis
 | `tuiCompactStatus.sessionPrompt` | `true` | Show the Compact status line by wrapping the TUI session prompt. Disable this if you only want the home-bottom line. |
 | `tuiCompactStatus.suppressWhenNativeProviderQuota` | `true` | Hide the Compact status line when OpenCode exposes native provider-quota support. |
 | `tuiCompactStatus.maxWidth` | `96` | Maximum Compact status line text width. |
-
-### Maintainer announcement settings
-
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `maintainerAnnouncements.enabled` | `true` | Enable bundled maintainer announcements. |
-| `maintainerAnnouncements.home` | `true` | Show the count-only notice on TUI home when the quota TUI plugin is configured, or as a one-shot toast fallback after a visible quota toast when it is not. |
 
 ### Provider-specific settings
 
@@ -549,7 +514,6 @@ Start here when quota or token data looks wrong.
 | Compact status line does not appear anywhere | Confirm `tui.json` includes `@slkiser/opencode-quota`, restart OpenCode, check `tuiCompactStatus.enabled`, and check whether `tuiCompactStatus.suppressWhenNativeProviderQuota` is hiding it because OpenCode exposes native provider-quota support. |
 | Compact status appears on home but not in chat/session | Check `tuiCompactStatus.sessionPrompt`; set it to `true` to show the chat/session prompt line. |
 | Popup toasts do not appear | Check `enableToast`, `showOnIdle`, `showOnQuestion`, and `showOnCompact`. |
-| Announcement home notice does not appear | Confirm `tui.json` includes `@slkiser/opencode-quota`, restart OpenCode, then check `maintainerAnnouncements.enabled`, `maintainerAnnouncements.home`, and the active count in the `maintainer_announcements` section of `/quota_status`. |
 | Token reports are empty | Start OpenCode once so `opencode.db` exists, then run a session with model usage. |
 | Pricing looks stale | Run `/pricing_refresh`. |
 

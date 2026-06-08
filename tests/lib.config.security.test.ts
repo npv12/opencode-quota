@@ -245,51 +245,6 @@ describe("loadConfig layered precedence", () => {
     );
   });
 
-  it("merges maintainer announcements per field and ignores invalid workspace fields", async () => {
-    writeFileSync(
-      join(xdgConfigHome, "opencode", "opencode.json"),
-      JSON.stringify({
-        experimental: {
-          quotaToast: {
-            maintainerAnnouncements: {
-              enabled: false,
-            },
-          },
-        },
-      }),
-      "utf-8",
-    );
-
-    writeFileSync(
-      join(workspaceDir, "opencode.json"),
-      JSON.stringify({
-        experimental: {
-          quotaToast: {
-            maintainerAnnouncements: {
-              home: false,
-            },
-          },
-        },
-      }),
-      "utf-8",
-    );
-
-    const meta = createLoadConfigMeta();
-    const cfg = await loadConfig(undefined, meta, { cwd: workspaceDir });
-
-    expect(cfg.maintainerAnnouncements).toEqual({
-      enabled: false,
-      home: false,
-    });
-    expect(meta.settingSources["maintainerAnnouncements.enabled"]).toBe(
-      quotaConfigSource(join(xdgConfigHome, "opencode")),
-    );
-    expect(meta.settingSources["maintainerAnnouncements.home"]).toBe(
-      quotaConfigSource(workspaceDir),
-    );
-    expect(meta.networkSettingSources).toEqual({});
-  });
-
   it("merges tuiSidebarPanel enabled per layer and ignores invalid workspace fields", async () => {
     writeFileSync(
       join(xdgConfigHome, "opencode", "opencode.json"),

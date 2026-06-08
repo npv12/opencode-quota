@@ -149,6 +149,14 @@ describe("provider-metadata", () => {
         quickSetupAnchor: "opencode-go-quick-setup",
         notes: "Scrapes the OpenCode Go dashboard; requires workspaceId and authCookie",
       },
+      {
+        id: "hyper",
+        autoSetup: "manual_env_config",
+        authentication: "external_api_key",
+        authFallbacks: ["env_api_key", "global_opencode_config"],
+        quota: "remote_api",
+        notes: "Requires HYPER_API_KEY environment variable",
+      },
     ]);
   });
 

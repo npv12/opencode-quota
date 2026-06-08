@@ -12,7 +12,6 @@ import type { CompactStatusState, HomeBottomState, SidebarPanelState } from "./l
 
 import {
   getCompactStatusText,
-  getHomeBottomAnnouncementText,
   getSidebarPanelLines,
   getSidebarPanelLinesExpanded,
   shouldRenderCompactStatus,
@@ -435,20 +434,12 @@ function HomeBottomView(props: { api: TuiPluginApi }) {
   const resource = acquireHomeBottomResource(props.api);
   onCleanup(() => resource.release());
 
-  const announcement = () => getHomeBottomAnnouncementText(resource.bottom());
   const compact = () => resource.bottom().compact;
 
   return (
     <Show when={shouldRenderHomeBottom(resource.bottom())}>
       <box gap={0}>
         <text> </text>
-        <Show when={announcement()}>
-          <box flexDirection="row" justifyContent="center">
-            <text fg={props.api.theme.current.textMuted} wrapMode="none">
-              {announcement()}
-            </text>
-          </box>
-        </Show>
         <CompactStatusLine api={props.api} panel={compact} justifyContent="center" />
       </box>
     </Show>

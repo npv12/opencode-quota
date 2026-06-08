@@ -498,42 +498,6 @@ describe("buildQuotaStatusReport", () => {
   const buildSyntheticStatusReport = (overrides: Record<string, unknown> = {}) =>
     buildProviderStatusReport("synthetic", overrides as any);
 
-  it("renders simplified maintainer announcement diagnostics", async () => {
-    const report = await buildSyntheticStatusReport({
-      maintainerAnnouncements: {
-        config: {
-          enabled: true,
-          home: true,
-        },
-        summary: {
-          source: "bundled_only",
-          network: false,
-          bundledCount: 4,
-          activeCount: 2,
-          futureCount: 1,
-          expiredCount: 1,
-          activeAnnouncements: [],
-          evaluations: [],
-        },
-      },
-    });
-
-    expectReportSection(
-      report,
-      "maintainer_announcements:",
-      [
-        "- enabled: true",
-        "- home: true",
-        "- source: bundled_only",
-        "- network: false",
-        "- active: 2",
-        "- future: 1",
-        "- expired: 1",
-      ],
-      ["state_path", "toast", "bundled_count", "active_count", "dismissed"],
-    );
-  });
-
   it("distinguishes organization billing access from computable remaining quota totals", async () => {
     const report = await buildQuotaStatusReportForTest({
       configSource: "files",

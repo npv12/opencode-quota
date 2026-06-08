@@ -233,10 +233,6 @@ export function makeQuotaToastTestConfig(
       ...DEFAULT_CONFIG.tuiCompactStatus,
       ...overrides.tuiCompactStatus,
     },
-    maintainerAnnouncements: {
-      ...DEFAULT_CONFIG.maintainerAnnouncements,
-      ...overrides.maintainerAnnouncements,
-    },
     layout: {
       ...DEFAULT_CONFIG.layout,
       ...overrides.layout,

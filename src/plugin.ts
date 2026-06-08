@@ -75,11 +75,6 @@ import {
   type QuotaRuntimeContext,
 } from "./lib/quota-runtime-context.js";
 import { findGitWorktreeRoot, getEffectiveConfigRoot } from "./lib/config-file-utils.js";
-import {
-  BUNDLED_MAINTAINER_ANNOUNCEMENTS,
-  formatMaintainerAnnouncementHomeCountLine,
-  getMaintainerAnnouncementsSummary,
-} from "./lib/maintainer-announcements.js";
 
 // =============================================================================
 // Types
@@ -387,10 +382,6 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
   let lastSessionTokenError: SessionTokenError | undefined;
 
   const deferredQuotaRefreshes = new Map<string, DeferredQuotaRefreshState>();
-  const maintainerAnnouncementToastFallback = {
-    pending: true,
-    inFlight: false,
-  };
 
   function getDeferredQuotaRefreshDelayMs(attempts: number): number {
     const index = Math.min(Math.max(0, attempts), DEFERRED_QUOTA_REFRESH_DELAYS_MS.length - 1);
@@ -540,67 +531,6 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
       configRoot,
       fallbackDirectory: cwd,
     };
-  }
-
-  function triggerMaintainerAnnouncementToastFallback(trigger: string): void {
-    if (!maintainerAnnouncementToastFallback.pending || maintainerAnnouncementToastFallback.inFlight) {
-      return;
-    }
-
-    if (!config.enabled || !config.enableToast) {
-      maintainerAnnouncementToastFallback.pending = false;
-      return;
-    }
-
-    if (!config.maintainerAnnouncements.enabled || !config.maintainerAnnouncements.home) {
-      maintainerAnnouncementToastFallback.pending = false;
-      return;
-    }
-
-    maintainerAnnouncementToastFallback.inFlight = true;
-    void (async () => {
-      try {
-        const summary = getMaintainerAnnouncementsSummary({
-          announcements: BUNDLED_MAINTAINER_ANNOUNCEMENTS,
-          enabledProviders: config.enabledProviders,
-        });
-
-        if (summary.activeCount <= 0) {
-          if (summary.futureCount <= 0) {
-            maintainerAnnouncementToastFallback.pending = false;
-          }
-          return;
-        }
-
-        const tuiDiagnostics = await inspectTuiConfig({ roots: getPluginRuntimeRootHints() });
-        if (tuiDiagnostics.quotaPluginConfigured) {
-          maintainerAnnouncementToastFallback.pending = false;
-          return;
-        }
-
-        const message = formatMaintainerAnnouncementHomeCountLine(summary.activeCount);
-        if (!message) {
-          return;
-        }
-
-        await typedClient.tui.showToast({
-          body: {
-            message: sanitizeDisplayText(message),
-            variant: "info",
-            duration: config.toastDurationMs,
-          },
-        });
-        maintainerAnnouncementToastFallback.pending = false;
-        await log("Displayed maintainer announcement fallback toast", { trigger });
-      } catch (err) {
-        await log("Failed to show maintainer announcement fallback toast", {
-          trigger,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      } finally {
-        maintainerAnnouncementToastFallback.inFlight = false;
-      }
-    })();
   }
 
   async function resolvePluginRuntimeContext(
@@ -1299,7 +1229,6 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
             duration: config.toastDurationMs,
           },
         });
-        triggerMaintainerAnnouncementToastFallback(trigger);
         await log("Displayed quota toast", { message, trigger });
       } catch (err) {
         await log("Failed to show toast", {
@@ -1466,9 +1395,6 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
       : null;
 
     const tuiDiagnostics = await inspectTuiConfig({ roots: runtime.roots });
-    const maintainerAnnouncementsSummary = getMaintainerAnnouncementsSummary({
-      enabledProviders: runtimeConfig.enabledProviders,
-    });
 
     return await buildQuotaStatusReport({
       tuiDiagnostics,
@@ -1500,10 +1426,6 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
           }
         : { attempted: false },
       sessionTokenError: lastSessionTokenError,
-      maintainerAnnouncements: {
-        config: runtimeConfig.maintainerAnnouncements,
-        summary: maintainerAnnouncementsSummary,
-      },
       geminiCliClient: typedClient,
       generatedAtMs: params.generatedAtMs,
     });
@@ -1758,41 +1680,6 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
     }
   }
 
-  function buildQuotaAnnouncementsCommandOutput(): string {
-    const summary = getMaintainerAnnouncementsSummary({
-      announcements: BUNDLED_MAINTAINER_ANNOUNCEMENTS,
-      enabledProviders: config.enabledProviders,
-    });
-    const activeAnnouncements =
-      config.enabled && config.maintainerAnnouncements.enabled ? summary.activeAnnouncements : [];
-    const lines = ["Maintainer announcements", ""];
-
-    if (activeAnnouncements.length === 0) {
-      lines.push("No current announcements.");
-      return lines.join("\n");
-    }
-
-    for (const evaluation of activeAnnouncements) {
-      lines.push(`- ${evaluation.announcement.message}`);
-      if (evaluation.announcement.url) {
-        lines.push(`  ${evaluation.announcement.url}`);
-      }
-    }
-
-    return lines.join("\n");
-  }
-
-  async function handleQuotaAnnouncementsSlashCommand(input: CommandExecuteInput): Promise<never> {
-    if ((input.arguments ?? "").trim()) {
-      return await injectCommandOutputAndHandle(
-        input.sessionID,
-        "Invalid arguments for /quota_announcements\n\nThis command does not accept arguments.\n\nUsage: /quota_announcements",
-      );
-    }
-
-    return await injectCommandOutputAndHandle(input.sessionID, buildQuotaAnnouncementsCommandOutput());
-  }
-
   async function handleQuotaStatusSlashCommand(input: CommandExecuteInput): Promise<never> {
     const sessionID = input.sessionID;
     const generatedAtMs = Date.now();
@@ -1831,10 +1718,6 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
         description:
           "Diagnostics for toast + TUI + pricing + local storage (includes unknown pricing report).",
       };
-      cfg.command["quota_announcements"] = {
-        template: "/quota_announcements",
-        description: "List active bundled maintainer announcements.",
-      };
       cfg.command["pricing_refresh"] = {
         template: "/pricing_refresh",
         description: "Refresh the local runtime pricing snapshot from models.dev.",
@@ -1868,14 +1751,13 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
         const isHandledSlashCommand =
           cmd === "quota" ||
           cmd === "quota_status" ||
-          cmd === "quota_announcements" ||
           cmd === "pricing_refresh" ||
           isTokenReportCommand(cmd);
 
         if (isHandledSlashCommand && !configLoaded) {
           await refreshConfig();
         }
-        if (isHandledSlashCommand && cmd !== "quota_announcements" && !config.enabled) {
+        if (isHandledSlashCommand && !config.enabled) {
           handled();
         }
 
@@ -1885,10 +1767,6 @@ export const QuotaToastPlugin: Plugin = async ({ client }) => {
 
         if (cmd === "pricing_refresh") {
           return await handlePricingRefreshSlashCommand(input);
-        }
-
-        if (cmd === "quota_announcements") {
-          return await handleQuotaAnnouncementsSlashCommand(input);
         }
 
         // Handle token report commands (/tokens_*)
