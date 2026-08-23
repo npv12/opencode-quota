@@ -1,6 +1,5 @@
 /** @jsxImportSource @opentui/solid */
 
-import { RGBA } from "@opentui/core";
 import type { JSX } from "@opentui/solid";
 import { createSignal, onCleanup, Show } from "solid-js";
 
@@ -19,11 +18,15 @@ import {
 } from "./lib/quota-runtime-context.js";
 import { buildSidebarQuotaPanelLines } from "./lib/tui-sidebar-format.js";
 
-const terminalForeground = RGBA.defaultForeground();
-
 type TuiEvent = { data?: Record<string, unknown> };
 type TuiContext = {
   client: unknown;
+  theme: {
+    text: {
+      default: unknown;
+      subdued: unknown;
+    };
+  };
   data: {
     on: (event: string, handler: (event: TuiEvent) => void) => () => void;
     session: {
@@ -59,11 +62,17 @@ type TuiContext = {
     slot: (
       claim:
         | { append: "app"; render: () => null }
-        | { append: "sidebar.content"; render: (props: { sessionID: string }) => JSX.Element },
+        | {
+            append: "sidebar.content";
+            render: (props: { sessionID: string }) => JSX.Element;
+          },
     ) => () => void;
     dialog: {
       alert: (params: { title: string; message: string }) => Promise<unknown>;
-      prompt: (params: { title: string; placeholder?: string }) => Promise<string | undefined>;
+      prompt: (params: {
+        title: string;
+        placeholder?: string;
+      }) => Promise<string | undefined>;
       set: (params: { size: "medium" | "large" | "xlarge" }) => void;
     };
   };
@@ -79,18 +88,24 @@ async function getSessionModelMeta(
   sessionID: string,
 ): Promise<QuotaSessionModelContext> {
   const session = (
-    client as { session?: { get?: (input: { sessionID: string }) => Promise<{ data?: unknown }> } }
+    client as {
+      session?: {
+        get?: (input: { sessionID: string }) => Promise<{ data?: unknown }>;
+      };
+    }
   ).session;
   const response = await session?.get?.({ sessionID });
-  const model = (response?.data as { model?: { id?: string; providerID?: string } } | undefined)
-    ?.model;
+  const model = (
+    response?.data as
+      { model?: { id?: string; providerID?: string } } | undefined
+  )?.model;
   return model ? { modelID: model.id, providerID: model.providerID } : {};
 }
 
 function createClientAdapter(context: TuiContext) {
   const { resolve } = require("node:path");
   const { readFileSync, existsSync } = require("node:fs");
-  
+
   const configRootDir = process.cwd();
   let configPromise: Promise<any> | undefined;
   let providerIdsPromise: Promise<string[]> | undefined;
@@ -146,16 +161,18 @@ function createClientAdapter(context: TuiContext) {
         };
       },
     },
-    session: context.client && typeof (context.client as any).session?.get === "function"
-      ? (context.client as any).session
-      : {
-          get: async (input: { sessionID: string }) => {
-            const session = context.data.session.get(input.sessionID) as {
-              model?: { id?: string; providerID?: string };
-            };
-            return { data: session };
+    session:
+      context.client &&
+      typeof (context.client as any).session?.get === "function"
+        ? (context.client as any).session
+        : {
+            get: async (input: { sessionID: string }) => {
+              const session = context.data.session.get(input.sessionID) as {
+                model?: { id?: string; providerID?: string };
+              };
+              return { data: session };
+            },
           },
-        },
   };
 }
 
@@ -185,9 +202,9 @@ async function getSidebarQuotaMessage(
     formatStyle,
     providers: runtime.providers,
   });
-  
+
   if (!result.data) return;
-  
+
   return buildSidebarQuotaPanelLines({
     data: result.data,
     config: {
@@ -242,7 +259,10 @@ async function runQuotaCommand(
       resolveSessionMeta: (id) => getSessionModelMeta(client, id),
     });
     if (result.state === "noop") return;
-    const alert = context.ui.dialog.alert({ title: result.title, message: result.output });
+    const alert = context.ui.dialog.alert({
+      title: result.title,
+      message: result.output,
+    });
     context.ui.dialog.set({ size: result.dialogSize });
     await alert;
   } catch (error) {
@@ -250,7 +270,10 @@ async function runQuotaCommand(
   }
 }
 
-function registerQuotaCommands(context: TuiContext, getSessionID: () => string | undefined): void {
+function registerQuotaCommands(
+  context: TuiContext,
+  getSessionID: () => string | undefined,
+): void {
   context.keymap.layer(() => ({
     mode: "global",
     commands: QUOTA_DIALOG_COMMANDS.map((spec) => ({
@@ -259,7 +282,8 @@ function registerQuotaCommands(context: TuiContext, getSessionID: () => string |
       group: "Quota",
       palette: true,
       slash: { name: spec.slashName },
-      run: (input?: unknown) => void runQuotaCommand(context, spec.id, getSessionID(), input),
+      run: (input?: unknown) =>
+        void runQuotaCommand(context, spec.id, getSessionID(), input),
     })),
   }));
 }
@@ -270,7 +294,6 @@ function SidebarQuotaView(props: {
   setActiveSessionID: (sessionID: string) => void;
 }): JSX.Element {
   props.setActiveSessionID(props.sessionID);
-  const [open, setOpen] = createSignal(true);
   const [lines, setLines] = createSignal<string[]>([]);
   const refresh = () => {
     void getSidebarQuotaMessage(props.context, props.sessionID)
@@ -283,29 +306,28 @@ function SidebarQuotaView(props: {
   });
   onCleanup(unsubscribe);
 
+  const muted = props.context.theme.text.subdued;
+  const white = props.context.theme.text.default;
+
   return (
     <box flexDirection="column">
-      <box
-        flexDirection="row"
-        gap={1}
-        onMouseDown={() => lines().length > 0 && setOpen((value) => !value)}
-      >
-        <Show when={lines().length > 0}>
-          <text fg={terminalForeground}>{open() ? "▼" : "▶"}</text>
-        </Show>
-        <text fg={terminalForeground}>
+      <box flexDirection="row" gap={1}>
+        <text fg={white}>
           <b>Quota</b>
         </text>
       </box>
-      <Show when={lines().length > 0} fallback={<text fg={terminalForeground}>No quota data</text>}>
-        <Show when={open() || lines().length <= 2}>
+      <box paddingLeft={1}>
+        <Show
+          when={lines().length > 0}
+          fallback={<text fg={muted}>No quota data</text>}
+        >
           {lines().map((line) => (
-            <text fg={terminalForeground} wrapMode="none">
+            <text fg={muted} wrapMode="none">
               {line || " "}
             </text>
           ))}
         </Show>
-      </Show>
+      </box>
     </box>
   );
 }
