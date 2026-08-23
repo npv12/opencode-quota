@@ -1,6 +1,6 @@
 {
-  "name": "@slkiser/opencode-quota",
-  "version": "4.8.2",
+  "name": "@npv12/opencode-quota",
+  "version": "2.0.0",
   "description": "OpenCode quota visibility — sidebar panel and /quota command. By Pranav (npv12).",
   "type": "module",
   "main": "./dist/index.js",
