@@ -6,8 +6,8 @@ import { fileURLToPath } from "node:url";
 
 const USAGE = [
   "Usage:",
-  "  npx @slkiser/opencode-quota show [--provider <provider-id>] [--json] [--threshold <pct>]",
-  "  npx @slkiser/opencode-quota --help",
+  "  npx @npv12/opencode-quota show [--provider <provider-id>] [--json] [--threshold <pct>]",
+  "  npx @npv12/opencode-quota --help",
   "",
   "Commands:",
   "  show    Print a quick quota glance",

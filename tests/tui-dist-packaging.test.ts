@@ -64,7 +64,7 @@ describe.skip("tui dist packaging", () => {
     const mod = await import("../dist/tui.js");
 
     expect(mod.default).toMatchObject({
-      id: "@slkiser/opencode-quota",
+      id: "@npv12/opencode-quota",
     });
     expect(typeof mod.default.tui).toBe("function");
   });
@@ -73,7 +73,7 @@ describe.skip("tui dist packaging", () => {
     const mod = await import("../dist/index.js");
 
     expect(mod.default).toMatchObject({
-      id: "@slkiser/opencode-quota",
+      id: "@npv12/opencode-quota",
     });
     expect(typeof mod.default.setup).toBe("function");
   });

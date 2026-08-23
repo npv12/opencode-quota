@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const pluginMocks = {
   tui: {
-    id: "@slkiser/opencode-quota",
+    id: "@npv12/opencode-quota",
     setup: vi.fn(),
   },
 };

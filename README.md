@@ -9,8 +9,8 @@
 </p>
 <p align="center">Quota visibility in OpenCode — sidebar panel and /quota command. By <a href="https://github.com/npv12">Pranav</a>.</p>
 <p align="center">
-  <a href="https://www.npmjs.com/package/@slkiser/opencode-quota"><img alt="npm" src="https://img.shields.io/npm/v/%40slkiser%2Fopencode-quota?style=flat-square" /></a>
-  <a href="https://www.npmjs.com/package/@slkiser/opencode-quota"><img alt="npm downloads" src="https://img.shields.io/npm/dm/%40slkiser%2Fopencode-quota?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/@npv12/opencode-quota"><img alt="npm" src="https://img.shields.io/npm/v/%40npv12%2Fopencode-quota?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/@npv12/opencode-quota"><img alt="npm downloads" src="https://img.shields.io/npm/dm/%40npv12%2Fopencode-quota?style=flat-square" /></a>
   <a href="https://github.com/npv12/opencode-quota/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/npv12/opencode-quota/ci.yml?style=flat-square&branch=main&label=CI" /></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" /></a>
 </p>
@@ -20,7 +20,7 @@
 ## Quick start
 
 ```bash
-npx @slkiser/opencode-quota init
+npx @npv12/opencode-quota init
 ```
 
 > [!IMPORTANT]
@@ -41,13 +41,13 @@ After installation:
 2. Preview the update:
 
    ```bash
-   npx @slkiser/opencode-quota@latest update --dry-run
+   npx @npv12/opencode-quota@latest update --dry-run
    ```
 
 3. Inspect the safe setting/cache changes and manual credential findings, then apply:
 
    ```bash
-   npx @slkiser/opencode-quota@latest update
+   npx @npv12/opencode-quota@latest update
    ```
 
 4. Restart OpenCode.
@@ -118,13 +118,13 @@ Use the CLI for setup, updates, terminal checks, and custom providers.
 
 | Command                                                  | What it does                                |
 | -------------------------------------------------------- | ------------------------------------------- |
-| `npx @slkiser/opencode-quota@latest init`                | Set up OpenCode Quota                       |
-| `npx @slkiser/opencode-quota@latest provider add`        | Add or update a custom provider             |
-| `npx @slkiser/opencode-quota@latest show`                | Show current quota                          |
-| `npx @slkiser/opencode-quota@latest status`              | Check configuration and provider problems  |
-| `npx @slkiser/opencode-quota@latest update`              | Update an existing installation             |
+| `npx @npv12/opencode-quota@latest init`                | Set up OpenCode Quota                       |
+| `npx @npv12/opencode-quota@latest provider add`        | Add or update a custom provider             |
+| `npx @npv12/opencode-quota@latest show`                | Show current quota                          |
+| `npx @npv12/opencode-quota@latest status`              | Check configuration and provider problems  |
+| `npx @npv12/opencode-quota@latest update`              | Update an existing installation             |
 
-Run `npx @slkiser/opencode-quota@latest --help` for command options. See [External integration](docs/readme/external-integration.md#1-get-json-from-a-command) for JSON, scripts, and CI examples.
+Run `npx @npv12/opencode-quota@latest --help` for command options. See [External integration](docs/readme/external-integration.md#1-get-json-from-a-command) for JSON, scripts, and CI examples.
 
 ## Providers
 
@@ -214,7 +214,7 @@ These vendors offer team or business plans, but the current integrations report 
 Add a provider that uses a remote quota API or tracks a local usage estimate:
 
 ```bash
-npx @slkiser/opencode-quota@latest provider add
+npx @npv12/opencode-quota@latest provider add
 ```
 
 The guided setup previews the change before saving. See the [custom-provider guide](docs/readme/providers.md#custom-providers) for details.
@@ -225,7 +225,7 @@ If quota or token data looks wrong:
 
 1. Run `/quota_status` in OpenCode, or `opencode-quota status` from a terminal for the same diagnostics. Use `opencode-quota show` for a quick quota glance.
 2. Confirm the expected provider appears in the detected provider list.
-3. Confirm companion auth plugins are before `@slkiser/opencode-quota` in `opencode.json`.
+3. Confirm companion auth plugins are before `@npv12/opencode-quota` in `opencode.json`.
 4. If token reports are empty, start OpenCode once so it creates `opencode.db`, then run a session with model usage.
 5. Check [Troubleshooting](docs/readme/troubleshooting.md) for common symptoms and provider-specific fixes.
 
@@ -252,8 +252,8 @@ External references:
 
 Thanks to everyone who has contributed to OpenCode Quota.
 
-<a href="https://github.com/slkiser/opencode-quota/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=slkiser/opencode-quota" />
+<a href="https://github.com/npv12/opencode-quota/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=npv12/opencode-quota" />
 </a>
 
 ## License

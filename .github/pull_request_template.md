@@ -20,4 +20,4 @@ If no issue exists, include a short rationale/scope summary.
 - [ ] This change is focused and avoids unrelated behavior changes
 - [ ] I updated or added tests when behavior changed
 - [ ] I updated docs when user-facing workflow, command, or config behavior changed
-- [ ] For provider changes, I followed [Provider Changes](https://github.com/slkiser/opencode-quota/blob/main/CONTRIBUTING.md#provider-changes), or this does not apply
+- [ ] For provider changes, I followed [Provider Changes](https://github.com/npv12/opencode-quota/blob/main/CONTRIBUTING.md#provider-changes), or this does not apply

@@ -333,7 +333,7 @@ function SidebarQuotaView(props: {
 }
 
 const plugin = {
-  id: "@slkiser/opencode-quota",
+  id: "@npv12/opencode-quota",
   setup(context: TuiContext) {
     let activeSessionID: string | undefined;
     const disposeApp = context.ui.slot({

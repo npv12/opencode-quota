@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@slkiser/opencode-quota",
+      "name": "@npv12/opencode-quota",
       "dependencies": {
         "@clack/prompts": "^1.7.0",
         "@opentui/core": "^0.5.3",
