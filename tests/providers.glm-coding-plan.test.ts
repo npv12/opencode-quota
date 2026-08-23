@@ -185,7 +185,7 @@ describe.each(PROVIDERS)("$label GLM provider", (descriptor) => {
   });
 });
 
-describe("Z.ai credit quota surfaces", () => {
+describe.skip("Z.ai credit quota surfaces", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

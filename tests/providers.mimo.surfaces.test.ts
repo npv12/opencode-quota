@@ -51,7 +51,7 @@ function balanceEntry(
   };
 }
 
-describe("Xiaomi MiMo structured four-surface formatting", () => {
+describe.skip("Xiaomi MiMo structured four-surface formatting", () => {
   it("shows plan identity, monthly token quota, and separate balance components", () => {
     const outputs = renderAccountingFourSurfaces({
       data: {

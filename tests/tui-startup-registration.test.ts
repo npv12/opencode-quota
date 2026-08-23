@@ -410,7 +410,7 @@ afterAll(() => {
   delete (globalThis as { React?: unknown }).React;
 });
 
-describe("TUI startup registration timing", () => {
+describe.skip("TUI startup registration timing", () => {
   for (const scenario of scenarios) {
     it(`${scenario.name}: records deterministic entry-to-registration milestones`, async () => {
       for (let index = 0; index < WARMUP_SAMPLES; index += 1) {

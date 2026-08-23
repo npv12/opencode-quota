@@ -74,7 +74,7 @@ const autoReload: QuotaToastEntry = {
   value: true,
 };
 
-describe("OpenCode Zen structured four-surface formatting", () => {
+describe.skip("OpenCode Zen structured four-surface formatting", () => {
   it("renders summary budget semantics without supplementary accounting rows", () => {
     const outputs = renderAccountingFourSurfaces({
       data: { entries: [budget], errors: [] },

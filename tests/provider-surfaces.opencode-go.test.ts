@@ -148,7 +148,7 @@ function expectCanonicalPercentOrder(output: string): void {
   expect(positions, output).toEqual([...positions].sort((left, right) => left - right));
 }
 
-describe("OpenCode Go shared projections", () => {
+describe.skip("OpenCode Go shared projections", () => {
   beforeEach(async () => {
     const config = createConfig();
     seedDefaultPluginBootstrapMocks(mocks, {

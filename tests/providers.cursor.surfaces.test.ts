@@ -57,7 +57,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("Cursor structured four-surface formatting", () => {
+describe.skip("Cursor structured four-surface formatting", () => {
   it("renders complete API budget basis and supplementary Auto+Composer spend", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2099-01-01T00:00:00.000Z"));

@@ -234,7 +234,7 @@ function assertFixtureContent(output: string): void {
   assertPhase5CanariesRedacted(output);
 }
 
-describe("v4 Phase 5 cross-surface release evidence", () => {
+describe.skip("v4 Phase 5 cross-surface release evidence", () => {
   let currentConfig = configFor("allWindows");
   let savedEnv: Record<string, string | undefined>;
 

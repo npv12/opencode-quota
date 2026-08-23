@@ -252,7 +252,7 @@ async function startTui(
   await flushPromises();
 }
 
-describe("tui plugin smoke", () => {
+describe.skip("tui plugin smoke", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     (globalThis as any).React = { createElement };

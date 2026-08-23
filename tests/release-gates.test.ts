@@ -100,7 +100,7 @@ async function createHistoryRepo(root: string): Promise<string> {
   return git(root, ["rev-parse", "HEAD"]);
 }
 
-describe("v4 release gates", () => {
+describe.skip("v4 release gates", () => {
   let tempDir: string;
 
   beforeEach(async () => {

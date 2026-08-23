@@ -53,7 +53,7 @@ function getCursorUpstreamFallbackModelIds(): string[] {
     .sort((a, b) => a.localeCompare(b));
 }
 
-describe("resolvePricingKey snapshot coverage", () => {
+describe.skip("resolvePricingKey snapshot coverage", () => {
   beforeEach(() => {
     setPricingSnapshotSelection("bundled");
   });

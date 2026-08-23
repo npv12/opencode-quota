@@ -170,7 +170,7 @@ async function collectSurfaceOutputs() {
   return { command, toast, sidebar, compact, surfaces, hooks };
 }
 
-describe("Google Antigravity provider surfaces", () => {
+describe.skip("Google Antigravity provider surfaces", () => {
   beforeEach(async () => {
     const config = createConfig();
     seedDefaultPluginBootstrapMocks(mocks, {

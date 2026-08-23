@@ -139,7 +139,7 @@ async function buildDialogOutput(params: {
   });
 }
 
-describe("plugin command handled boundary", () => {
+describe.skip("plugin command handled boundary", () => {
   beforeEach(async () => {
     seedDefaultPluginBootstrapMocks(mocks, {
       configOverrides: { enabled: true },

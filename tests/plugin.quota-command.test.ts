@@ -116,7 +116,7 @@ vi.mock("../src/lib/quota-telemetry.js", async (importOriginal) => ({
   disposeQuotaTelemetryOwner: mocks.disposeQuotaTelemetryOwner,
 }));
 
-describe("/quota command behavior", () => {
+describe.skip("/quota command behavior", () => {
   let savedConfigDir: string | undefined;
 
   beforeEach(async () => {

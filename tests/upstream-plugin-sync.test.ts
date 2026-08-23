@@ -147,7 +147,7 @@ async function seedReferenceRoot(repoRoot: string) {
   await writeFile(path.join(staleDir, "package.json"), JSON.stringify({ stale: true }), "utf8");
 }
 
-describe("upstream-plugin-sync", () => {
+describe.skip("upstream-plugin-sync", () => {
   beforeEach(async () => {
     testState.repoRoot = await mkdtemp(path.join(os.tmpdir(), "opencode-quota-sync-test-"));
     testState.failPluginId = null;

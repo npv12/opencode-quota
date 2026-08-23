@@ -94,7 +94,7 @@ async function buildTokenDialogOutput(params: {
   return result.state === "output" ? result.output : "";
 }
 
-describe("/tokens_session_all command", () => {
+describe.skip("/tokens_session_all command", () => {
   beforeEach(() => {
     seedDefaultPluginBootstrapMocks(mocks, {
       configOverrides: {

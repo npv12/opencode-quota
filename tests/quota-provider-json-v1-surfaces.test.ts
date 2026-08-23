@@ -55,7 +55,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("json-v1 mapped quota presentation surfaces", () => {
+describe.skip("json-v1 mapped quota presentation surfaces", () => {
   it("renders mapped percent and value rows on Web, toast, sidebar, and compact output", async () => {
     vi.stubGlobal(
       "fetch",

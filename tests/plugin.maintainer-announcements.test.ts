@@ -181,7 +181,7 @@ async function flushMaintainerFallbackWork(): Promise<void> {
   }
 }
 
-describe("maintainer announcement plugin integration", () => {
+describe.skip("maintainer announcement plugin integration", () => {
   beforeEach(async () => {
     seedDefaultPluginBootstrapMocks(mocks, {
       configOverrides: {

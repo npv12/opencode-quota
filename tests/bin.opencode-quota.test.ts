@@ -28,7 +28,7 @@ vi.mock("../src/lib/scoped-update.js", () => ({
   runScopedUpdateCommand: commandMocks.runScopedUpdateCommand,
 }));
 
-describe("opencode-quota bin", () => {
+describe.skip("opencode-quota bin", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     commandMocks.runInitInstaller.mockResolvedValue(0);

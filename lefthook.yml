@@ -1,4 +1,4 @@
 pre-push:
   commands:
     verify:
-      run: bun run typecheck && bun run build && bun test
+      run: bun run typecheck && bun run build && bun run test

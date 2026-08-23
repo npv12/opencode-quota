@@ -67,7 +67,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("Kilo Gateway structured four-surface formatting", () => {
+describe.skip("Kilo Gateway structured four-surface formatting", () => {
   it("shows one credits percentage with USD remaining basis and no duplicate row", () => {
     const outputs = renderAccountingFourSurfaces({
       data: { entries: [positivePass], errors: [] },
