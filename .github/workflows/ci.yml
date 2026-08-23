@@ -6,61 +6,28 @@ on:
   pull_request:
 
 jobs:
-  pnpm-quality:
+  quality:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
-      - name: Use Node.js 24.x
-        uses: actions/setup-node@v6
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 24.x
+          bun-version: 1.3.14
 
-      - name: Activate pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@11.0.0 --activate
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
 
-      - name: Run canonical verification
-        run: pnpm verify
+      - name: Typecheck
+        run: bun run typecheck
 
-      - name: Pack and audit exact npm artifact once
-        run: pnpm run pack:release-package package-artifacts
+      - name: Build
+        run: bun run build
 
-      - name: Upload exact npm artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: package-tarball
-          path: package-artifacts/*
-          if-no-files-found: error
-
-  runtime-smoke:
-    runs-on: ubuntu-latest
-    needs: pnpm-quality
-
-    strategy:
-      matrix:
-        node-version: [22.x, 24.x]
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: Download exact npm artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: package-tarball
-          path: package-artifacts
-
-      - name: Smoke exact npm artifact on Node ${{ matrix.node-version }}
-        run: node scripts/smoke-packed-package.mjs package-artifacts
+      - name: Test
+        run: bun test

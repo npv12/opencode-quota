@@ -14,9 +14,9 @@ If no issue exists, include a short rationale/scope summary.
 
 ## Quality Checklist
 
-- [ ] I ran `pnpm run typecheck`
-- [ ] I ran `pnpm run build`
-- [ ] I ran `pnpm test`
+- [ ] I ran `bun run typecheck`
+- [ ] I ran `bun run build`
+- [ ] I ran `bun test`
 - [ ] This change is focused and avoids unrelated behavior changes
 - [ ] I updated or added tests when behavior changed
 - [ ] I updated docs when user-facing workflow, command, or config behavior changed
