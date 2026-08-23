@@ -31,7 +31,22 @@ type Toast = {
 };
 type TuiContext = {
   client: unknown;
-  data: { on: (event: string, handler: (event: TuiEvent) => void) => () => void };
+  data: {
+    on: (event: string, handler: (event: TuiEvent) => void) => () => void;
+    session: {
+      get: (sessionID: string) => unknown;
+      status: (sessionID: string) => string;
+      cost: (sessionID: string) => number;
+      message: {
+        list: (sessionID: string) => unknown[];
+      };
+    };
+    location: {
+      model: {
+        list: (location?: string) => unknown[];
+      };
+    };
+  };
   keymap: {
     layer: (
       build: () => {
@@ -80,19 +95,98 @@ async function getSessionModelMeta(
   return model ? { modelID: model.id, providerID: model.providerID } : {};
 }
 
+function createClientAdapter(context: TuiContext) {
+  // The V2 TUI context's client may not provide config/providers data,
+  // so we create an adapter that reads config files directly like the CLI does.
+  const { resolve } = require("node:path");
+  const { readFileSync, existsSync } = require("node:fs");
+  
+  const configRootDir = process.cwd();
+  let configPromise: Promise<any> | undefined;
+  let providerIdsPromise: Promise<string[]> | undefined;
+
+  function loadConfigFile(filePath: string): any {
+    try {
+      if (!existsSync(filePath)) return null;
+      const content = readFileSync(filePath, "utf-8");
+      // Simple JSON parsing (doesn't handle JSONC comments)
+      return JSON.parse(content);
+    } catch {
+      return null;
+    }
+  }
+
+  function loadConfiguredOpenCodeConfig(): any {
+    const candidates = [
+      resolve(configRootDir, "opencode.jsonc"),
+      resolve(configRootDir, "opencode.json"),
+    ];
+    for (const path of candidates) {
+      const config = loadConfigFile(path);
+      if (config) return config;
+    }
+    return {};
+  }
+
+  function loadConfiguredProviderIds(): string[] {
+    const config = loadConfiguredOpenCodeConfig();
+    const providers = config?.provider;
+    if (!providers) return [];
+    if (typeof providers === "string") return [providers];
+    if (Array.isArray(providers)) return providers;
+    if (typeof providers === "object") return Object.keys(providers);
+    return [];
+  }
+
+  return {
+    config: {
+      get: async () => {
+        configPromise ??= Promise.resolve(loadConfiguredOpenCodeConfig());
+        return { data: await configPromise };
+      },
+      providers: async () => {
+        providerIdsPromise ??= (async () => {
+          const ids = loadConfiguredProviderIds();
+          return ids;
+        })();
+        const ids = await providerIdsPromise;
+        return {
+          data: {
+            providers: ids.map((id) => ({ id })),
+          },
+        };
+      },
+    },
+    session: context.client && typeof (context.client as any).session?.get === "function"
+      ? (context.client as any).session
+      : {
+          get: async (input: { sessionID: string }) => {
+            const session = context.data.session.get(input.sessionID) as {
+              model?: { id?: string; providerID?: string };
+            };
+            return { data: session };
+          },
+        },
+  };
+}
+
 async function getQuotaMessage(
   context: TuiContext,
   sessionID: string,
   surface: "sidebar" | "idle" | "compacted" | "question",
 ): Promise<{ message: string; duration: number; activeProviderCount: number } | undefined> {
+  console.log("[opencode-quota] getQuotaMessage called", { sessionID, surface });
+  console.log("[opencode-quota] context.client:", context.client ? "exists" : "undefined");
+  const client = createClientAdapter(context);
   const runtime = await resolveQuotaRuntimeContext({
-    client: context.client as never,
+    client: client as never,
     roots: { fallbackDirectory: process.cwd() },
     sessionID,
-    resolveSessionMeta: (id) => getSessionModelMeta(context.client, id),
+    resolveSessionMeta: (id) => getSessionModelMeta(client, id),
     includeSessionMeta: (config) => config.onlyCurrentModel,
   });
   const config = runtime.config;
+  console.log("[opencode-quota] config loaded:", { enabled: config.enabled, source: runtime.configMeta?.source });
   if (!config.enabled) return;
   if (surface === "sidebar") {
     if (!config.tuiSidebarPanel.enabled) return;
@@ -119,6 +213,12 @@ async function getQuotaMessage(
     providers: runtime.providers,
   });
   const data = result.data;
+  console.log("[opencode-quota] collectQuotaRenderData result:", {
+    hasData: !!data,
+    entriesCount: data?.entries?.length ?? 0,
+    errorsCount: data?.errors?.length ?? 0,
+    activeProviders: result.active?.length ?? 0,
+  });
   const message =
     surface === "sidebar"
       ? data
@@ -188,13 +288,14 @@ async function runQuotaCommand(
   }
 
   try {
+    const client = createClientAdapter(context);
     const result = await buildQuotaDialogCommandOutput({
       command,
       arguments: argumentsText,
-      client: context.client as never,
+      client: client as never,
       roots: { fallbackDirectory: process.cwd() },
       sessionID,
-      resolveSessionMeta: (id) => getSessionModelMeta(context.client, id),
+      resolveSessionMeta: (id) => getSessionModelMeta(client, id),
     });
     if (result.state === "noop") return;
     const alert = context.ui.dialog.alert({ title: result.title, message: result.output });
