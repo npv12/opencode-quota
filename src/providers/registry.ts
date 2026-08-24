@@ -13,6 +13,7 @@ import {
 import { alibabaCodingPlanProvider } from "./alibaba-coding-plan.js";
 import { anthropicProvider } from "./anthropic.js";
 import { chutesProvider } from "./chutes.js";
+import { commandCodeProvider } from "./commandcode.js";
 import { copilotProvider } from "./copilot.js";
 import { cursorProvider } from "./cursor.js";
 import { deepseekProvider } from "./deepseek.js";
@@ -60,6 +61,7 @@ const PROVIDERS_BY_ID = {
   "minimax-china-coding-plan": minimaxChinaCodingPlanProvider,
   "kimi-for-coding": kimiCodeProvider,
   deepseek: deepseekProvider,
+  commandcode: commandCodeProvider,
   xai: xaiProvider,
   xiaomi: xiaomiProvider,
   "opencode-go": opencodeGoProvider,

@@ -294,6 +294,19 @@ export const QUOTA_PROVIDER_REGISTRATION_SOURCE = [
     },
   },
   {
+    id: "commandcode",
+    label: "Command Code",
+    runtimeIds: ["commandcode"],
+    synonyms: ["command-code", "cmd-code"],
+    shape: {
+      autoSetup: "yes",
+      authentication: "opencode_auth_api_key",
+      authFallbacks: ["env_api_key", "global_opencode_config"],
+      quota: "remote_api",
+      notes: "Credits + 5h/weekly windows via the CLI /alpha billing endpoints",
+    },
+  },
+  {
     id: "xai",
     label: "xAI",
     runtimeIds: ["xai"],
