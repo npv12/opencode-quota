@@ -25,7 +25,6 @@ const EXPECTED_PROVIDER_ORDER = [
   "minimax-china-coding-plan",
   "kimi-for-coding",
   "deepseek",
-  "commandcode",
   "xai",
   "xiaomi",
   "opencode-go",
