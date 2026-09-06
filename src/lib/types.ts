@@ -392,6 +392,11 @@ export interface OpenCodeGoAuthData {
   key: string;
 }
 
+export interface DevPassAuthData {
+  type: "api";
+  key: string;
+}
+
 export interface MiniMaxAuthData {
   type: string;
   key?: string;
@@ -471,6 +476,8 @@ export interface AuthData {
   chatgpt?: OpenAIOAuthData;
   // Canonical OpenCode key. Go uses the API record; older OpenAI auth data may also exist here.
   opencode?: OpenCodeGoAuthData | OpenAIOAuthData;
+  "llmgateway"?: DevPassAuthData;
+  devpass?: DevPassAuthData;
   synthetic?: SyntheticAuthData;
   chutes?: {
     type: string;

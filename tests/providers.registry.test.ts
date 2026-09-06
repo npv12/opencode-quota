@@ -30,6 +30,7 @@ const EXPECTED_PROVIDER_ORDER = [
   "opencode-go",
   "opencode",
   "ollama-cloud",
+  "devpass",
   "quota-providers",
 ] as const;
 

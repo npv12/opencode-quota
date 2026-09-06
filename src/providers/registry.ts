@@ -16,6 +16,7 @@ import { chutesProvider } from "./chutes.js";
 import { copilotProvider } from "./copilot.js";
 import { cursorProvider } from "./cursor.js";
 import { deepseekProvider } from "./deepseek.js";
+import { devpassProvider } from "./devpass.js";
 import { googleAgyProvider } from "./google-agy.js";
 import { googleAntigravityProvider } from "./google-antigravity.js";
 import { googleGeminiCliProvider } from "./google-gemini-cli.js";
@@ -65,6 +66,7 @@ const PROVIDERS_BY_ID = {
   "opencode-go": opencodeGoProvider,
   opencode: opencodeZenProvider,
   "ollama-cloud": ollamaCloudProvider,
+  devpass: devpassProvider,
   "quota-providers": quotaProvidersProvider,
 } satisfies Record<CanonicalQuotaProviderId, QuotaProvider>;
 

@@ -201,6 +201,15 @@ describe("provider-metadata", () => {
           "Queries the Ollama Cloud usage API; reports session and weekly quota plus model request counts",
       },
       {
+        id: "devpass",
+        autoSetup: "yes",
+        authentication: "opencode_auth_api_key",
+        authFallbacks: ["env_api_key", "global_opencode_config"],
+        quota: "remote_api",
+        notes:
+          "Queries the LLM Gateway key status API; reports DevPass monthly plan credits and the weekly premium-model allowance",
+      },
+      {
         id: "quota-providers",
         autoSetup: "manual_env_config",
         authentication: "external_api_key",

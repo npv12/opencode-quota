@@ -364,6 +364,20 @@ export const QUOTA_PROVIDER_REGISTRATION_SOURCE = [
     },
   },
   {
+    id: "devpass",
+    label: "DevPass",
+    runtimeIds: ["devpass", "llmgateway", "llm-gateway", "llmgateway-devpass", "devpass-code"],
+    synonyms: ["llm-gateway", "llmgateway-devpass", "devpass-code"],
+    shape: {
+      autoSetup: "yes",
+      authentication: "opencode_auth_api_key",
+      authFallbacks: ["env_api_key", "global_opencode_config"],
+      quota: "remote_api",
+      notes:
+        "Queries the LLM Gateway key status API; reports DevPass monthly plan credits and the weekly premium-model allowance",
+    },
+  },
+  {
     id: "quota-providers",
     label: "Quota providers",
     runtimeIds: [],
