@@ -322,7 +322,7 @@ function SidebarQuotaView(props: {
           fallback={<text fg={muted}>No quota data</text>}
         >
           {lines().map((line) => (
-            <text fg={base} wrapMode="none">
+            <text fg={muted} wrapMode="none">
               {line || " "}
             </text>
           ))}
@@ -333,7 +333,7 @@ function SidebarQuotaView(props: {
 }
 
 const plugin = {
-  id: "@npv12/opencode-quota",
+  id: "npv12/opencode-quota",
   setup(context: TuiContext) {
     let activeSessionID: string | undefined;
     const disposeApp = context.ui.slot({
