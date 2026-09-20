@@ -44,8 +44,8 @@ declare module "solid-js" {
   }): any;
 }
 
-declare module "@opencode-ai/plugin/tui" {
-  import type { OpencodeClient } from "@opencode-ai/sdk/v2";
+declare module "@opencode/plugin/tui" {
+  import type { OpencodeClient } from "@opencode/client";
   import type { JSX, SolidPlugin } from "@opentui/solid";
 
   export type TuiPromptInfo = {
@@ -93,7 +93,7 @@ declare module "@opencode-ai/plugin/tui" {
     theme: {
       current: {
         text: unknown;
-        textMuted: unknown;
+        muted: unknown;
       };
     };
     route: {

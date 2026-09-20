@@ -1,4 +1,4 @@
-import type { TuiPluginApi } from "@opencode-ai/plugin/tui";
+import type { TuiPluginApi } from "@opencode/plugin/tui";
 import {
   formatAccountingBoolean,
   formatAccountingQuantity,

@@ -12,6 +12,7 @@ const distSourcePath = path.join(rootDir, "dist", "tui.tsx");
 const distJsPath = path.join(rootDir, "dist", "tui.js");
 const distJsxPath = path.join(rootDir, "dist", "tui.jsx");
 const distJsxMapPath = path.join(rootDir, "dist", "tui.jsx.map");
+const indexJsPath = path.join(rootDir, "dist", "index.js");
 
 await fs.copyFile(tuiV2SourcePath, distSourcePath);
 const source = await fs.readFile(tuiV2SourcePath, "utf8");
@@ -30,5 +31,7 @@ if (!transformed?.code) {
 }
 
 await fs.writeFile(distJsPath, `${transformed.code}\n`);
+const indexSource = await fs.readFile(indexJsPath, "utf8");
+await fs.writeFile(indexJsPath, indexSource.replace('./tui-v2.js', './tui.js'));
 await fs.rm(distJsxPath, { force: true });
 await fs.rm(distJsxMapPath, { force: true });

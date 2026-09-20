@@ -57,7 +57,7 @@
   "devDependencies": {
     "@babel/core": "^7.28.0",
     "@babel/preset-typescript": "^7.27.1",
-    "@opencode-ai/plugin": "1.18.1",
+    "@opencode/plugin": "2.0.10",
     "@types/node": "^22.0.0",
     "babel-preset-solid": "^1.9.12",
     "typescript": "7.0.2",
@@ -65,17 +65,18 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.7.0",
-    "@opentui/core": "^0.5.3",
-    "@opentui/solid": "^0.5.3",
+    "@opentui/core": "0.5.11",
+    "@opentui/solid": "0.5.11",
     "comment-json": "^5.0.0",
     "jsonc-parser": "^3.3.1",
-    "solid-js": "^1.9.12",
+    "solid-js": "1.9.15",
     "xdg-basedir": "^5.1.0"
   },
   "peerDependencies": {
-    "@opencode-ai/plugin": "^1.4.3"
+    "@opencode/plugin": ">=2.0.0"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.0.0",
+    "opencode": ">=2.0.0"
   }
 }

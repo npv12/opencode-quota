@@ -25,7 +25,7 @@ Add OpenCode Quota to `opencode.jsonc` or `opencode.json`. This is required for 
 ```jsonc
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@npv12/opencode-quota"],
+  "plugins": ["@npv12/opencode-quota"],
 }
 ```
 
@@ -40,7 +40,7 @@ Add OpenCode Quota to `tui.jsonc` or `tui.json`. This enables TUI slash commands
 ```jsonc
 {
   "$schema": "https://opencode.ai/tui.json",
-  "plugin": ["@npv12/opencode-quota"],
+  "plugins": ["@npv12/opencode-quota"],
 }
 ```
 

@@ -23,8 +23,8 @@ type TuiContext = {
   client: unknown;
   theme: {
     text: {
-      default: unknown;
-      subdued: unknown;
+      base: unknown;
+      muted: unknown;
     };
   };
   data: {
@@ -306,13 +306,13 @@ function SidebarQuotaView(props: {
   });
   onCleanup(unsubscribe);
 
-  const muted = props.context.theme.text.subdued;
-  const white = props.context.theme.text.default;
+  const muted = props.context.theme.text.muted;
+  const base = props.context.theme.text.base;
 
   return (
     <box flexDirection="column">
       <box flexDirection="row" gap={1}>
-        <text fg={white}>
+        <text fg={base}>
           <b>Quota</b>
         </text>
       </box>
@@ -322,7 +322,7 @@ function SidebarQuotaView(props: {
           fallback={<text fg={muted}>No quota data</text>}
         >
           {lines().map((line) => (
-            <text fg={muted} wrapMode="none">
+            <text fg={base} wrapMode="none">
               {line || " "}
             </text>
           ))}
