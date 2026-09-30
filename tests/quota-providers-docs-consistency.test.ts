@@ -13,7 +13,7 @@ function read(path: string): string {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
-describe("quota provider Phase 7 documentation consistency", () => {
+describe("quota provider documentation consistency", () => {
   it("keeps the documented OpenRouter example valid", () => {
     expect(
       validateQuotaProviders([
@@ -55,31 +55,22 @@ describe("quota provider Phase 7 documentation consistency", () => {
     const readmeCustomProviders = readMarkdownSection(readme, /^Custom providers$/);
     const configurationCustomProviders = readMarkdownSection(configuration, /^Custom providers$/);
     const providerGuideCustomProviders = readMarkdownSection(providers, /^Custom providers$/);
-    const troubleshootingProviderFixes = readMarkdownSection(troubleshooting, /^Provider fixes$/);
     const externalJsonBasics = readMarkdownSection(external, /^JSON basics$/);
 
-    const providerAddCommand = "npx @slkiser/opencode-quota@latest provider add";
-    expect(readmeCommands).toContain(providerAddCommand);
-    expect(readmeCustomProviders).toContain(providerAddCommand);
+    expect(readmeCommands).toContain("/quota");
+    expect(readmeCommands).toContain("show");
     expect(
       hasMarkdownLinkTo(readmeCustomProviders, "docs/readme/providers.md#custom-providers"),
     ).toBe(true);
     expect(readme).not.toContain("experimental.quotaToast");
     expect(readme).not.toContain("apiKeyEnv");
 
-    for (const document of [
-      readme,
-      configuration,
-      providers,
-      troubleshooting,
-      external,
-      manualInstall,
-    ]) {
+    for (const document of [configuration, providers, troubleshooting, external, manualInstall]) {
       expect(document).not.toContain("accounting-v1");
+      expect(document).not.toContain("@slkiser/opencode-quota");
     }
+    expect(readme).not.toContain("accounting-v1");
 
-    expect(configuration).toContain("provider add");
-    expect(configuration).toContain("experimental.quotaToast");
     expect(configuration).toContain("quotaProviders");
     expect(configuration).toContain("JSONC");
     expect(configuration).toContain("do not duplicate it in a second file");
@@ -120,7 +111,6 @@ describe("quota provider Phase 7 documentation consistency", () => {
     expect(providerGuideCustomProviders).toContain(
       "128 objects, 384 object properties, and 640 array elements",
     );
-    expect(providerGuideCustomProviders).toContain("at most 32 container levels");
     expect(providerGuideCustomProviders).toContain("absolute magnitude at most `1e15`");
     expect(providerGuideCustomProviders).toContain("offsets through `±14:00`");
     expect(providerGuideCustomProviders).toContain("Metric compatibility and fixed output");
@@ -148,22 +138,7 @@ describe("quota provider Phase 7 documentation consistency", () => {
     expect(secretRule).toMatch(
       /\b(?:never|must not|cannot|forbidden)\b[\s\S]*\bsecrets\b[\s\S]*adapter display configuration/i,
     );
-    expect(
-      readMarkdownParagraphContaining(
-        troubleshootingProviderFixes,
-        "cached results",
-        "substituted",
-      ),
-    ).toMatch(/cached results[\s\S]*\b(?:not|never) substituted\b/i);
-    const hiddenDiagnostics = readMarkdownParagraphContaining(
-      troubleshootingProviderFixes,
-      "URLs",
-      "request/response contents",
-      "raw errors",
-    );
-    expect(hiddenDiagnostics).toMatch(
-      /\b(?:hide|hides|hidden|exclude|excludes)\b[\s\S]*URLs[\s\S]*request\/response contents[\s\S]*raw errors/i,
-    );
+
     expect(externalJsonBasics).toContain('"version": 2');
     expect(externalJsonBasics).toContain('providers["quota-providers"]');
     expect(externalJsonBasics).toContain("configured `quotaProviders` definition");
@@ -207,15 +182,48 @@ describe("quota provider Phase 7 documentation consistency", () => {
     const referenceSection = readMarkdownSection(read("README.md"), /^Reference$/);
 
     for (const url of [
-      "https://opencode.ai/docs/",
-      "https://opencode.ai/docs/config/",
-      "https://opencode.ai/docs/plugins/",
-      "https://opencode.ai/docs/tui/",
+      "https://opencode.ai/v2/docs",
+      "https://opencode.ai/v2/docs/config",
+      "https://opencode.ai/v2/docs/build/plugins",
+      "https://opencode.ai/v2/docs/build/plugins/cli",
       "https://models.dev/",
       "https://nodejs.org/en/download",
     ]) {
       expect(hasMarkdownLinkTo(referenceSection, url), url).toBe(true);
     }
+  });
+
+  it("documents the reduced runtime surfaces accurately", () => {
+    const readme = read("README.md");
+    const configuration = read("docs/readme/configuration.md");
+    const external = read("docs/readme/external-integration.md");
+    const troubleshooting = read("docs/readme/troubleshooting.md");
+
+    expect(external).toContain("reads cached data only");
+    expect(external).toContain("collects live quota");
+    expect(readme).toContain("collects live quota");
+
+    const formatStyleRow =
+      configuration.split("\n").find((line) => line.startsWith("| `formatStyle`")) ?? "";
+    expect(formatStyleRow).toContain("Terminal `show` text only");
+
+    expect(configuration).toContain(
+      "the sidebar keeps compact provider/time/value rows without non-time labels",
+    );
+    expect(configuration).toContain("The sidebar always uses one-decimal compact countdowns");
+    expect(configuration).toContain("independently of these report styles");
+    expect(configuration).toContain("Missing, invalid, and expired countdowns are omitted");
+    expect(configuration).toContain(
+      "OpenCode Zen rows and errors are hidden from the sidebar only",
+    );
+    expect(configuration).not.toContain("gives the freed space to its bars");
+    expect(configuration).not.toContain("collapsed");
+    expect(configuration).not.toContain("expanded sidebar");
+    expect(configuration).toContain("Quota disabled in config (enabled: false).");
+
+    expect(readme).toContain('"plugins": ["@npv12/opencode-quota"]');
+    expect(readme).not.toContain("tui.json");
+    expect(troubleshooting).not.toContain("tui.json");
   });
 
   it("keeps copy-paste integrations independent of entry order", () => {
@@ -229,12 +237,7 @@ describe("quota provider Phase 7 documentation consistency", () => {
   });
 
   it("keeps surface formatters generic", () => {
-    for (const path of [
-      "src/lib/quota-command-format.ts",
-      "src/lib/toast-format-grouped.ts",
-      "src/lib/tui-sidebar-format.ts",
-      "src/lib/tui-compact-format.ts",
-    ]) {
+    for (const path of ["src/lib/quota-command-format.ts", "src/lib/tui-sidebar-format.ts"]) {
       const formatter = read(path);
       expect(formatter).not.toContain("quota-providers");
       expect(formatter).not.toContain("quotaProviders");

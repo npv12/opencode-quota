@@ -25,8 +25,6 @@ vi.mock("../src/lib/opencode-auth.js", async (importOriginal) => ({
 // Canned answers of the server plugin's quota RPC.
 const rpc = {
   surface: vi.fn(),
-  footer: vi.fn(),
-  writeExport: vi.fn(),
   command: vi.fn(),
 };
 
@@ -83,11 +81,7 @@ function startTui() {
 
 describe("V2 CLI command boundary", () => {
   beforeEach(() => {
-    rpc.surface.mockReset().mockResolvedValue({
-      quota: { message: "Copilot 81%", duration: 5000, activeProviderCount: 1 },
-    });
-    rpc.footer.mockReset().mockResolvedValue({ lines: ["Copilot 81%"] });
-    rpc.writeExport.mockReset().mockResolvedValue({ written: false });
+    rpc.surface.mockReset().mockResolvedValue({ quota: { message: "Copilot 81%" } });
     rpc.command.mockReset().mockResolvedValue({
       state: "output",
       command: "quota",
@@ -97,14 +91,13 @@ describe("V2 CLI command boundary", () => {
     });
   });
 
-  it("registers the 12 palette commands without slash entries, not V1 server command hooks", () => {
+  it("registers the quota palette command without a slash entry, not V1 server command hooks", () => {
     const tui = startTui();
-    expect(tui.commands.size).toBe(12);
+    expect(tui.commands.size).toBe(1);
     expect([...tui.commands.keys()]).toEqual(
       QUOTA_DIALOG_COMMANDS.map((item) => `quota.${item.id}`),
     );
     expect([...tui.commands.values()].some((item) => item.slash !== undefined)).toBe(false);
-    expect(new Set(QUOTA_DIALOG_COMMANDS.map((item) => item.id)).size).toBe(12);
     expect(tui.context.ui.slot).toHaveBeenCalledWith(expect.objectContaining({ append: "app" }));
     tui.dispose?.();
   });
@@ -117,32 +110,8 @@ describe("V2 CLI command boundary", () => {
       expect.objectContaining({ location: { directory: process.cwd() } }),
     );
     expect(tui.show).toHaveBeenCalledOnce();
-    expect(tui.set).toHaveBeenCalledWith({ size: "large" });
+    expect(tui.set).toHaveBeenCalledWith({ size: "large", centered: true });
     expect(tui.context.data.session.get).not.toHaveBeenCalled();
-    tui.dispose?.();
-  });
-
-  it("passes the prompted /tokens_between range to the deterministic output builder", async () => {
-    const tui = startTui();
-    tui.prompt.mockResolvedValue("not-a-date-range");
-    await tui.commands.get("quota.tokens_between")?.run();
-    expect(rpc.command).toHaveBeenCalledWith(
-      expect.objectContaining({
-        command: "tokens_between",
-        arguments: "not-a-date-range",
-      }),
-      expect.anything(),
-    );
-    tui.dispose?.();
-  });
-
-  it("prompts for missing date ranges and does not invoke the command when cancelled", async () => {
-    const tui = startTui();
-    await tui.commands.get("quota.tokens_between")?.run();
-    expect(tui.prompt).toHaveBeenCalledWith(
-      expect.objectContaining({ placeholder: "YYYY-MM-DD YYYY-MM-DD" }),
-    );
-    expect(rpc.command).not.toHaveBeenCalled();
     tui.dispose?.();
   });
 
@@ -176,20 +145,12 @@ describe("V2 CLI command boundary", () => {
     });
     const tui = startTui();
     tui.slots.get("sidebar.content")?.render({ sessionID: "ses_1" });
-    tui.slots.get("prompt.footer")?.render({ sessionID: "ses_1" });
-    tui.slots.get("home.footer.status")?.render();
-    tui.listeners.get("session.execution.succeeded")?.({ data: { sessionID: "ses_1" } });
     for (const command of tui.commands.values()) await command.run();
-    await vi.waitFor(() => expect(tui.toast).toHaveBeenCalledOnce());
-    await vi.waitFor(() => expect(rpc.writeExport).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(rpc.surface).toHaveBeenCalledOnce());
 
     expect(rpc.surface.mock.calls.map(([input]) => input)).toEqual([
       { surface: "sidebar", sessionID: "ses_1" },
-      { surface: "idle", sessionID: "ses_1" },
     ]);
-    expect(rpc.footer).toHaveBeenCalledTimes(2);
-    // /tokens_between stops at its date prompt, which this fake cancels.
-    expect(rpc.command).toHaveBeenCalledTimes(QUOTA_DIALOG_COMMANDS.length - 1);
     expect(mocks.readAuthFile).not.toHaveBeenCalled();
     expect(mocks.readAuthFileCached).not.toHaveBeenCalled();
     expect(mocks.readCredentialRows).not.toHaveBeenCalled();
@@ -198,8 +159,8 @@ describe("V2 CLI command boundary", () => {
   });
 
   it("does not offer V1 slash interception or agent-config normalization", async () => {
-    // V2 TUI commands are local keymap registrations. The server plugin registers a tool and
-    // V2 server commands for Web and Desktop; it has no V1 command.execute.before hook.
+    // V2 TUI commands are local keymap registrations. The server plugin registers V2 server
+    // commands for Web and Desktop; it has no V1 command.execute.before hook.
     const server = (await import("../src/plugin.js")).default;
     const transform = vi.fn();
     const commandTransform = vi.fn();
@@ -215,7 +176,7 @@ describe("V2 CLI command boundary", () => {
       integration: createFakeIntegration([]),
       event: { subscribe: () => ({ async *[Symbol.asyncIterator]() {} }) },
     } as never);
-    expect(transform).toHaveBeenCalledOnce();
+    expect(transform).not.toHaveBeenCalled();
     expect(commandTransform).toHaveBeenCalledOnce();
     expect((server as Record<string, unknown>)["command.execute.before"]).toBeUndefined();
     expect((server as Record<string, unknown>).config).toBeUndefined();

@@ -1,23 +1,26 @@
 import { formatQuotaRows } from "../../src/lib/format.js";
 import { formatQuotaCommand } from "../../src/lib/quota-command-format.js";
 import type { QuotaRenderData } from "../../src/lib/quota-render-data.js";
-import { buildCompactQuotaStatusLine } from "../../src/lib/tui-compact-format.js";
 import { buildSidebarQuotaPanelLines } from "../../src/lib/tui-sidebar-format.js";
 import type { QuotaToastConfig } from "../../src/lib/types.js";
 
-export function renderAccountingFourSurfaces(params: {
+export function renderAccountingSurfaces(params: {
   data: QuotaRenderData;
   accountingDetail: QuotaToastConfig["accountingDetail"];
-  toastMaxWidth: number;
-  toastNarrowAt: number;
-  compactMaxWidth: number;
+  showMaxWidth: number;
+  showNarrowAt: number;
 }): {
   command: string;
-  toast: string;
+  show: string;
   sidebar: string;
-  compact: string;
 } {
-  const { data, accountingDetail, toastMaxWidth, toastNarrowAt, compactMaxWidth } = params;
+  const { accountingDetail, showMaxWidth, showNarrowAt } = params;
+  // accountingDetail filters supplementary entries at collection time, before the surfaces format them.
+  const entries = params.data.entries.filter(
+    (entry) =>
+      !entry.semantic || accountingDetail === "detailed" || entry.semantic.prominence === "primary",
+  );
+  const data: QuotaRenderData = { ...params.data, entries };
 
   return {
     command: formatQuotaCommand({
@@ -26,10 +29,10 @@ export function renderAccountingFourSurfaces(params: {
       accountingDetail,
       percentDisplayMode: "remaining",
     }),
-    toast: formatQuotaRows({
+    show: formatQuotaRows({
       version: "test",
       style: "allWindows",
-      layout: { maxWidth: toastMaxWidth, narrowAt: toastNarrowAt, tinyAt: 32 },
+      layout: { maxWidth: showMaxWidth, narrowAt: showNarrowAt, tinyAt: 32 },
       entries: data.entries,
       errors: data.errors,
       accountingDetail,
@@ -37,17 +40,7 @@ export function renderAccountingFourSurfaces(params: {
     }),
     sidebar: buildSidebarQuotaPanelLines({
       data,
-      config: {
-        formatStyle: "allWindows",
-        percentDisplayMode: "remaining",
-        accountingDetail,
-      },
+      config: { percentDisplayMode: "remaining" },
     }).join("\n"),
-    compact: buildCompactQuotaStatusLine({
-      data,
-      accountingDetail,
-      percentDisplayMode: "remaining",
-      maxWidth: compactMaxWidth,
-    }),
   };
 }

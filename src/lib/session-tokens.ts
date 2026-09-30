@@ -1,19 +1,16 @@
-/**
- * Shared session-token fetching helper.
- *
- * Consolidates the duplicated try/catch + error-capture logic that was
- * previously inlined in both `fetchQuotaMessage()` and
- * `fetchQuotaCommandMessage()` in plugin.ts.
- */
-
 import type { SessionTokensData } from "./entries.js";
 import {
   getSessionTokenSummary,
   getSessionTreeTokenSummary,
   SessionNotFoundError,
 } from "./quota-stats.js";
-import type { SessionTokenError } from "./quota-status.js";
 import type { SessionTokenScope } from "./types.js";
+
+export interface SessionTokenError {
+  sessionID: string;
+  error: string;
+  checkedPath?: string;
+}
 
 export interface SessionTokenFetchResult {
   sessionTokens?: SessionTokensData;
@@ -50,7 +47,6 @@ export async function fetchSessionTokensForDisplay(params: {
         },
       };
     }
-    // Success but no data — clear any previous error
     return {};
   } catch (err) {
     if (err instanceof SessionNotFoundError) {

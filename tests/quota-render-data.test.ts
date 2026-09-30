@@ -38,10 +38,12 @@ vi.mock("../src/lib/opencode-runtime-paths.js", () => ({
 
 import {
   collectQuotaRenderData,
-  collectQuotaStatusLiveProbes,
+  fetchProviderResults,
   matchesQuotaProviderCurrentSelection,
 } from "../src/lib/quota-render-data.js";
+import { createQuotaProviderRuntimeContext } from "../src/lib/quota-runtime-context.js";
 import { __resetQuotaStateForTests } from "../src/lib/quota-state.js";
+import { createRuntimeProviderIdResolver } from "../src/lib/runtime-provider-ids.js";
 import { DEFAULT_CONFIG, type QuotaToastConfig } from "../src/lib/types.js";
 import { opencodeZenProvider } from "../src/providers/opencode-zen.js";
 
@@ -170,71 +172,6 @@ describe("collectQuotaRenderData shared quota state", () => {
       label: "OpenCode Zen",
       message: "No OpenCode Console sign-in found. Run `opencode auth login opencode`.",
     });
-  });
-
-  it("returns allWindowsData when includeAllWindowsData is true and style is singleWindow", async () => {
-    const provider = testProvider("test-provider", {
-      entries: [
-        { accounting: TEST_ACCOUNTING, name: "Daily", label: "Daily:", percentRemaining: 50 },
-        { accounting: TEST_ACCOUNTING, name: "Weekly", label: "Weekly:", percentRemaining: 80 },
-      ],
-    });
-
-    const result = await collectQuotaRenderData({
-      client: TEST_CLIENT,
-      config: renderConfig({ enabledProviders: ["test-provider"] }),
-      surfaceExplicitProviderIssues: true,
-      formatStyle: "singleWindow",
-      providers: [provider],
-      includeAllWindowsData: true,
-    });
-
-    expect(result.data).not.toBeNull();
-    expect(result.allWindowsData).toBeDefined();
-    expect(result.allWindowsData).not.toBeNull();
-    expect(result.allWindowsData!.entries.length).toBe(2);
-    expect(result.data!.entries.length).toBe(1);
-  });
-
-  it("does not return allWindowsData when includeAllWindowsData is not set", async () => {
-    const provider = testProvider("test-provider", {
-      entries: [
-        { accounting: TEST_ACCOUNTING, name: "Daily", label: "Daily:", percentRemaining: 50 },
-      ],
-    });
-
-    const result = await collectQuotaRenderData({
-      client: TEST_CLIENT,
-      config: renderConfig({ enabledProviders: ["test-provider"] }),
-      surfaceExplicitProviderIssues: true,
-      formatStyle: "singleWindow",
-      providers: [provider],
-    });
-
-    expect(result.data).not.toBeNull();
-    expect(result.allWindowsData).toBeUndefined();
-  });
-
-  it("returns allWindowsData equal to data when style is already allWindows", async () => {
-    const provider = testProvider("test-provider", {
-      entries: [
-        { accounting: TEST_ACCOUNTING, name: "Daily", label: "Daily:", percentRemaining: 50 },
-        { accounting: TEST_ACCOUNTING, name: "Weekly", label: "Weekly:", percentRemaining: 80 },
-      ],
-    });
-
-    const result = await collectQuotaRenderData({
-      client: TEST_CLIENT,
-      config: renderConfig({ enabledProviders: ["test-provider"] }),
-      surfaceExplicitProviderIssues: true,
-      formatStyle: "allWindows",
-      providers: [provider],
-      includeAllWindowsData: true,
-    });
-
-    expect(result.data).not.toBeNull();
-    expect(result.allWindowsData).not.toBeNull();
-    expect(result.allWindowsData!.entries).toEqual(result.data!.entries);
   });
 
   it("treats a thrown availability probe as unavailable instead of rejecting the whole render", async () => {
@@ -1264,7 +1201,7 @@ describe("collectQuotaRenderData shared quota state", () => {
     expect(cursorProvider.fetch).toHaveBeenCalledTimes(2);
   });
 
-  it("collects raw live probes in order and bypasses shared cache reuse", async () => {
+  it("fetches provider results in order and bypasses shared cache reuse", async () => {
     const syntheticProvider = testProvider("synthetic", {
       entries: [
         {
@@ -1288,131 +1225,58 @@ describe("collectQuotaRenderData shared quota state", () => {
       },
     });
 
-    const params = {
+    const ctx = createQuotaProviderRuntimeContext({
       client: TEST_CLIENT,
       config: renderConfig({ minIntervalMs: 60_000 }),
-      providers: [syntheticProvider, openaiProvider],
-    };
+      workspaceRoot: TEST_RUNTIME_ROOT,
+      session: {},
+      resolveRuntimeProviderIds: createRuntimeProviderIdResolver(TEST_CLIENT),
+    });
 
-    const first = await collectQuotaStatusLiveProbes(params);
-    const second = await collectQuotaStatusLiveProbes(params);
+    const first = await fetchProviderResults({
+      providers: [syntheticProvider, openaiProvider],
+      ctx,
+      ttlMs: 60_000,
+      bypassCache: true,
+    });
+    const second = await fetchProviderResults({
+      providers: [syntheticProvider, openaiProvider],
+      ctx,
+      ttlMs: 60_000,
+      bypassCache: true,
+    });
 
     expect(first).toEqual([
       {
-        providerId: "synthetic",
-        result: {
-          attempted: true,
-          entries: [
-            {
-              accounting: TEST_ACCOUNTING,
-              name: "Synthetic Weekly",
-              group: "Synthetic",
-              label: "Weekly:",
-              percentRemaining: 84,
-              right: "$8/$50",
-              resetTimeIso: "2026-04-21T18:00:00.000Z",
-            },
-          ],
-          errors: [],
-          presentation: {
-            singleWindowShowRight: true,
+        attempted: true,
+        entries: [
+          {
+            accounting: TEST_ACCOUNTING,
+            name: "Synthetic Weekly",
+            group: "Synthetic",
+            label: "Weekly:",
+            percentRemaining: 84,
+            right: "$8/$50",
+            resetTimeIso: "2026-04-21T18:00:00.000Z",
           },
+        ],
+        errors: [],
+        presentation: {
+          singleWindowShowRight: true,
         },
       },
       {
-        providerId: "openai",
-        result: {
-          attempted: true,
-          entries: [],
-          errors: [{ label: "OpenAI", message: "Temporary outage" }],
-          presentation: {
-            singleWindowDisplayName: "OpenAI",
-          },
+        attempted: true,
+        entries: [],
+        errors: [{ label: "OpenAI", message: "Temporary outage" }],
+        presentation: {
+          singleWindowDisplayName: "OpenAI",
         },
       },
     ]);
     expect(second).toEqual(first);
     expect(syntheticProvider.fetch).toHaveBeenCalledTimes(2);
     expect(openaiProvider.fetch).toHaveBeenCalledTimes(2);
-  });
-
-  it("fetches an available but disabled provider once and preserves its status details", async () => {
-    const firstProvider = testProvider("synthetic", {
-      attempted: false,
-      statusDetails: [{ key: "api_key_source", value: "opencode.db" }],
-      rawDetails: [{ key: "usage_usd", value: "$2.50" }],
-    });
-    const duplicateProvider = testProvider("synthetic", {
-      errors: [{ label: "Synthetic", message: "must not be used" }],
-    });
-
-    const probes = await collectQuotaStatusLiveProbes({
-      client: TEST_CLIENT,
-      config: renderConfig({ enabledProviders: ["openai"] }),
-      providers: [firstProvider, duplicateProvider],
-    });
-
-    expect(probes).toEqual([
-      {
-        providerId: "synthetic",
-        result: {
-          attempted: false,
-          entries: [],
-          errors: [],
-          statusDetails: [{ key: "api_key_source", value: "opencode.db" }],
-          rawDetails: [{ key: "usage_usd", value: "$2.50" }],
-        },
-      },
-      {
-        providerId: "synthetic",
-        result: {
-          attempted: false,
-          entries: [],
-          errors: [],
-          statusDetails: [{ key: "api_key_source", value: "opencode.db" }],
-          rawDetails: [{ key: "usage_usd", value: "$2.50" }],
-        },
-      },
-    ]);
-    expect(firstProvider.fetch).toHaveBeenCalledOnce();
-    expect(duplicateProvider.fetch).not.toHaveBeenCalled();
-  });
-
-  it("keeps raw family metadata in quota status live probes", async () => {
-    const accounting = { ...TEST_ACCOUNTING, sourceId: "alice@example.com" };
-    const provider = testProvider("example-family", {
-      entries: [
-        {
-          accounting,
-          name: "Example (ali…): Claude",
-          group: "[Example (ali…)]",
-          label: "Claude:",
-          metricLabel: "Claude",
-          percentRemaining: 64,
-        },
-      ],
-      presentation: {
-        classicStrategy: "preserve",
-        redundantQuotaFamily: "Claude",
-      },
-    });
-
-    const probes = await collectQuotaStatusLiveProbes({
-      client: TEST_CLIENT,
-      config: renderConfig({ enabledProviders: ["example-family"] }),
-      providers: [provider],
-    });
-
-    expect(probes[0]?.result.entries).toEqual([
-      {
-        accounting,
-        name: "Example (ali…): Claude",
-        group: "[Example (ali…)]",
-        label: "Claude:",
-        metricLabel: "Claude",
-        percentRemaining: 64,
-      },
-    ]);
   });
 
   it("selects one limiting percent or first value row per ordered source identity", async () => {

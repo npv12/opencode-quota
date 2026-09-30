@@ -31,7 +31,7 @@ type ParsedShowArgs =
 
 const SHOW_USAGE = [
   "Usage:",
-  "  npx @slkiser/opencode-quota show [--provider <provider-id>] [--json] [--threshold <pct>]",
+  "  npx @npv12/opencode-quota show [--provider <provider-id>] [--json] [--threshold <pct>]",
   "",
   "Options:",
   "  --provider <provider-id>  Show quota for one provider",
@@ -200,14 +200,9 @@ function writeLine(stream: Pick<NodeJS.WriteStream, "write">, message: string): 
   stream.write(message.endsWith("\n") ? message : `${message}\n`);
 }
 
-/**
- * Builds one `show` or `status` report in this process, for the folder the command runs in,
- * and prints it. It works with OpenCode closed: logins are read read-only from OpenCode's
- * database, and only while the report runs.
- */
 export async function runCliReport(params: {
   cwd: string;
-  failurePrefix: "Failed to show quota" | "Failed to generate quota status";
+  failurePrefix: "Failed to show quota";
   build: (runtime: QuotaRuntimeContext) => Promise<CliReport>;
   stdout: Pick<NodeJS.WriteStream, "write">;
   stderr: Pick<NodeJS.WriteStream, "write">;

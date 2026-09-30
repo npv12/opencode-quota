@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { formatQuotaRows } from "../src/lib/format.js";
 import { projectQuotaProviderResults } from "../src/lib/quota-accounting-projection.js";
 import { formatQuotaCommand } from "../src/lib/quota-command-format.js";
-import { formatQuotaRowsGrouped } from "../src/lib/toast-format-grouped.js";
 import { buildSidebarQuotaPanelLines } from "../src/lib/tui-sidebar-format.js";
 import { openaiProvider } from "../src/providers/openai.js";
 import {
@@ -168,7 +168,7 @@ describe("openai provider", () => {
     ["OpenAI", "[OpenAI] (Business)"],
     ["SEPD", "[OpenAI SEPD] (Business)"],
     ["default", "[OpenAI] (Business)"],
-  ])("renders DB alias %s literally on sidebar, CLI, and toast", async (label, expected) => {
+  ])("preserves DB alias %s on command and CLI show with a canonical sidebar provider", async (label, expected) => {
     const { readCredentialRows } = await import("../src/lib/opencode-auth.js");
     const { queryOpenAIQuota, resolveOpenAIOAuth } = await import("../src/lib/openai.js");
     (readCredentialRows as any).mockResolvedValueOnce([
@@ -193,13 +193,22 @@ describe("openai provider", () => {
 
     const result = await openaiProvider.fetch({ config: {} } as any);
     const data = { entries: result.entries, errors: result.errors };
+    const sidebar = buildSidebarQuotaPanelLines({
+      data,
+      config: { percentDisplayMode: "remaining" },
+    }).join("\n");
+    const sidebarProvider = sidebar.split("\n")[0]?.split(/\s+/u)[0];
+    expect(sidebarProvider).toBe("OpenAI");
+    expect(sidebar).toContain("42%");
+    expect(sidebar).not.toContain("OpenAI (OpenAI)");
     const outputs = [
-      buildSidebarQuotaPanelLines({
-        data,
-        config: { formatStyle: "allWindows", percentDisplayMode: "remaining" },
-      }).join("\n"),
       formatQuotaCommand(data),
-      formatQuotaRowsGrouped(data),
+      formatQuotaRows({
+        version: "test",
+        style: "allWindows",
+        layout: { maxWidth: 80, narrowAt: 44, tinyAt: 32 },
+        ...data,
+      }),
     ];
 
     for (const output of outputs) {

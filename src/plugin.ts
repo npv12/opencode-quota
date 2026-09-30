@@ -1,7 +1,7 @@
 /**
- * OpenCode V2 server plugin: quota slash commands for every client, a diagnostics tool, and
- * the quota RPC that computes the TUI surfaces. Inside OpenCode, logins are read only here,
- * through OpenCode's integration API.
+ * OpenCode V2 server plugin: the /quota slash command for every client and the quota RPC
+ * that computes the TUI sidebar. Inside OpenCode, logins are read only here, through
+ * OpenCode's integration API.
  */
 import { Plugin } from "@opencode/plugin";
 import { resolveOpenCodeLocationRoots } from "./lib/config-file-utils.js";
@@ -12,7 +12,6 @@ import {
   notifyCredentialsChanged,
   scrubCredentialErrorText,
 } from "./lib/opencode-auth.js";
-import { reconcileDetectedProvidersInGlobalConfig } from "./lib/opencode-config-providers.js";
 import {
   QUOTA_DIALOG_COMMANDS,
   type QuotaDialogCommandId,
@@ -27,12 +26,7 @@ import {
 } from "./lib/quota-report-message.js";
 import { resolveQuotaResetRetryDelayMs } from "./lib/quota-retry-wait.js";
 import type { QuotaSessionModelContext } from "./lib/quota-runtime-context.js";
-import {
-  getQuotaFooter,
-  getQuotaMessage,
-  type QuotaSurfaceHost,
-  writeQuotaExportIfEnabled,
-} from "./lib/quota-surface-data.js";
+import { getQuotaMessage, type QuotaSurfaceHost } from "./lib/quota-surface-data.js";
 import { messageDocument } from "./lib/report-document.js";
 import { QuotaRpc, type QuotaRpcCommandOutput } from "./rpc.js";
 
@@ -84,7 +78,7 @@ async function logRpcFailure<T>(method: string, handler: () => Promise<T>): Prom
 }
 
 export const QuotaToastPlugin = Plugin.define({
-  id: "@slkiser/opencode-quota.server",
+  id: "npv12.opencode-quota",
   async setup(ctx) {
     const roots = resolveOpenCodeLocationRoots(ctx.location.directory);
     // The quota collector accepts a small V1-shaped configuration client. V2
@@ -101,13 +95,10 @@ export const QuotaToastPlugin = Plugin.define({
       },
     };
 
-    // In auto mode, /quota_status reports the providers it detected. The slash commands and
-    // the tool add them to the global OpenCode config; the TUI palette (via RPC) never writes it.
     const buildOutput = (
       command: QuotaDialogCommandId,
       sessionID: string | undefined,
       argumentsText: string | undefined,
-      options: { reconcileDetectedProviders: boolean },
     ) =>
       buildQuotaDialogCommandOutput({
         command,
@@ -119,19 +110,6 @@ export const QuotaToastPlugin = Plugin.define({
           const session = await ctx.session.get({ sessionID: id });
           return { modelID: session.model?.id, providerID: session.model?.providerID };
         },
-        onDetectedProviderIds: options.reconcileDetectedProviders
-          ? async (providerIds) => {
-              if (providerIds.length === 0) return;
-              try {
-                await reconcileDetectedProvidersInGlobalConfig({
-                  configRootDir: roots.configRoot,
-                  detectedProviderIds: providerIds,
-                });
-              } catch (error) {
-                console.warn("Failed to add detected providers to global OpenCode config", error);
-              }
-            }
-          : undefined,
       });
 
     // The TUI reads the session model from its local store, which has nothing for an
@@ -151,21 +129,11 @@ export const QuotaToastPlugin = Plugin.define({
     await ctx.rpc.register(QuotaRpc, {
       surface: (input) =>
         logRpcFailure("surface", async () => ({
-          quota: (await getQuotaMessage(surfaceHost, input.sessionID, input.surface)) ?? null,
-        })),
-      footer: (input) =>
-        logRpcFailure("footer", async () => ({
-          lines: await getQuotaFooter(surfaceHost, input.sessionID, input.surface),
-        })),
-      writeExport: () =>
-        logRpcFailure("writeExport", async () => ({
-          written: await writeQuotaExportIfEnabled(surfaceHost),
+          quota: (await getQuotaMessage(surfaceHost, input.sessionID)) ?? null,
         })),
       command: async (input): Promise<QuotaRpcCommandOutput> => {
         try {
-          return await buildOutput(input.command, input.sessionID, input.arguments, {
-            reconcileDetectedProviders: false,
-          });
+          return await buildOutput(input.command, input.sessionID, input.arguments);
         } catch (error) {
           // Return the reason as output so the TUI shows it instead of OpenCode's rpc.internal.
           const spec = QUOTA_DIALOG_COMMANDS.find((item) => item.id === input.command)!;
@@ -184,29 +152,11 @@ export const QuotaToastPlugin = Plugin.define({
       },
     });
 
-    await ctx.tool.transform((editor) => {
-      editor.add({
-        name: "quota_status",
-        description: "Diagnostics for toast, TUI, pricing and local storage.",
-        input: {
-          type: "object",
-          properties: {},
-          additionalProperties: false,
-        },
-        async execute(_input, context) {
-          const result = await buildOutput("quota_status", context.sessionID, undefined, {
-            reconcileDetectedProviders: true,
-          });
-          return { content: result.state === "output" ? sanitizeDisplayText(result.output) : "" };
-        },
-      });
-    });
-
-    // Web, Desktop, and the TUI list these in their "/" menu. In "dialog" mode the TUI runs a
+    // Web, Desktop, and the TUI list this in their "/" menu. In "dialog" mode the TUI runs a
     // typed command itself over the quota RPC, so it never reaches this. When a report does
     // arrive, the TUI follows tuiCommandDisplay: "dialog" opens its dialog and cancels the
-    // posted report, "inline" leaves it in the chat. Its command palette runs the same reports
-    // without posting them.
+    // posted report, "inline" leaves it in the chat. Its command palette runs the same report
+    // without posting it.
     await ctx.command.transform((editor) => {
       for (const spec of QUOTA_DIALOG_COMMANDS) {
         editor.add({
@@ -217,7 +167,6 @@ export const QuotaToastPlugin = Plugin.define({
               spec.id,
               invocation.sessionID,
               invocation.prompt.text.trim() || undefined,
-              { reconcileDetectedProviders: true },
             );
             if (result.state === "noop") return;
             // A message admitted while the AI works is delivered into that turn at its next

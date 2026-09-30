@@ -51,7 +51,7 @@ function renderSlot(append: string, props?: { sessionID: string }): unknown {
   const pending = () => new Promise(() => {});
   let render: ((props?: { sessionID: string }) => unknown) | undefined;
   plugin.setup({
-    client: { rpc: () => ({ surface: pending, footer: pending, writeExport: pending }) },
+    client: { rpc: () => ({ surface: pending }) },
     location: { directory: "/work/project" },
     theme: { text: { base: "base", muted: "muted" } },
     data: { on: vi.fn(() => vi.fn()) },
@@ -75,18 +75,17 @@ describe("V2 TUI theme colors", () => {
     seeds.length = 0;
   });
 
-  it("draws the sidebar like OpenCode's Context section: bold base titles, muted body", () => {
+  it("draws the sidebar like OpenCode's Context section: bold base heading, muted body", () => {
     const message = ["[Copilot] (individual)", "Premium   5h   80%", "", "Session tokens"].join(
       "\n",
     );
-    seeds.push(true, { message, duration: 5000, activeProviderCount: 1 });
+    seeds.push({ message });
 
     const texts = findNodes(renderSlot("sidebar.content", { sessionID: "ses_1" }), "text");
 
     expect(texts.map(describeText)).toEqual([
-      { text: "▼", fg: "base", bold: false },
       { text: "Quota", fg: "base", bold: true },
-      { text: "[Copilot] (individual)", fg: "base", bold: true },
+      { text: "[Copilot] (individual)", fg: "muted", bold: false },
       { text: "Premium   5h   80%", fg: "muted", bold: false },
       { text: " ", fg: "muted", bold: false },
       { text: "Session tokens", fg: "muted", bold: false },
@@ -100,16 +99,5 @@ describe("V2 TUI theme colors", () => {
       { text: "Quota", fg: "base", bold: true },
       { text: "No quota data available", fg: "muted", bold: false },
     ]);
-  });
-
-  it.each([
-    ["prompt.footer", { sessionID: "ses_1" }],
-    ["home.footer.status", undefined],
-  ])("draws the %s line muted", (append, props) => {
-    seeds.push(["Copilot 50%"]);
-
-    const texts = findNodes(renderSlot(append, props), "text");
-
-    expect(texts.map(describeText)).toEqual([{ text: "Copilot 50%", fg: "muted", bold: false }]);
   });
 });

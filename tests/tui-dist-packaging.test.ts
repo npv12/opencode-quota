@@ -39,7 +39,7 @@ describe("tui dist packaging", () => {
     const [local, source] = await Promise.all([import("../tui.js"), import("../src/tui-v2.js")]);
 
     expect(local.default).toBe(source.default);
-    expect(local.default).toMatchObject({ id: "@slkiser/opencode-quota" });
+    expect(local.default).toMatchObject({ id: "@npv12/opencode-quota" });
     expect(typeof local.default.setup).toBe("function");
   });
 
@@ -55,18 +55,15 @@ describe("tui dist packaging", () => {
     const source = await readFile(distTui, "utf8");
     expect(source).toContain("createComponent");
     expect(source).toContain("sidebar.content");
-    expect(source).toContain("prompt.footer");
-    expect(source).toContain("home.footer.status");
     expect(source).toContain("./rpc.js");
     expect(source).toContain("client.rpc(");
-    expect(source).toContain("writeExport");
     expect(source).toContain("registerQuotaCommands");
     expect(source).not.toContain("jsx-dev-runtime");
   });
 
   it("can load the packaged TUI module", () => {
     expect(packagedTui.default).toMatchObject({
-      id: "@slkiser/opencode-quota",
+      id: "@npv12/opencode-quota",
     });
     expect(typeof packagedTui.default.setup).toBe("function");
   });
@@ -75,7 +72,7 @@ describe("tui dist packaging", () => {
     const mod = await import("../dist/index.js");
 
     expect(mod.default).toMatchObject({
-      id: "@slkiser/opencode-quota.server",
+      id: "npv12.opencode-quota",
     });
     expect(typeof mod.default.setup).toBe("function");
   });

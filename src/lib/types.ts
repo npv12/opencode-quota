@@ -24,14 +24,6 @@ export type PercentLabelStyle = "full" | "bare";
 export type AccountingDetail = "summary" | "detailed";
 export type SessionTokenScope = "current" | "tree";
 export type OpenCodeGoWindowKey = "rolling" | "weekly" | "monthly";
-export type QuotaResetWindow = "fiveHour" | "hourly" | "daily" | "weekly" | "monthly" | "yearly";
-
-export interface QuotaResetNotificationsConfig {
-  /** Whether successful quota-window resets emit a one-shot toast. */
-  enabled: boolean;
-  /** Window classes eligible for reset notifications. */
-  windows: QuotaResetWindow[];
-}
 
 export interface PricingSnapshotConfig {
   source: PricingSnapshotSource;
@@ -40,44 +32,11 @@ export interface PricingSnapshotConfig {
 
 export interface TuiSidebarPanelConfig {
   enabled: boolean;
-  /** Per-surface formatStyle override. Falls back to root formatStyle when absent. */
-  formatStyle?: QuotaFormatStyle;
-  /** Preferred OpenCode Go window for the collapsed sidebar row. */
-  opencodeGoPreferredWindow?: OpenCodeGoWindowKey;
-}
-
-export interface TuiCompactStatusConfig {
-  enabled: boolean;
-  homeBottom: boolean;
-  sessionPrompt: boolean;
-  maxWidth: number;
-  /** Per-surface formatStyle override. Falls back to root formatStyle when absent. */
-  formatStyle?: QuotaFormatStyle;
-}
-
-export interface TuiPromptBarConfig {
-  enabled: boolean;
-}
-
-export interface QuotaExportConfig {
-  /** Whether to write the export file after each background refresh. Default: false. */
-  enabled: boolean;
-  /**
-   * Absolute path or ~/… path for the export file.
-   * Empty string means use the XDG default:
-   *   $XDG_CACHE_HOME/opencode/quota-export.json
-   */
-  path: string;
 }
 
 export interface QuotaTelemetryConfig {
   /** Whether to publish quota gauges through the global OpenTelemetry MeterProvider. */
   enabled: boolean;
-}
-
-export interface MaintainerAnnouncementsConfig {
-  enabled: boolean;
-  home: boolean;
 }
 
 export type TuiCommandDisplay = "inline" | "dialog";
@@ -89,12 +48,6 @@ export const REQUEST_TIMEOUT_MS = 5000;
 export interface QuotaToastConfig {
   enabled: boolean;
 
-  /** If false, never show popup toasts (commands/tools still work). */
-  enableToast: boolean;
-
-  /** Opt-in, persisted notifications when selected quota windows reset. */
-  resetNotifications: QuotaResetNotificationsConfig;
-
   /**
    * Where TUI quota slash command reports appear: "dialog" shows only the popup,
    * "inline" keeps the report in the chat. Web and Desktop always show it in the chat.
@@ -102,7 +55,8 @@ export interface QuotaToastConfig {
   tuiCommandDisplay: TuiCommandDisplay;
 
   /**
-   * Shared quota-row formatting style for popup toasts and the TUI sidebar.
+   * Quota-row formatting style for CLI show. The sidebar selects its limiting window,
+   * and /quota shows every window.
    *
    * Canonical values:
    * - "singleWindow": collapse each provider to a single displayable quota window
@@ -111,7 +65,7 @@ export interface QuotaToastConfig {
    * Legacy aliases "classic" and "grouped" remain accepted for backward compatibility.
    */
   formatStyle: QuotaFormatStyle;
-  /** Shared percent meaning for popup toasts and the TUI sidebar. */
+  /** Percent meaning for quota rows. */
   percentDisplayMode: PercentDisplayMode;
   /** Optional fixed-window quota exhaustion projection. Unset keeps it disabled. */
   quotaProjection?: "runway";
@@ -130,15 +84,6 @@ export interface QuotaToastConfig {
 
   /** Request timeout in milliseconds for remote provider API calls. */
   requestTimeoutMs: number;
-
-  /**
-   * Debug mode for troubleshooting.
-   *
-   * When enabled, the plugin appends a short debug footer to the toast.
-   * If the plugin would normally show no toast (e.g. enabledProviders empty),
-   * it will show a debug-only toast explaining why.
-   */
-  debug: boolean;
 
   /**
    * Provider ids to query.
@@ -171,12 +116,6 @@ export interface QuotaToastConfig {
   cursorIncludedApiUsd?: number;
   cursorBillingCycleStartDay?: number;
   pricingSnapshot: PricingSnapshotConfig;
-  showOnIdle: boolean;
-  showOnQuestion: boolean;
-  showOnCompact: boolean;
-  showOnBothFail: boolean;
-  /** Toast duration in milliseconds */
-  toastDurationMs: number;
 
   /** If true, only show quota for current model */
   onlyCurrentModel: boolean;
@@ -189,9 +128,7 @@ export interface QuotaToastConfig {
 
   /**
    * If true, show the Session input/output tokens section in quota displays when session token data is available.
-   * "allWindows" keeps per-model rows on toast + sidebar; "singleWindow"
-   * uses a one-line total summary.
-   * The `/quota` command keeps its detailed per-model rendering.
+   * The sidebar shows aggregate totals; /quota keeps detailed per-model rows.
    */
   showSessionTokens: boolean;
 
@@ -201,28 +138,16 @@ export interface QuotaToastConfig {
   /** TUI sidebar panel visibility when the TUI plugin is installed. */
   tuiSidebarPanel: TuiSidebarPanelConfig;
 
-  /** Opt-in compact quota/status text for TUI prompt/home surfaces. */
-  tuiCompactStatus: TuiCompactStatusConfig;
-
-  /** Quota progress bar rendered under the TUI prompt. */
-  tuiPromptBar: TuiPromptBarConfig;
-
-  /** Bundled-only maintainer announcement surfaces. */
-  maintainerAnnouncements: MaintainerAnnouncementsConfig;
-
-  /** Opt-in periodic JSON export for external tool consumption. */
-  export: QuotaExportConfig;
-
   /** Opt-in quota metrics through the host's global OpenTelemetry MeterProvider. */
   telemetry: QuotaTelemetryConfig;
 
-  /** Responsive toast layout breakpoints (not used by the fixed-width TUI sidebar). */
+  /** Responsive quota report layout breakpoints. */
   layout: {
-    /** Default max width target for toast formatting */
+    /** Default max width target for report formatting */
     maxWidth: number;
-    /** If toast max width is <= this, use compact layout */
+    /** If report max width is <= this, use compact layout */
     narrowAt: number;
-    /** If toast max width is <= this, use ultra-compact layout */
+    /** If report max width is <= this, use ultra-compact layout */
     tinyAt: number;
   };
 }
@@ -231,11 +156,6 @@ export interface QuotaToastConfig {
 export const DEFAULT_CONFIG: QuotaToastConfig = {
   enabled: true,
 
-  enableToast: true,
-  resetNotifications: {
-    enabled: false,
-    windows: ["weekly"],
-  },
   tuiCommandDisplay: "dialog",
   formatStyle: DEFAULT_QUOTA_FORMAT_STYLE,
   percentDisplayMode: "remaining",
@@ -243,8 +163,6 @@ export const DEFAULT_CONFIG: QuotaToastConfig = {
   resetTimeSpaced: true,
   minIntervalMs: 300000, // 5 minutes
   requestTimeoutMs: REQUEST_TIMEOUT_MS,
-
-  debug: false,
 
   // Providers are auto-detected by default; set to explicit list to opt-in manually.
   enabledProviders: "auto" as const,
@@ -260,34 +178,12 @@ export const DEFAULT_CONFIG: QuotaToastConfig = {
     autoRefresh: 7,
   },
 
-  showOnIdle: true,
-  showOnQuestion: true,
-  showOnCompact: true,
-  showOnBothFail: true,
-  toastDurationMs: 9000,
   onlyCurrentModel: false,
   waitForQuotaReset: true,
   showSessionTokens: true,
   sessionTokenScope: "current",
   tuiSidebarPanel: {
     enabled: true,
-  },
-  tuiCompactStatus: {
-    enabled: false,
-    homeBottom: true,
-    sessionPrompt: true,
-    maxWidth: 96,
-  },
-  tuiPromptBar: {
-    enabled: false,
-  },
-  maintainerAnnouncements: {
-    enabled: true,
-    home: true,
-  },
-  export: {
-    enabled: false,
-    path: "",
   },
   telemetry: {
     enabled: false,
@@ -848,8 +744,8 @@ export interface OpenCodeGoWindow {
   usagePercent: number;
   /** Remaining percentage [0..100]. */
   percentRemaining: number;
-  /** Canonical ISO reset timestamp. */
-  resetTimeIso: string;
+  /** Canonical ISO reset timestamp, when the meter has a scheduled reset. */
+  resetTimeIso?: string;
 }
 
 /** Strictly validated result from the OpenCode Go usage API. */
@@ -861,9 +757,3 @@ export type OpenCodeGoResult =
       monthly: OpenCodeGoWindow;
     }
   | (QuotaError & { notSubscribed?: true });
-
-/** Cached toast data */
-export interface CachedToast {
-  message: string;
-  timestamp: number;
-}

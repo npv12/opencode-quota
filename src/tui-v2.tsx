@@ -29,12 +29,8 @@ import {
   QuotaRpc,
   type QuotaRpcCommandInput,
   type QuotaRpcCommandOutput,
-  type QuotaRpcFooterInput,
-  type QuotaRpcFooterOutput,
   type QuotaRpcSurfaceInput,
   type QuotaRpcSurfaceOutput,
-  type QuotaRpcWriteExportInput,
-  type QuotaRpcWriteExportOutput,
 } from "./rpc.js";
 
 const REFRESH_INTERVAL_MS = 60_000;
@@ -58,23 +54,22 @@ type KeymapCommand = {
 };
 type DialogSize = "medium" | "large" | "xlarge";
 type DialogTheme = {
-  text: { base: RGBA; muted: RGBA; action: { primary: { focused: RGBA; selected: RGBA } } };
+  text: {
+    base: RGBA;
+    muted: RGBA;
+    action: { primary: { focused: RGBA; selected: RGBA } };
+  };
   background: { action: { primary: { focused: RGBA } } };
 };
-type QuotaRpcCallOptions = { location: { directory: string }; signal: AbortSignal };
+type QuotaRpcCallOptions = {
+  location: { directory: string };
+  signal: AbortSignal;
+};
 type QuotaRpcClient = {
   surface: (
     input: QuotaRpcSurfaceInput,
     options: QuotaRpcCallOptions,
   ) => Promise<QuotaRpcSurfaceOutput>;
-  footer: (
-    input: QuotaRpcFooterInput,
-    options: QuotaRpcCallOptions,
-  ) => Promise<QuotaRpcFooterOutput>;
-  writeExport: (
-    input: QuotaRpcWriteExportInput,
-    options: QuotaRpcCallOptions,
-  ) => Promise<QuotaRpcWriteExportOutput>;
   command: (
     input: QuotaRpcCommandInput,
     options: QuotaRpcCallOptions,
@@ -82,37 +77,48 @@ type QuotaRpcClient = {
 };
 type TuiContext = {
   location?: { directory: string };
-  renderer: { currentFocusedEditor: { plainText: string; clear: () => void } | null };
+  renderer: {
+    currentFocusedEditor: { plainText: string; clear: () => void } | null;
+  };
   client: {
     rpc: (definition: typeof QuotaRpc) => QuotaRpcClient;
     session: {
-      inbox: { cancel: (input: { sessionID: string; inboxID: string }) => Promise<void> };
+      inbox: {
+        cancel: (input: { sessionID: string; inboxID: string }) => Promise<void>;
+      };
     };
   };
-  theme: { text: { base: RGBA; muted: RGBA }; surface: (name: "dialog") => DialogTheme };
+  theme: {
+    text: { base: RGBA; muted: RGBA };
+    surface: (name: "dialog") => DialogTheme;
+  };
   data: {
     on: (event: string, handler: (event: TuiEvent) => void) => () => void;
-    session: {
-      get: (sessionID: string) => { parentID?: string } | undefined;
-    };
     location?: {
       default: () => { directory: string };
-      provider: { list: (location: { directory: string }) => Array<{ id: string }> | undefined };
+      provider: {
+        list: (location: { directory: string }) => Array<{ id: string }> | undefined;
+      };
     };
   };
   keymap: {
     /** Without a mode, a layer is active only in OpenCode's base mode. */
     layer: (
-      build: () => { mode?: "global" | "modal"; priority?: number; commands: KeymapCommand[] },
+      build: () => {
+        mode?: "global" | "modal";
+        priority?: number;
+        commands: KeymapCommand[];
+      },
     ) => void;
   };
   ui: {
     slot: (
       claim:
         | { append: "app"; render: () => null }
-        | { append: "sidebar.content"; render: (props: { sessionID: string }) => JSX.Element }
-        | { append: "prompt.footer"; render: (props: { sessionID?: string }) => JSX.Element }
-        | { append: "home.footer.status"; render: () => JSX.Element },
+        | {
+            append: "sidebar.content";
+            render: (props: { sessionID: string }) => JSX.Element;
+          },
     ) => () => void;
     router: {
       current: () => { type: "home" } | { type: "session"; sessionID: string } | { type: "plugin" };
@@ -121,8 +127,7 @@ type TuiContext = {
     dialog: {
       show: (render: () => JSX.Element, onClose?: () => void) => void;
       clear: () => void;
-      prompt: (params: { title: string; placeholder?: string }) => Promise<string | undefined>;
-      set: (params: { size: DialogSize }) => void;
+      set: (params: { size: DialogSize; centered?: boolean }) => void;
     };
   };
 };
@@ -169,12 +174,11 @@ function quotaRpcOptions(context: TuiContext): QuotaRpcCallOptions {
   };
 }
 
-async function getQuotaMessage(
-  context: TuiContext,
-  sessionID: string,
-  surface: QuotaRpcSurfaceInput["surface"],
-) {
-  const output = await quotaRpc(context).surface({ surface, sessionID }, quotaRpcOptions(context));
+async function getQuotaMessage(context: TuiContext, sessionID: string) {
+  const output = await quotaRpc(context).surface(
+    { surface: "sidebar", sessionID },
+    quotaRpcOptions(context),
+  );
   return output.quota ?? undefined;
 }
 
@@ -236,53 +240,6 @@ function createViewRefresh<T>(
   };
 }
 
-function QuotaFooter(props: {
-  context: TuiContext;
-  sessionID?: string;
-  surface: "prompt" | "home";
-}): JSX.Element {
-  const [lines, setLines] = createSignal<string[]>([]);
-  const view = createViewRefresh(
-    async () => {
-      const output = await quotaRpc(props.context).footer(
-        { surface: props.surface, sessionID: props.sessionID },
-        quotaRpcOptions(props.context),
-      );
-      return output.lines;
-    },
-    (next) => {
-      setLines(next);
-      if (props.surface !== "home") return;
-      // Fire-and-forget: the server writes the export file if enabled. A failed write
-      // must never affect rendering, so log a warning and continue.
-      void quotaRpc(props.context)
-        .writeExport({}, quotaRpcOptions(props.context))
-        .catch((error: unknown) => {
-          console.warn(`[opencode-quota] quota export write failed: ${rpcErrorMessage(error)}`);
-        });
-    },
-  );
-  view.refresh();
-  const interval = setInterval(view.refresh, REFRESH_INTERVAL_MS);
-  const stop = props.context.data.on("session.step.ended", (event) => {
-    if (props.surface === "home" || getSessionID(event) === props.sessionID) view.refresh();
-  });
-  onCleanup(() => {
-    view.dispose();
-    clearInterval(interval);
-    stop();
-  });
-  return (
-    <Show when={lines().length}>
-      <box flexDirection="column">
-        {lines().map((line) => (
-          <text fg={props.context.theme.text.muted}>{line}</text>
-        ))}
-      </box>
-    </Show>
-  );
-}
-
 function reportFailure(error: unknown): void {
   // OpenCode answers rpc.unavailable when no server plugin registered the quota RPC here.
   const hint =
@@ -296,7 +253,11 @@ function reportFailure(error: unknown): void {
 }
 
 /** OpenCode's dialog widths (dialogWidth in its ui/dialog.tsx). */
-const DIALOG_WIDTHS: Record<DialogSize, number> = { medium: 60, large: 88, xlarge: 116 };
+const DIALOG_WIDTHS: Record<DialogSize, number> = {
+  medium: 60,
+  large: 88,
+  xlarge: 116,
+};
 
 function sanitizeQuotaRow(row: ReportQuotaRow): ReportQuotaRow {
   return {
@@ -339,7 +300,11 @@ function QuotaTableView(props: { table: QuotaTable; theme: DialogTheme }): JSX.E
         line.style === "row" ? (
           <text fg={props.theme.text.base} wrapMode="none">
             {line.segments.map((segment) => (
-              <span style={{ fg: segment.muted ? props.theme.text.muted : props.theme.text.base }}>
+              <span
+                style={{
+                  fg: segment.muted ? props.theme.text.muted : props.theme.text.base,
+                }}
+              >
                 {segment.text}
               </span>
             ))}
@@ -465,9 +430,9 @@ function ReportDocumentView(props: {
 
 /**
  * Shows command output like OpenCode's alert dialog, but inside a scrollbox so long
- * reports (/quota_status, /tokens_*) stay reachable. The mouse wheel scrolls the box;
- * arrows, PageUp/PageDown, and Home/End scroll it from the keyboard. Esc is handled by
- * the host dialog; Enter and the ok/esc labels close it.
+ * reports stay reachable. The mouse wheel scrolls the box; arrows, PageUp/PageDown, and
+ * Home/End scroll it from the keyboard. Esc is handled by the host dialog; Enter and the
+ * ok/esc labels close it.
  */
 function QuotaOutputDialog(props: {
   context: TuiContext;
@@ -482,9 +447,8 @@ function QuotaOutputDialog(props: {
   // shows when the report is taller than the box.
   const tableWidth = () => Math.min(DIALOG_WIDTHS[props.size], dimensions().width - 2) - 4 - 1;
   const subtitle = props.document.heading?.subtitle;
-  // The host dialog starts a quarter of the way down the terminal. The remaining
-  // 8 rows cover the title, ok button, paddings, gaps, and one spare row; the subtitle
-  // takes one more.
+  // Eight rows cover the title, ok button, paddings, gaps, and one spare row;
+  // the subtitle takes one more.
   const maxHeight = () =>
     Math.max(1, Math.floor(dimensions().height * 0.75) - 8 - (subtitle ? 1 : 0));
   let scroll: ScrollBoxRenderable | undefined;
@@ -494,8 +458,18 @@ function QuotaOutputDialog(props: {
     mode: "modal",
     commands: [
       { bind: "return", title: "Close", group: "Dialog", run: close },
-      { bind: "up", title: "Scroll up", group: "Dialog", run: () => scroll?.scrollBy(-1) },
-      { bind: "down", title: "Scroll down", group: "Dialog", run: () => scroll?.scrollBy(1) },
+      {
+        bind: "up",
+        title: "Scroll up",
+        group: "Dialog",
+        run: () => scroll?.scrollBy(-1),
+      },
+      {
+        bind: "down",
+        title: "Scroll down",
+        group: "Dialog",
+        run: () => scroll?.scrollBy(1),
+      },
       {
         bind: "pageup",
         title: "Scroll up one page",
@@ -508,7 +482,12 @@ function QuotaOutputDialog(props: {
         group: "Dialog",
         run: () => scroll?.scrollBy(maxHeight()),
       },
-      { bind: "home", title: "Scroll to top", group: "Dialog", run: () => scroll?.scrollTo(0) },
+      {
+        bind: "home",
+        title: "Scroll to top",
+        group: "Dialog",
+        run: () => scroll?.scrollTo(0),
+      },
       {
         bind: "end",
         title: "Scroll to bottom",
@@ -571,7 +550,7 @@ function showQuotaOutputDialog(
       ),
       resolve,
     );
-    context.ui.dialog.set({ size: output.dialogSize });
+    context.ui.dialog.set({ size: output.dialogSize, centered: true });
   });
 }
 
@@ -585,21 +564,9 @@ async function runQuotaCommand(
   sessionID: string | undefined,
   typed?: { argumentsText: string | undefined },
 ): Promise<void> {
-  const spec = QUOTA_DIALOG_COMMANDS.find((item) => item.id === command)!;
-  let argumentsText = typed?.argumentsText;
-  // Only /tokens_between needs arguments; the palette asks for them.
-  if (command === "tokens_between" && !typed) {
-    const value = await context.ui.dialog.prompt({
-      title: spec.title,
-      placeholder: "YYYY-MM-DD YYYY-MM-DD",
-    });
-    if (value === undefined) return;
-    argumentsText = value.trim() || undefined;
-  }
-
   try {
     const result = await quotaRpc(context).command(
-      { command, arguments: argumentsText, sessionID },
+      { command, arguments: typed?.argumentsText, sessionID },
       quotaRpcOptions(context),
     );
     if (result.state === "noop") return;
@@ -632,7 +599,10 @@ async function showPostedQuotaReport(context: TuiContext, event: TuiEvent): Prom
   if (!sessionID || sessionID !== getRouteSessionID(context)) return;
   const inboxID = event.data?.inboxID;
   const item = event.data?.item as
-    | { type?: string; payload?: { text?: unknown; metadata?: Record<string, unknown> } }
+    | {
+        type?: string;
+        payload?: { text?: unknown; metadata?: Record<string, unknown> };
+      }
     | undefined;
   if (typeof inboxID !== "string") return;
   if (item?.type !== "user" || typeof item.payload?.text !== "string") return;
@@ -721,16 +691,9 @@ function registerTypedQuotaCommands(context: TuiContext): void {
 }
 
 function SidebarQuotaView(props: { context: TuiContext; sessionID: string }): JSX.Element {
-  const [open, setOpen] = createSignal(true);
-  const [quota, setQuota] = createSignal<
-    { message: string; duration: number; activeProviderCount: number } | undefined
-  >(undefined);
+  const [quota, setQuota] = createSignal<{ message: string } | undefined>(undefined);
   const lines = () => quota()?.message.split("\n") ?? [];
-  const expandable = () => lines().length > 2;
-  const view = createViewRefresh(
-    () => getQuotaMessage(props.context, props.sessionID, "sidebar"),
-    setQuota,
-  );
+  const view = createViewRefresh(() => getQuotaMessage(props.context, props.sessionID), setQuota);
   view.refresh();
   const interval = setInterval(view.refresh, REFRESH_INTERVAL_MS);
   const unsubscribe = props.context.data.on("session.step.ended", (event) => {
@@ -744,50 +707,30 @@ function SidebarQuotaView(props: { context: TuiContext; sessionID: string }): JS
 
   return (
     <box flexDirection="column">
-      <box
-        flexDirection="row"
-        gap={1}
-        onMouseDown={() => expandable() && setOpen((value) => !value)}
-      >
-        <Show when={expandable()}>
-          <text fg={props.context.theme.text.base}>{open() ? "▼" : "▶"}</text>
+      <text fg={props.context.theme.text.base}>
+        <b>Quota</b>
+      </text>
+      <box paddingLeft={1}>
+        <Show
+          when={quota()}
+          fallback={<text fg={props.context.theme.text.muted}>No quota data available</text>}
+        >
+          {lines().map((line) => (
+            <text fg={props.context.theme.text.muted} wrapMode="none">
+              {line || " "}
+            </text>
+          ))}
         </Show>
-        <text fg={props.context.theme.text.base}>
-          <b>Quota</b>
-          <Show when={expandable() && !open() && quota()?.activeProviderCount}>
-            {(count: () => number) => ` (${count()} active)`}
-          </Show>
-        </text>
       </box>
-      <Show
-        when={quota()}
-        fallback={<text fg={props.context.theme.text.muted}>No quota data available</text>}
-      >
-        <Show when={!expandable() || open()}>
-          {lines().map((line) =>
-            // Provider headers such as "[Copilot] (individual)" are bold, like section titles.
-            line.startsWith("[") ? (
-              <text fg={props.context.theme.text.base} wrapMode="none">
-                <b>{line}</b>
-              </text>
-            ) : (
-              <text fg={props.context.theme.text.muted} wrapMode="none">
-                {line || " "}
-              </text>
-            ),
-          )}
-        </Show>
-      </Show>
     </box>
   );
 }
 
 const plugin = Plugin.define({
-  id: "@slkiser/opencode-quota",
+  id: "@npv12/opencode-quota",
   setup(context) {
     const api = context as unknown as TuiContext;
     let disposeEvents: (() => void) | undefined;
-    const questionToolCalls = new Set<string>();
     const disposeApp = api.ui.slot({
       append: "app",
       render: () => {
@@ -797,62 +740,11 @@ const plugin = Plugin.define({
         disposeEvents?.();
         registerQuotaCommands(api);
         registerTypedQuotaCommands(api);
-        const trigger = (event: TuiEvent, reason: "idle" | "compacted" | "question") => {
-          const sessionID = getSessionID(event);
-          if (!sessionID) return;
-          // As in v4, subagent (child) sessions never show quota toasts.
-          if (api.data.session.get(sessionID)?.parentID) return;
-          void getQuotaMessage(api, sessionID, reason)
-            .then((quota) => {
-              if (!quota) return;
-              api.ui.toast.show({
-                variant: "info",
-                title: "OpenCode Quota",
-                message: quota.message,
-                duration: quota.duration,
-              });
-              if (quota.resetNotification) {
-                api.ui.toast.show({
-                  variant: "success",
-                  title: "Quota available",
-                  message: sanitizeDisplayText(quota.resetNotification),
-                  duration: quota.duration,
-                });
-              }
-            })
-            .catch(reportFailure);
-        };
-        const onExecutionSucceeded = api.data.on("session.execution.succeeded", (event) =>
-          trigger(event, "idle"),
-        );
-        const onCompacted = api.data.on("session.compaction.ended", (event) =>
-          trigger(event, "compacted"),
-        );
-        const onQuestionStarted = api.data.on("session.tool.input.started", (event) => {
-          const id = event.data?.id;
-          if (event.data?.name === "question" && typeof id === "string") {
-            questionToolCalls.add(id);
-          }
-        });
-        const onQuestionSucceeded = api.data.on("session.tool.success", (event) => {
-          const id = event.data?.id;
-          if (typeof id === "string" && questionToolCalls.delete(id)) trigger(event, "question");
-        });
-        const onQuestionFailed = api.data.on("session.tool.failed", (event) => {
-          const id = event.data?.id;
-          if (typeof id === "string") questionToolCalls.delete(id);
-        });
         const onInboxEnqueued = api.data.on("session.inbox.enqueued", (event) => {
           void showPostedQuotaReport(api, event).catch(reportFailure);
         });
         disposeEvents = () => {
-          onExecutionSucceeded();
-          onCompacted();
-          onQuestionStarted();
-          onQuestionSucceeded();
-          onQuestionFailed();
           onInboxEnqueued();
-          questionToolCalls.clear();
         };
         return null;
       },
@@ -861,20 +753,10 @@ const plugin = Plugin.define({
       append: "sidebar.content",
       render: (props) => <SidebarQuotaView context={api} sessionID={props.sessionID} />,
     });
-    const disposePrompt = api.ui.slot({
-      append: "prompt.footer",
-      render: (props) => <QuotaFooter context={api} sessionID={props.sessionID} surface="prompt" />,
-    });
-    const disposeHome = api.ui.slot({
-      append: "home.footer.status",
-      render: () => <QuotaFooter context={api} surface="home" />,
-    });
     return () => {
       disposeEvents?.();
       disposeApp();
       disposeSidebar();
-      disposePrompt();
-      disposeHome();
     };
   },
 });

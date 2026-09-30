@@ -10,7 +10,7 @@ const TEST_ACCOUNTING = {
   authority: "provider_reported",
 } as const;
 
-const { mockProviders, runtimeDirs, statusData } = vi.hoisted(() => ({
+const { mockProviders, runtimeDirs } = vi.hoisted(() => ({
   mockProviders: [] as any[],
   runtimeDirs: {
     value: {
@@ -18,13 +18,6 @@ const { mockProviders, runtimeDirs, statusData } = vi.hoisted(() => ({
       configDir: "/tmp/opencode-quota-cli-reports-config",
       cacheDir: "/tmp/opencode-quota-cli-reports-cache",
       stateDir: "/tmp/opencode-quota-cli-reports-state",
-    },
-  },
-  statusData: {
-    value: null as null | {
-      output: string;
-      payload: Record<string, unknown>;
-      hasComparableProviderData?: boolean;
     },
   },
 }));
@@ -37,62 +30,10 @@ vi.mock("../src/lib/opencode-runtime-paths.js", () => ({
   getOpencodeRuntimeDirs: () => runtimeDirs.value,
 }));
 
-vi.mock("../src/lib/quota-dialog-commands.js", () => ({
-  buildStatusReportData: vi.fn(async () => {
-    if (!statusData.value) {
-      return { output: null, payload: null };
-    }
-    return {
-      output: statusData.value.output,
-      payload: statusData.value.payload,
-      hasComparableProviderData: statusData.value.hasComparableProviderData ?? true,
-    };
-  }),
-}));
-
-import { buildCliShowJson, buildCliShowText, buildCliStatus } from "../src/lib/cli-reports.js";
+import { buildCliShowJson, buildCliShowText } from "../src/lib/cli-reports.js";
 import { resolveOpenCodeLocationRoots } from "../src/lib/config-file-utils.js";
-import { buildStatusReportData } from "../src/lib/quota-dialog-commands.js";
 import { resolveQuotaRuntimeContext } from "../src/lib/quota-runtime-context.js";
 import { __resetQuotaStateForTests } from "../src/lib/quota-state.js";
-
-function basePayload(overrides: Record<string, unknown> = {}) {
-  return {
-    version: "3.11.2",
-    generatedAt: "2026-07-16T00:00:00.000Z",
-    config: {
-      configSource: "workspace",
-      configPaths: ["/tmp/opencode.json"],
-      enabledProviders: ["synthetic"],
-      onlyCurrentModel: false,
-      pricingSnapshotSource: "auto",
-    },
-    providers: [
-      { id: "synthetic", enabled: true, available: true, matchesCurrentModel: undefined },
-    ],
-    pricing: {
-      selection: "auto",
-      activeSource: "bundled",
-      snapshot: {
-        source: "bundled",
-        generatedAt: "2026-01-01T00:00:00.000Z",
-        units: "USD per 1M tokens",
-      },
-      snapshotPath: "/tmp/pricing.json",
-      refreshStatePath: "/tmp/pricing-state.json",
-    },
-    liveProbes: [{ id: "synthetic", ok: true }],
-    ...overrides,
-  };
-}
-
-function useStatusData(
-  payload = basePayload(),
-  hasComparableProviderData?: boolean,
-  output = "report text",
-): void {
-  statusData.value = { output, payload, hasComparableProviderData };
-}
 
 describe("CLI reports", () => {
   let tempDir: string;
@@ -138,8 +79,6 @@ describe("CLI reports", () => {
       stateDir: "/tmp/opencode-quota-cli-reports-state",
     };
     mockProviders.length = 0;
-    statusData.value = null;
-    vi.mocked(buildStatusReportData).mockClear();
     __resetQuotaStateForTests();
   });
 
@@ -148,7 +87,6 @@ describe("CLI reports", () => {
     if (savedConfigDir !== undefined) process.env.OPENCODE_CONFIG_DIR = savedConfigDir;
     else delete process.env.OPENCODE_CONFIG_DIR;
     mockProviders.length = 0;
-    statusData.value = null;
     __resetQuotaStateForTests();
     rmSync(tempDir, { recursive: true, force: true });
   });
@@ -570,101 +508,6 @@ describe("CLI reports", () => {
       const parsed = JSON.parse(report.stdout);
       expect(Object.keys(parsed.providers)).toEqual(["copilot"]);
       expect(parsed.providers.copilot.status).toBe("ok");
-    });
-  });
-
-  describe("buildCliStatus", () => {
-    it("prints a plain-text Quota Status report and returns zero", async () => {
-      useStatusData(
-        basePayload(),
-        undefined,
-        "Quota Status (opencode-quota v3.11.2)\ntoast:\n- enabledProviders: synthetic",
-      );
-
-      const report = await buildCliStatus({ runtime: await runtimeFor(), json: false });
-
-      expect(report).toEqual({
-        exitCode: 0,
-        stdout: "Quota Status (opencode-quota v3.11.2)\ntoast:\n- enabledProviders: synthetic\n",
-        stderr: "",
-      });
-      expect(buildStatusReportData).toHaveBeenCalledWith(
-        expect.objectContaining({ providerFilterId: undefined }),
-      );
-    });
-
-    it("emits a structured JSON payload and returns zero when live probes exist", async () => {
-      useStatusData();
-
-      const report = await buildCliStatus({ runtime: await runtimeFor(), json: true });
-
-      expect(report.exitCode).toBe(0);
-      expect(report.stderr).toBe("");
-      const parsed = JSON.parse(report.stdout);
-      expect(parsed).toHaveProperty("version", "3.11.2");
-      expect(parsed).toHaveProperty("generatedAt");
-      expect(parsed).toHaveProperty("config");
-      expect(parsed).toHaveProperty("providers");
-      expect(parsed).toHaveProperty("pricing");
-      expect(parsed).toHaveProperty("liveProbes");
-      expect(parsed.liveProbes).toEqual([{ id: "synthetic", ok: true }]);
-    });
-
-    it("exits 2 with JSON when there is no comparable provider data", async () => {
-      useStatusData(basePayload({ liveProbes: [] }), false);
-
-      const report = await buildCliStatus({ runtime: await runtimeFor(), json: true });
-
-      expect(report.exitCode).toBe(2);
-      expect(report.stderr).toBe("");
-      // JSON still prints on exit 2.
-      expect(JSON.parse(report.stdout).liveProbes).toEqual([]);
-    });
-
-    it("exits 2 with JSON when probes fail without producing quota entries", async () => {
-      useStatusData(basePayload({ liveProbes: [{ id: "synthetic", ok: false }] }), false);
-
-      const report = await buildCliStatus({ runtime: await runtimeFor(), json: true });
-
-      expect(report.exitCode).toBe(2);
-      expect(JSON.parse(report.stdout).liveProbes).toEqual([{ id: "synthetic", ok: false }]);
-    });
-
-    it("succeeds with JSON when a partial probe produced quota entries", async () => {
-      useStatusData(basePayload({ liveProbes: [{ id: "synthetic", ok: false }] }), true);
-
-      const report = await buildCliStatus({ runtime: await runtimeFor(), json: true });
-
-      expect(report.exitCode).toBe(0);
-    });
-
-    it("forwards the provider filter and still emits JSON", async () => {
-      useStatusData();
-
-      const report = await buildCliStatus({
-        runtime: await runtimeFor(),
-        providerId: "synthetic",
-        json: true,
-      });
-
-      expect(report.exitCode).toBe(0);
-      expect(buildStatusReportData).toHaveBeenCalledWith(
-        expect.objectContaining({ providerFilterId: "synthetic" }),
-      );
-      const parsed = JSON.parse(report.stdout);
-      expect(parsed.providers).toHaveLength(1);
-      expect(parsed).not.toHaveProperty("providerFilterId");
-    });
-
-    it("returns non-zero when quota is disabled in config", async () => {
-      writeQuotaConfig({ enabled: false });
-
-      await expect(buildCliStatus({ runtime: await runtimeFor(), json: false })).resolves.toEqual({
-        exitCode: 1,
-        stdout: "",
-        stderr: "Quota disabled in config (enabled: false).\n",
-      });
-      expect(buildStatusReportData).not.toHaveBeenCalled();
     });
   });
 });

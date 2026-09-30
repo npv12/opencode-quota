@@ -20,11 +20,8 @@ import { buildQuotaCommandDocument } from "../src/lib/quota-command-format.js";
 import {
   parseQuotaSlashCommand,
   QUOTA_DIALOG_COMMANDS,
-  type QuotaDialogCommandId,
-  TOKEN_REPORT_COMMANDS,
 } from "../src/lib/quota-dialog-command-specs.js";
 import { formatQuotaReportMessage } from "../src/lib/quota-report-message.js";
-import { buildQuotaStatsReportDocument } from "../src/lib/quota-stats-format.js";
 import {
   commandHeading,
   messageDocument,
@@ -170,53 +167,27 @@ describe("V2 quota TUI commands", () => {
     terminal.width = 120;
     rpc.command.mockReset().mockResolvedValue({
       state: "output",
-      command: "tokens_today",
-      title: "Tokens",
+      command: "quota",
+      title: "OpenCode Quota",
       output: "ok",
       document: messageDocument("ok"),
       dialogSize: "large",
     });
   });
 
-  it("registers every quota command in the palette and leaves slash commands to the server", () => {
+  it("registers the quota command in the palette and leaves slash commands to the server", () => {
     const { context, commands } = startTui();
 
     // The RPC client is made per call, never during setup.
     expect(context.client.rpc).not.toHaveBeenCalled();
-    expect(commands.map((command) => command.id)).toEqual([
-      "quota.quota",
-      "quota.quota_status",
-      "quota.quota_announcements",
-      "quota.pricing_refresh",
-      "quota.tokens_today",
-      "quota.tokens_daily",
-      "quota.tokens_weekly",
-      "quota.tokens_monthly",
-      "quota.tokens_all",
-      "quota.tokens_session",
-      "quota.tokens_session_all",
-      "quota.tokens_between",
-    ]);
+    expect(commands.map((command) => command.id)).toEqual(["quota.quota"]);
     expect(commands.every((command) => command.palette)).toBe(true);
     expect(commands.some((command) => "slash" in command)).toBe(false);
     expect(context.ui.slot).toHaveBeenCalledWith(expect.objectContaining({ append: "app" }));
     expect(context.ui.slot).toHaveBeenCalledWith(
       expect.objectContaining({ append: "sidebar.content" }),
     );
-    expect(context.ui.slot).toHaveBeenCalledWith(
-      expect.objectContaining({ append: "prompt.footer" }),
-    );
-    expect(context.ui.slot).toHaveBeenCalledWith(
-      expect.objectContaining({ append: "home.footer.status" }),
-    );
-    expect(context.data.on.mock.calls.map(([event]) => event)).toEqual([
-      "session.execution.succeeded",
-      "session.compaction.ended",
-      "session.tool.input.started",
-      "session.tool.success",
-      "session.tool.failed",
-      "session.inbox.enqueued",
-    ]);
+    expect(context.data.on.mock.calls.map(([event]) => event)).toEqual(["session.inbox.enqueued"]);
   });
 
   it("registers its layers and listeners again when OpenCode mounts the app slot again", () => {
@@ -232,34 +203,6 @@ describe("V2 quota TUI commands", () => {
     for (const dispose of firstListeners) expect(dispose).toHaveBeenCalledOnce();
     const secondListeners = context.data.on.mock.results.slice(firstListeners.length);
     for (const { value: dispose } of secondListeners) expect(dispose).not.toHaveBeenCalled();
-  });
-
-  it("prompts for /tokens_between dates in the palette and stops when cancelled", async () => {
-    const { context, command } = startTui();
-
-    await command("tokens_between").run();
-    expect(context.ui.dialog.prompt).toHaveBeenCalledOnce();
-    expect(rpc.command).not.toHaveBeenCalled();
-
-    context.ui.dialog.prompt.mockResolvedValue(" 2026-09-01 2026-09-25 ");
-    await command("tokens_between").run();
-    expect(rpc.command).toHaveBeenCalledWith(
-      { command: "tokens_between", arguments: "2026-09-01 2026-09-25", sessionID: undefined },
-      expect.anything(),
-    );
-  });
-
-  it("runs /quota_announcements and /pricing_refresh from the palette without a prompt", async () => {
-    const { context, command } = startTui();
-
-    await command("quota_announcements").run();
-    await command("pricing_refresh").run();
-
-    expect(context.ui.dialog.prompt).not.toHaveBeenCalled();
-    expect(rpc.command.mock.calls.map(([input]) => [input.command, input.arguments])).toEqual([
-      ["quota_announcements", undefined],
-      ["pricing_refresh", undefined],
-    ]);
   });
 
   describe("quota reports posted by slash commands", () => {
@@ -362,7 +305,7 @@ describe("V2 quota TUI commands", () => {
         inboxID: "msg_report",
       });
       expect(context.ui.dialog.show).toHaveBeenCalledOnce();
-      expect(context.ui.dialog.set).toHaveBeenCalledWith({ size: "xlarge" });
+      expect(context.ui.dialog.set).toHaveBeenCalledWith({ size: "xlarge", centered: true });
       const render = context.ui.dialog.show.mock.calls[0][0] as () => {
         props: Record<string, unknown>;
       };
@@ -439,24 +382,27 @@ describe("V2 quota TUI commands", () => {
       return { ...tui, enter: enter.commands[0] };
     }
 
-    it("parses only exact quota command names, with their arguments", () => {
+    it("parses only the exact quota command name, with its arguments", () => {
       expect(parseQuotaSlashCommand("/quota")).toEqual({
         command: "quota",
         argumentsText: undefined,
       });
-      expect(parseQuotaSlashCommand("  /quota_status \n")).toEqual({
-        command: "quota_status",
-        argumentsText: undefined,
+      expect(parseQuotaSlashCommand("/quota  extra ")).toEqual({
+        command: "quota",
+        argumentsText: "extra",
       });
-      expect(parseQuotaSlashCommand("/tokens_between  2026-09-01 2026-09-25 ")).toEqual({
-        command: "tokens_between",
-        argumentsText: "2026-09-01 2026-09-25",
-      });
-      expect(parseQuotaSlashCommand("/pricing_refresh\tnow")).toEqual({
-        command: "pricing_refresh",
-        argumentsText: "now",
-      });
-      for (const text of ["/quotax", "/quota_statu", "quota", "hello /quota", "/", "", "/Quota"]) {
+      for (const text of [
+        "/quota_status",
+        "/tokens_between 2026-09-01 2026-09-25",
+        "/pricing_refresh",
+        "/quotax",
+        "/quota_statu",
+        "quota",
+        "hello /quota",
+        "/",
+        "",
+        "/Quota",
+      ]) {
         expect(parseQuotaSlashCommand(text)).toBeUndefined();
       }
     });
@@ -477,7 +423,7 @@ describe("V2 quota TUI commands", () => {
         type: "session",
         sessionID: "ses_open",
       });
-      editor.plainText = "/tokens_between 2026-09-01 2026-09-25";
+      editor.plainText = "/quota extra";
 
       const result = enter.run();
 
@@ -486,8 +432,9 @@ describe("V2 quota TUI commands", () => {
       expect(editor.clear).toHaveBeenCalledOnce();
       expect(context.ui.dialog.prompt).not.toHaveBeenCalled();
       await vi.waitFor(() => expect(context.ui.dialog.show).toHaveBeenCalledOnce());
+      expect(context.ui.dialog.set).toHaveBeenCalledWith({ size: "large", centered: true });
       expect(rpc.command).toHaveBeenCalledExactlyOnceWith(
-        { command: "tokens_between", arguments: "2026-09-01 2026-09-25", sessionID: "ses_open" },
+        { command: "quota", arguments: "extra", sessionID: "ses_open" },
         expect.anything(),
       );
     });
@@ -599,10 +546,8 @@ describe("V2 quota TUI commands", () => {
   });
 
   it("runs commands for the session on screen, and without a session elsewhere", async () => {
-    await startTui(undefined, { type: "session", sessionID: "ses_open" })
-      .command("tokens_session")
-      .run();
-    await startTui(undefined, { type: "home" }).command("tokens_session").run();
+    await startTui(undefined, { type: "session", sessionID: "ses_open" }).command("quota").run();
+    await startTui(undefined, { type: "home" }).command("quota").run();
 
     expect(rpc.command.mock.calls.map(([input]) => input.sessionID)).toEqual([
       "ses_open",
@@ -613,7 +558,7 @@ describe("V2 quota TUI commands", () => {
   it("runs commands at the TUI location, else the default location, with a timeout", async () => {
     await startTui({ directory: "/work/project" }).command("quota").run();
     const { context, command } = startTui();
-    await command("quota_status").run();
+    await command("quota").run();
 
     expect(rpc.command.mock.calls.map(([, options]) => options)).toEqual([
       { location: { directory: "/work/project" }, signal: expect.any(AbortSignal) },
@@ -637,12 +582,12 @@ describe("V2 quota TUI commands", () => {
     expect(context.ui.dialog.show).not.toHaveBeenCalled();
   });
 
-  it("shows command output in a scrollable dialog that fits the terminal", async () => {
+  it("shows command output in a centered, scrollable dialog that fits the terminal", async () => {
     stubRenderingReact();
     const lines = Array.from({ length: 80 }, (_, index) => `line ${index + 1}`);
     const generatedAtMs = Date.UTC(2026, 0, 2, 3, 4);
     const document: ReportDocument = {
-      heading: commandHeading({ title: "Tokens used (Today) (/tokens_today)", generatedAtMs }),
+      heading: commandHeading({ title: "Quota (/quota)", generatedAtMs }),
       sections: [
         {
           id: "models",
@@ -667,18 +612,21 @@ describe("V2 quota TUI commands", () => {
     };
     rpc.command.mockResolvedValue({
       state: "output",
-      command: "quota_status",
-      title: "Quota Status",
+      command: "quota",
+      title: "OpenCode Quota",
       output: "the chat text",
       document,
       dialogSize: "xlarge",
     });
     const { context, command, layers } = startTui();
 
-    await command("quota_status").run();
+    await command("quota").run();
 
     expect(context.ui.dialog.show).toHaveBeenCalledOnce();
-    expect(context.ui.dialog.set).toHaveBeenCalledWith({ size: "xlarge" });
+    expect(context.ui.dialog.set).toHaveBeenCalledWith({ size: "xlarge", centered: true });
+    expect(context.ui.dialog.show.mock.invocationCallOrder[0]).toBeLessThan(
+      context.ui.dialog.set.mock.invocationCallOrder[0],
+    );
     const render = context.ui.dialog.show.mock.calls[0][0] as () => unknown;
     const tree = render();
     const scrollbox = findNode(tree, "scrollbox");
@@ -686,7 +634,7 @@ describe("V2 quota TUI commands", () => {
     expect(scrollbox?.props.maxHeight).toBe(21);
     // The subtitle sits directly under the title, muted; the report's title line is left out.
     expect(dialogHeader(tree)).toEqual({
-      title: "Quota Status",
+      title: "OpenCode Quota",
       subtitle: { children: formatLocalCallTimestamp(generatedAtMs), fg: "muted" },
     });
     const texts = findNodes(scrollbox?.props.children, "text").map((node) => ({
@@ -767,8 +715,8 @@ describe("V2 quota TUI commands", () => {
     stubRenderingReact();
     rpc.command.mockResolvedValue({
       state: "output",
-      command: "tokens_today",
-      title: "Tokens",
+      command: "quota",
+      title: "OpenCode Quota",
       output: "the chat text",
       document: {
         sections: [
@@ -789,7 +737,7 @@ describe("V2 quota TUI commands", () => {
       dialogSize: "xlarge",
     });
     const { context, command } = startTui();
-    await command("tokens_today").run();
+    await command("quota").run();
     const render = context.ui.dialog.show.mock.calls[0][0] as () => unknown;
     const tableLines = () =>
       findNodes(findNode(render(), "scrollbox")?.props.children, "text").map(
@@ -837,7 +785,7 @@ describe("V2 quota TUI commands", () => {
     rpc.command.mockResolvedValue({
       state: "output",
       command: "quota",
-      title: "Quota",
+      title: "OpenCode Quota",
       output: "the chat text",
       document,
       dialogSize: "xlarge",
@@ -937,35 +885,17 @@ describe("V2 quota TUI commands", () => {
     ]);
   });
 
-  it("shows every command's report title once, as the dialog title, with the subtitle under it", async () => {
+  it("shows the quota report title once, as the dialog title, with the subtitle under it", async () => {
     stubRenderingReact();
     const generatedAtMs = Date.UTC(2026, 8, 29, 14, 0);
     const time = formatLocalCallTimestamp(generatedAtMs);
-    const tokenResult = {
-      window: { sinceMs: 0, untilMs: 1 },
-      totals: {
-        priced: { input: 0, output: 0, reasoning: 0, cache_read: 0, cache_write: 0 },
-        unknown: { input: 0, output: 0, reasoning: 0, cache_read: 0, cache_write: 0 },
-        unpriced: { input: 0, output: 0, reasoning: 0, cache_read: 0, cache_write: 0 },
-        costUsd: 0,
-        messageCount: 0,
-        sessionCount: 0,
-      },
-      bySourceProvider: [],
-      bySourceModel: [],
-      byModel: [],
-      bySession: [],
-      unknown: [],
-      unpriced: [],
-    };
     const accounting = {
       resultType: "quota",
       acquisitionMethod: "remote_api",
       ownership: "maintained",
       authority: "provider_reported",
     } as const;
-    // Each document has the heading its server builder gives it.
-    const reports = new Map<QuotaDialogCommandId, { document: ReportDocument; subtitle?: string }>([
+    const reports = new Map<string, { document: ReportDocument; subtitle?: string }>([
       [
         "quota",
         {
@@ -977,70 +907,6 @@ describe("V2 quota TUI commands", () => {
           subtitle: time,
         },
       ],
-      [
-        "quota_status",
-        {
-          document: {
-            heading: commandHeading({
-              title: "Quota Status (opencode-quota v5.0.0) (/quota_status)",
-              detail: "opencode-quota v5.0.0",
-              generatedAtMs,
-            }),
-            sections: [{ id: "toast", title: "toast:", blocks: [{ kind: "lines", lines: ["-"] }] }],
-          },
-          subtitle: `opencode-quota v5.0.0 · ${time}`,
-        },
-      ],
-      [
-        "quota_announcements",
-        {
-          document: {
-            heading: { line: "Maintainer announcements" },
-            sections: [
-              { id: "list", blocks: [{ kind: "lines", lines: ["No current announcements."] }] },
-            ],
-          },
-        },
-      ],
-      [
-        "pricing_refresh",
-        {
-          document: {
-            heading: commandHeading({ title: "Pricing Refresh (/pricing_refresh)", generatedAtMs }),
-            sections: [
-              { id: "refresh", title: "refresh:", blocks: [{ kind: "lines", lines: ["-"] }] },
-            ],
-          },
-          subtitle: time,
-        },
-      ],
-      ...TOKEN_REPORT_COMMANDS.map(
-        (spec): [QuotaDialogCommandId, { document: ReportDocument; subtitle: string }] =>
-          spec.kind === "between"
-            ? [
-                spec.id,
-                {
-                  document: buildQuotaStatsReportDocument({
-                    title: "Tokens used (2026-01-01 .. 2026-01-15) (/tokens_between)",
-                    titleDetail: "2026-01-01 .. 2026-01-15",
-                    result: tokenResult,
-                    generatedAtMs,
-                  }),
-                  subtitle: `2026-01-01 .. 2026-01-15 · ${time}`,
-                },
-              ]
-            : [
-                spec.id,
-                {
-                  document: buildQuotaStatsReportDocument({
-                    title: spec.title,
-                    result: tokenResult,
-                    generatedAtMs,
-                  }),
-                  subtitle: time,
-                },
-              ],
-      ),
     ]);
     expect([...reports.keys()].sort()).toEqual(QUOTA_DIALOG_COMMANDS.map((spec) => spec.id).sort());
 

@@ -87,7 +87,7 @@ body:
     id: logs
     attributes:
       label: Relevant logs/output
-      description: "Optional: paste `/quota_status` output (add test output if helpful)."
+      description: "Optional: paste `/quota` output with account identifiers redacted (add test output if helpful)."
       render: shell
 
   - type: textarea
