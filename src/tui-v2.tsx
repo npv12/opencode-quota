@@ -727,7 +727,7 @@ function SidebarQuotaView(props: { context: TuiContext; sessionID: string }): JS
 }
 
 const plugin = Plugin.define({
-  id: "@npv12/opencode-quota",
+  id: "npv12.opencode-quota",
   setup(context) {
     const api = context as unknown as TuiContext;
     let disposeEvents: (() => void) | undefined;

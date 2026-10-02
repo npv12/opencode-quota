@@ -64,7 +64,7 @@ const ciWorkflow = parse(
   await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"),
 ) as Workflow;
 const publishWorkflow = parse(
-  await readFile(new URL("../.github/workflows/publish-npm.yml", import.meta.url), "utf8"),
+  await readFile(new URL("../.github/workflows/publish.yml", import.meta.url), "utf8"),
 ) as Workflow;
 
 function namedStep(job: WorkflowJob, name: string): WorkflowStep {
@@ -87,9 +87,9 @@ function runLines(job: WorkflowJob): string[] {
 }
 
 describe("package manifest compatibility", () => {
-  it("publishes the @npv12 fork identity at version 5.0.1 on the current Node runtime", () => {
+  it("publishes the @npv12 fork identity at version 2.1.0 on the current Node runtime", () => {
     expect(pkg.name).toBe("@npv12/opencode-quota");
-    expect(pkg.version).toBe("5.0.1");
+    expect(pkg.version).toBe("2.1.0");
     expect(pkg.packageManager).toBeUndefined();
     expect(pkg.engines?.node).toBe("^22.13.0 || >=23.4.0");
     expect(pkg.engines).not.toHaveProperty("opencode");

@@ -1,6 +1,6 @@
 {
   "name": "@npv12/opencode-quota",
-  "version": "5.0.1",
+  "version": "2.1.0",
   "description": "OpenCode quota visibility for the /quota command and TUI sidebar. Maintained fork of @slkiser/opencode-quota by Pranav (npv12).",
   "type": "module",
   "main": "./dist/index.js",

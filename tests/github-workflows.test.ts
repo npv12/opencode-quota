@@ -255,7 +255,7 @@ describe("GitHub workflows", () => {
     expect(workflowFiles.sort()).toEqual([
       "ci.yml",
       "close-inactive-issues.yml",
-      "publish-npm.yml",
+      "publish.yml",
       "thin-issue-check.yml",
     ]);
 
