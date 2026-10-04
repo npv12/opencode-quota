@@ -1,5 +1,4 @@
-import { readFile, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { rm } from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -78,12 +77,6 @@ vi.mock("@opentui/solid", () => ({
   useTerminalDimensions: () => () => ({ width: 120, height: 40 }),
 }));
 
-const resetNotifications = vi.hoisted(() => ({ observe: vi.fn() }));
-vi.mock("../src/lib/quota-reset-notifications.js", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../src/lib/quota-reset-notifications.js")>()),
-  observeQuotaResetNotifications: resetNotifications.observe,
-}));
-
 vi.mock("@opentelemetry/api", () => ({
   metrics: { getMeter: otel.getMeter },
 }));
@@ -122,7 +115,7 @@ vi.mock("../src/lib/opencode-runtime-paths.js", () =>
   createPluginRuntimePathsMockModule(TEST_RUNTIME_ROOT),
 );
 
-const renderedSurfaces = vi.hoisted(() => ({ sidebar: [] as string[], compact: [] as string[] }));
+const renderedSidebar = vi.hoisted(() => ({ lines: [] as string[] }));
 vi.mock("../src/lib/tui-sidebar-format.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/lib/tui-sidebar-format.js")>();
   return {
@@ -131,21 +124,8 @@ vi.mock("../src/lib/tui-sidebar-format.js", async (importOriginal) => {
       params: Parameters<typeof actual.buildSidebarQuotaPanelLines>[0],
     ) => {
       const lines = actual.buildSidebarQuotaPanelLines(params);
-      renderedSurfaces.sidebar.push(lines.join("\n"));
+      renderedSidebar.lines.push(lines.join("\n"));
       return lines;
-    },
-  };
-});
-vi.mock("../src/lib/tui-compact-format.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../src/lib/tui-compact-format.js")>();
-  return {
-    ...actual,
-    buildCompactQuotaStatusLine: (
-      params: Parameters<typeof actual.buildCompactQuotaStatusLine>[0],
-    ) => {
-      const line = actual.buildCompactQuotaStatusLine(params);
-      renderedSurfaces.compact.push(line);
-      return line;
     },
   };
 });
@@ -180,7 +160,7 @@ async function setupV2Surfaces(client: ReturnType<typeof createClient>, provider
       }),
     },
   } as never);
-  expect(tool?.name).toBe("quota_status");
+  expect(tool).toBeUndefined();
   // The TUI computes nothing itself: every surface reaches the server's RPC handlers.
   const [, handlers] = register.mock.calls[0] as unknown as [
     unknown,
@@ -188,9 +168,6 @@ async function setupV2Surfaces(client: ReturnType<typeof createClient>, provider
   ];
 
   const events = new Map<string, Set<(event: { data: { sessionID: string } }) => void>>();
-  const emit = (event: string, sessionID: string) => {
-    for (const callback of events.get(event) ?? []) callback({ data: { sessionID } });
-  };
   let commands: Array<{ id: string; run: () => Promise<void> }> = [];
   // The Enter binding that runs a quota command typed in the TUI prompt.
   let enter: (() => unknown) | undefined;
@@ -284,46 +261,31 @@ async function setupV2Surfaces(client: ReturnType<typeof createClient>, provider
       dialog: { show, clear: vi.fn(), prompt: vi.fn(), set: vi.fn() },
     },
   } as never);
-  expect(slots).toEqual(["app", "sidebar.content", "prompt.footer", "home.footer.status"]);
+  expect(slots).toContain("app");
+  expect(slots).toContain("sidebar.content");
+  expect(slots).not.toContain("prompt.footer");
+  expect(slots).not.toContain("home.footer.status");
   const quota = commands.find((command) => command.id === "quota.quota");
   expect(quota).toBeDefined();
-  expect(commands.some((command) => command.id === "quota.quota_status")).toBe(true);
-  const renderSurface = async (
-    append: "sidebar.content" | "prompt.footer" | "home.footer.status",
-    output: string[],
-    props?: { sessionID: string },
-  ): Promise<string> => {
-    output.length = 0;
-    renderers.get(append)?.(props);
-    await vi.waitFor(() => expect(output).toHaveLength(1));
-    return output[0];
-  };
+  expect(commands.some((command) => command.id === "quota.quota_status")).toBe(false);
   return {
-    tool: tool!,
     dialog,
-    toast,
-    emit,
     quota: quota!,
     typeCommand: (text: string) => {
       editor.plainText = text;
       return enter!();
     },
-    renderSidebar: (sessionID: string) =>
-      renderSurface("sidebar.content", renderedSurfaces.sidebar, { sessionID }),
-    renderSessionPrompt: (sessionID: string) =>
-      renderSurface("prompt.footer", renderedSurfaces.compact, { sessionID }),
+    renderSidebar: async (sessionID: string) => {
+      renderedSidebar.lines.length = 0;
+      renderers.get("sidebar.content")?.({ sessionID });
+      await vi.waitFor(() => expect(renderedSidebar.lines).toHaveLength(1));
+      return renderedSidebar.lines[0];
+    },
     openSession: (sessionID: string) => {
       route = { type: "session", sessionID };
     },
-    renderHomeBottom: () => renderSurface("home.footer.status", renderedSurfaces.compact),
     dispose: dispose as () => void,
   };
-}
-
-function getV2ToastMessage(toast: ReturnType<typeof vi.fn>, index = 0): string {
-  const message = toast.mock.calls[index]?.[0]?.message;
-  if (typeof message !== "string") throw new Error("Expected V2 CLI quota toast");
-  return message;
 }
 
 function configFor(formatStyle: "allWindows" | "singleWindow") {
@@ -333,30 +295,14 @@ function configFor(formatStyle: "allWindows" | "singleWindow") {
     quotaProviders: PHASE5_QUOTA_PROVIDERS.map((source) => ({ ...source })),
     formatStyle,
     minIntervalMs: 60_000,
-    showOnIdle: true,
-    showOnCompact: true,
-    showOnQuestion: false,
     showSessionTokens: true,
     sessionTokenScope: "tree",
-    maintainerAnnouncements: {
-      enabled: false,
-      home: false,
-    },
     telemetry: {
       enabled: true,
     },
     tuiCommandDisplay: "dialog",
     tuiSidebarPanel: {
       enabled: true,
-      defaultExpanded: false,
-      formatStyle,
-    },
-    tuiCompactStatus: {
-      enabled: true,
-      homeBottom: true,
-      sessionPrompt: true,
-      maxWidth: 240,
-      formatStyle,
     },
   });
 }
@@ -367,29 +313,13 @@ function configForSingleProvider(providerId = "minimax-coding-plan") {
     enabledProviders: [providerId],
     formatStyle: "allWindows",
     minIntervalMs: 60_000,
-    showOnIdle: true,
-    showOnCompact: true,
-    showOnQuestion: false,
     showSessionTokens: false,
-    maintainerAnnouncements: {
-      enabled: false,
-      home: false,
-    },
     telemetry: {
       enabled: false,
     },
     tuiCommandDisplay: "dialog",
     tuiSidebarPanel: {
       enabled: true,
-      defaultExpanded: false,
-      formatStyle: "allWindows",
-    },
-    tuiCompactStatus: {
-      enabled: true,
-      homeBottom: true,
-      sessionPrompt: true,
-      maxWidth: 240,
-      formatStyle: "allWindows",
     },
   });
 }
@@ -439,8 +369,6 @@ describe("v4 Phase 5 cross-surface release evidence", () => {
     process.env.PHASE5_OPENROUTER_KEY = PHASE5_SECRET_CANARIES.openRouterKey;
     process.env.PHASE5_FAILING_KEY = PHASE5_SECRET_CANARIES.failingKey;
 
-    resetNotifications.observe.mockReset();
-    resetNotifications.observe.mockResolvedValue([]);
     currentConfig = configFor("allWindows");
     seedDefaultPluginBootstrapMocks(mocks, {
       configOverrides: currentConfig,
@@ -570,18 +498,15 @@ describe("v4 Phase 5 cross-surface release evidence", () => {
     await rm(TEST_RUNTIME_ROOT, { recursive: true, force: true });
   });
 
-  it("proves V2 CLI command and toast, server diagnostic tool, TUI placement, export, and redaction", async () => {
+  it("proves the V2 /quota dialog, sidebar, export, and redaction", async () => {
     const client = createClient();
     const v2 = await setupV2Surfaces(client, PHASE5_RUNTIME_PROVIDER_IDS);
-    v2.emit("session.execution.succeeded", "phase5-session");
-    await vi.waitFor(() => expect(v2.toast).toHaveBeenCalledTimes(1));
     v2.openSession("phase5-session");
     await v2.quota.run();
     expect(v2.dialog).toHaveBeenCalledOnce();
     expect(client.session.prompt).not.toHaveBeenCalled();
-    const serverOutput = v2.dialog.mock.calls[0][0].message;
-    // The dialog shows the title once and the time under it, not the report's title line.
     const quotaDialog = v2.dialog.mock.calls[0][0];
+    const serverOutput = quotaDialog.message;
     expect(quotaDialog.title).toBe("OpenCode Quota");
     expect(quotaDialog.subtitle).toMatch(/^\d{2}:\d{2} \d{2}\/\d{2}\/\d{4}$/);
     expect(serverOutput).toMatch(/^Quota limits\n/);
@@ -612,33 +537,6 @@ describe("v4 Phase 5 cross-surface release evidence", () => {
     assertFixtureContent(serverOutput);
     assertTreeSessionTokenTotals(serverOutput);
     expect(serverOutput).toContain("tree-model");
-
-    const toastOutput = getV2ToastMessage(v2.toast);
-    assertFixtureContent(toastOutput);
-    assertTreeSessionTokenTotals(toastOutput);
-    expect(toastOutput).toContain("tree-model");
-
-    const callsAfterFirstToast = vi.mocked(globalThis.fetch).mock.calls.length;
-    v2.emit("session.execution.succeeded", "phase5-session");
-    await vi.waitFor(() => expect(v2.toast).toHaveBeenCalledTimes(2));
-    // POSIX caches the successful sources and retries only the failed 503 source.
-    // Windows has no protected identity key, so every remote source is fetched again.
-    expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledTimes(
-      callsAfterFirstToast + (POSIX_IDENTITY_STORAGE ? 1 : PHASE5_QUOTA_PROVIDERS.length),
-    );
-    assertFixtureContent(getV2ToastMessage(v2.toast, 1));
-
-    const statusOutput = (await v2.tool.execute({}, { sessionID: "phase5-session" })).content;
-    expect(statusOutput).toMatch(/^# Quota Status .*\(\/quota_status\)/u);
-    expect(statusOutput).toContain("provider_team-accounting:");
-    expect(statusOutput).toContain("provider_openrouter-primary:");
-    expect(statusOutput).toContain("provider_failing-accounting:");
-    expect(statusOutput).toContain("outcome=success");
-    expect(statusOutput).toContain("outcome=http_error");
-    assertPhase5CanariesRedacted(statusOutput);
-    for (const source of PHASE5_QUOTA_PROVIDERS) {
-      expect(statusOutput).not.toContain(source.url);
-    }
 
     const { quotaProvidersProvider } = await import("../src/providers/quota-providers.js");
     const { resolveQuotaRuntimeContext } = await import("../src/lib/quota-runtime-context.js");
@@ -714,57 +612,22 @@ describe("v4 Phase 5 cross-surface release evidence", () => {
       expectedConsumed.set(key, Math.max(expectedConsumed.get(key) ?? 0, consumed));
     }
 
-    const allWindowsSidebar = await v2.renderSidebar("phase5-session");
-    assertFixtureContent(allWindowsSidebar);
-    assertTreeSessionTokenTotals(allWindowsSidebar);
-    expect(allWindowsSidebar).toContain("tree-model");
-    const sessionPromptCompact = await v2.renderSessionPrompt("phase5-session");
-    expect(sessionPromptCompact).toContain("64%");
-    expect(sessionPromptCompact).toContain("$12.34");
-    expect(sessionPromptCompact).toContain("80%");
-    expect(sessionPromptCompact).toContain("issue");
-    expect(sessionPromptCompact).toContain("tok 1.2K (300) in / 45 out");
-    assertTreeSessionTokenTotals(sessionPromptCompact);
-    assertPhase5CanariesRedacted(sessionPromptCompact);
+    const sidebarOutput = await v2.renderSidebar("phase5-session");
+    expect(sidebarOutput).toContain("64%");
+    expect(sidebarOutput).toContain("$12.34");
+    expect(sidebarOutput).toContain("80%");
+    expect(sidebarOutput).toContain("adapter.mappings[2]");
+    expect(sidebarOutput).toContain("HTTP 503");
+    const teamIndex = sidebarOutput.indexOf("Team");
+    const openRouterIndex = sidebarOutput.indexOf("OpenRout");
+    const failingIndex = sidebarOutput.indexOf("Failing");
+    expect(openRouterIndex).toBeGreaterThanOrEqual(0);
+    expect(teamIndex).toBeGreaterThan(openRouterIndex);
+    expect(failingIndex).toBeGreaterThan(teamIndex);
+    expect(sidebarOutput).not.toContain("Session input/output tokens");
+    assertPhase5CanariesRedacted(sidebarOutput);
 
-    const homeCompact = await v2.renderHomeBottom();
-    expect(homeCompact).toBe(sessionPromptCompact.replace(/ \| tok [^|]+(?= \|)/u, ""));
-    expect(homeCompact).not.toContain("tok ");
-    assertPhase5CanariesRedacted(homeCompact);
-
-    // Each model step refreshes the footers; only the finished turn shows the idle toast.
-    const toastsBeforeSteps = v2.toast.mock.calls.length;
-    renderedSurfaces.compact.length = 0;
-    v2.emit("session.step.ended", "phase5-session");
-    v2.emit("session.step.ended", "phase5-session");
-    await vi.waitFor(() => expect(renderedSurfaces.compact.length).toBeGreaterThanOrEqual(2));
-    expect(v2.toast).toHaveBeenCalledTimes(toastsBeforeSteps);
-    v2.emit("session.execution.succeeded", "phase5-session");
-    await vi.waitFor(() => expect(v2.toast).toHaveBeenCalledTimes(toastsBeforeSteps + 1));
-
-    currentConfig = configFor("singleWindow");
-    const singleWindowSidebar = await v2.renderSidebar("phase5-session");
-    expect(singleWindowSidebar).toContain("64%");
-    expect(singleWindowSidebar).toContain("80%");
-    expect(singleWindowSidebar).toContain("HTTP 503");
-    assertPhase5FixtureOrder(singleWindowSidebar);
-    assertPhase5CanariesRedacted(singleWindowSidebar);
-    assertTreeSessionTokenTotals(singleWindowSidebar);
-
-    expect(mocks.fetchSessionTokensForDisplay).toHaveBeenCalledWith({
-      enabled: true,
-      sessionID: "phase5-session",
-      scope: "tree",
-    });
-
-    const allOutput = JSON.stringify({
-      serverOutput,
-      toastOutput,
-      allWindowsSidebar,
-      sessionPromptCompact,
-      homeCompact,
-      singleWindowSidebar,
-    });
+    const allOutput = JSON.stringify({ serverOutput, sidebarOutput });
     assertPhase5CanariesRedacted(allOutput);
     for (const source of PHASE5_QUOTA_PROVIDERS) {
       expect(allOutput).not.toContain(source.url);
@@ -847,7 +710,7 @@ describe("v4 Phase 5 cross-surface release evidence", () => {
     v2.dispose();
   });
 
-  it("keeps over-quota MiniMax results in cache, export, and all four displays", async () => {
+  it("keeps over-quota MiniMax results in cache, export, and the sidebar", async () => {
     currentConfig = configForSingleProvider();
     mocks.loadConfig.mockImplementation(async () => currentConfig);
     const { minimaxCodingPlanProvider } = await import("../src/providers/minimax-coding-plan.js");
@@ -899,32 +762,23 @@ describe("v4 Phase 5 cross-surface release evidence", () => {
       ),
     ).toEqual([-5, -10]);
 
-    v2.emit("session.execution.succeeded", "minimax-session");
-    await vi.waitFor(() => expect(v2.toast).toHaveBeenCalledOnce());
-    const toastOutput = getV2ToastMessage(v2.toast);
-    expect(toastOutput).toContain("MiniMax Token Plan");
-    expect(toastOutput).toContain("5h");
-    expect(toastOutput).toContain("Weekly");
-    expect(toastOutput).toContain("0% left");
-    expect(toastOutput).toContain("Remaining: -5 requests");
-    expect(toastOutput).toContain("Remaining: -20 requests");
-
     const sidebarOutput = await v2.renderSidebar("minimax-session");
-    expect(sidebarOutput).toContain("MiniMax Token Plan");
-    expect(sidebarOutput).toContain("5h");
-    expect(sidebarOutput).toContain("Weekly");
-    expect(sidebarOutput).toContain("0% left");
-    expect(sidebarOutput).toContain("Remaining: -5 requests");
-    expect(sidebarOutput).toContain("Remaining: -20 requests");
-
-    const compactOutput = await v2.renderSessionPrompt("minimax-session");
-    expect(compactOutput.match(/0%/gu)).toHaveLength(2);
+    expect(sidebarOutput).toContain("MiniMax");
+    expect(
+      sidebarOutput
+        .split("\n")
+        .map((line) => line.slice(0, 13).trim())
+        .filter(Boolean)
+        .join(" "),
+    ).toBe("MiniMax Token Plan");
+    expect(sidebarOutput).toContain("7d");
+    expect(sidebarOutput).toContain("0%");
     expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledTimes(1);
 
     v2.dispose();
   });
 
-  it("shows the optional Anthropic Fable weekly row on all four displays", async () => {
+  it("keeps the optional Anthropic Fable row in the command while the sidebar selects the minimum", async () => {
     currentConfig = configForSingleProvider("anthropic");
     mocks.loadConfig.mockImplementation(async () => currentConfig);
     mocks.hasAnthropicCredentialsConfigured.mockResolvedValue(true);
@@ -965,19 +819,9 @@ describe("v4 Phase 5 cross-surface release evidence", () => {
     expect(serverOutput).toContain("Fable");
     expect(serverOutput).toMatch(/Fable weekly quota +[█░]{24} +98% /u);
 
-    v2.emit("session.execution.succeeded", "anthropic-fable-session");
-    await vi.waitFor(() => expect(v2.toast).toHaveBeenCalledOnce());
-    const toastOutput = getV2ToastMessage(v2.toast);
-    expect(toastOutput).toContain("Fable");
-    expect(toastOutput).toContain("98%");
-
     const sidebarOutput = await v2.renderSidebar("anthropic-fable-session");
-    expect(sidebarOutput).toContain("Fable");
-    expect(sidebarOutput).toContain("98%");
-
-    const compactOutput = await v2.renderSessionPrompt("anthropic-fable-session");
-    expect(compactOutput).toContain("Fable");
-    expect(compactOutput).toContain("98%");
+    expect(sidebarOutput).toContain("Claude");
+    expect(sidebarOutput).toContain("58%");
 
     v2.dispose();
   });
@@ -1009,7 +853,7 @@ describe("v4 Phase 5 cross-surface release evidence", () => {
     return setupV2Surfaces(client, ["minimax-china-coding-plan"]);
   }
 
-  it("renders CN general percentage quota and excludes video on all four surfaces", async () => {
+  it("renders CN general percentage quota and excludes video on command and sidebar", async () => {
     currentConfig = configForSingleProvider("minimax-china-coding-plan");
     const v2 = await setupMiniMaxChinaSurfaces();
     await v2.quota.run();
@@ -1021,165 +865,12 @@ describe("v4 Phase 5 cross-surface release evidence", () => {
     expect(serverOutput).not.toContain("video");
     expect(serverOutput).not.toContain("Invalid normalized provider result");
 
-    v2.emit("session.execution.succeeded", "minimax-china-session");
-    await vi.waitFor(() => expect(v2.toast).toHaveBeenCalledOnce());
-    const toastOutput = getV2ToastMessage(v2.toast);
-    expect(toastOutput).toContain("MiniMax Token Plan");
-    expect(toastOutput).toContain("(CN)");
-    expect(toastOutput).toContain("5h");
-    expect(toastOutput).toContain("Weekly");
-    expect(toastOutput).toContain("33%");
-    expect(toastOutput).toContain("46%");
-    expect(toastOutput).not.toContain("video");
-
     const sidebarOutput = await v2.renderSidebar("minimax-china-session");
-    expect(sidebarOutput).toContain("MiniMax Token Plan");
+    expect(sidebarOutput).toContain("MiniMax Token");
     expect(sidebarOutput).toContain("(CN)");
-    expect(sidebarOutput).toContain("5h");
-    expect(sidebarOutput).toContain("Weekly");
     expect(sidebarOutput).toContain("33%");
-    expect(sidebarOutput).toContain("46%");
     expect(sidebarOutput).not.toContain("video");
-
-    const compactOutput = await v2.renderSessionPrompt("minimax-china-session");
-    expect(compactOutput).toContain("33%");
-    expect(compactOutput).toContain("46%");
-    expect(compactOutput).not.toContain("video");
     expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledTimes(1);
-
-    v2.dispose();
-  });
-
-  it("honors tuiCompactStatus.formatStyle on the V2 compact lines", async () => {
-    currentConfig = configForSingleProvider("minimax-china-coding-plan");
-    currentConfig.tuiCompactStatus.formatStyle = "singleWindow";
-    const v2 = await setupMiniMaxChinaSurfaces();
-
-    v2.emit("session.execution.succeeded", "minimax-china-session");
-    await vi.waitFor(() => expect(v2.toast).toHaveBeenCalledOnce());
-    const toastOutput = getV2ToastMessage(v2.toast);
-    expect(toastOutput).toContain("33%");
-    expect(toastOutput).toContain("46%");
-
-    const sessionPromptCompact = await v2.renderSessionPrompt("minimax-china-session");
-    expect(sessionPromptCompact).toContain("33%");
-    expect(sessionPromptCompact).not.toContain("46%");
-    const homeCompact = await v2.renderHomeBottom();
-    expect(homeCompact).toContain("33%");
-    expect(homeCompact).not.toContain("46%");
-
-    currentConfig = configForSingleProvider("minimax-china-coding-plan");
-    currentConfig.formatStyle = "singleWindow";
-    currentConfig.tuiCompactStatus.formatStyle = "allWindows";
-    const allWindowsCompact = await v2.renderHomeBottom();
-    expect(allWindowsCompact).toContain("33%");
-    expect(allWindowsCompact).toContain("46%");
-
-    v2.dispose();
-  });
-
-  it("adds toast debug context when debug is enabled", async () => {
-    currentConfig = configForSingleProvider("minimax-china-coding-plan");
-    currentConfig.debug = true;
-    const v2 = await setupMiniMaxChinaSurfaces();
-
-    v2.emit("session.execution.succeeded", "minimax-china-session");
-    await vi.waitFor(() => expect(v2.toast).toHaveBeenCalledOnce());
-    const toastOutput = getV2ToastMessage(v2.toast);
-    expect(toastOutput).toContain("33%");
-    expect(toastOutput).toMatch(
-      /\n\n\[debug\] src=\S+ providers=minimax-china-coding-plan avail=minimax-china-coding-plan:ok$/u,
-    );
-
-    currentConfig = configForSingleProvider("minimax-china-coding-plan");
-    currentConfig.enabledProviders = [];
-    currentConfig.debug = true;
-    v2.emit("session.execution.succeeded", "minimax-china-session");
-    await vi.waitFor(() => expect(v2.toast).toHaveBeenCalledTimes(2));
-    const emptyProvidersOutput = getV2ToastMessage(v2.toast, 1);
-    expect(emptyProvidersOutput).toContain("Quota Toast Debug (opencode-quota)");
-    expect(emptyProvidersOutput).toContain("trigger=idle reason=enabledProviders empty");
-    expect(emptyProvidersOutput).toContain("providers=(none)");
-
-    v2.dispose();
-  });
-
-  it("shows a reset notification toast after the quota toast when a window resets", async () => {
-    currentConfig = configForSingleProvider("minimax-china-coding-plan");
-    currentConfig.resetNotifications = { enabled: true, windows: ["weekly"] };
-    resetNotifications.observe.mockResolvedValueOnce([
-      {
-        providerId: "minimax-china-coding-plan",
-        label: "MiniMax Token Plan (CN)",
-        window: "weekly",
-        percentRemaining: 46,
-      },
-    ]);
-    const v2 = await setupMiniMaxChinaSurfaces();
-
-    v2.emit("session.execution.succeeded", "minimax-china-session");
-    await vi.waitFor(() => expect(v2.toast).toHaveBeenCalledTimes(2));
-    expect(resetNotifications.observe).toHaveBeenCalledOnce();
-    const observed = resetNotifications.observe.mock.calls[0][0];
-    expect(observed.windows).toEqual(["weekly"]);
-    expect(observed.providers.map((item: { providerId: string }) => item.providerId)).toEqual([
-      "minimax-china-coding-plan",
-    ]);
-    expect(v2.toast.mock.calls[0][0]).toMatchObject({ variant: "info", title: "OpenCode Quota" });
-    expect(v2.toast.mock.calls[1][0]).toEqual({
-      variant: "success",
-      title: "Quota available",
-      message: "Weekly quota reset: MiniMax Token Plan (CN) is available again (46% remaining).",
-      duration: currentConfig.toastDurationMs,
-    });
-
-    v2.emit("session.execution.succeeded", "minimax-china-session");
-    await vi.waitFor(() => expect(v2.toast).toHaveBeenCalledTimes(3));
-    expect(resetNotifications.observe).toHaveBeenCalledTimes(2);
-    expect(v2.toast.mock.calls[2][0]).toMatchObject({ variant: "info" });
-
-    v2.dispose();
-  });
-
-  it("does not observe resets when reset notifications are disabled", async () => {
-    currentConfig = configForSingleProvider("minimax-china-coding-plan");
-    const v2 = await setupMiniMaxChinaSurfaces();
-
-    v2.emit("session.execution.succeeded", "minimax-china-session");
-    await vi.waitFor(() => expect(v2.toast).toHaveBeenCalledOnce());
-    await v2.renderSidebar("minimax-china-session");
-    expect(resetNotifications.observe).not.toHaveBeenCalled();
-
-    v2.dispose();
-  });
-
-  it("writes the quota export file after the Home footer refreshes", async () => {
-    const exportPath = join(TEST_RUNTIME_ROOT, "export", "quota-export.json");
-    currentConfig = configForSingleProvider("minimax-china-coding-plan");
-    currentConfig.export = { enabled: true, path: exportPath };
-    const v2 = await setupMiniMaxChinaSurfaces();
-
-    const homeCompact = await v2.renderHomeBottom();
-    expect(homeCompact).toContain("33%");
-    const exported = await vi.waitFor(async () => JSON.parse(await readFile(exportPath, "utf8")));
-    expect(exported.version).toBe(2);
-    expect(exported.fromCache).toBe(true);
-    expect(exported.providers["minimax-china-coding-plan"]?.status).toBe("ok");
-    expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledTimes(1);
-
-    v2.dispose();
-  });
-
-  it("does not write the quota export file when export is disabled", async () => {
-    const exportPath = join(TEST_RUNTIME_ROOT, "export", "quota-export.json");
-    currentConfig = configForSingleProvider("minimax-china-coding-plan");
-    currentConfig.export = { enabled: false, path: exportPath };
-    const v2 = await setupMiniMaxChinaSurfaces();
-
-    await v2.renderHomeBottom();
-    await v2.renderSessionPrompt("minimax-china-session");
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    await expect(readFile(exportPath, "utf8")).rejects.toThrow();
 
     v2.dispose();
   });

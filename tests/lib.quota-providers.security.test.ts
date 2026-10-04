@@ -36,14 +36,14 @@ describe("quotaProviders global-only security", () => {
 
   it("never executes workspace sidecar definitions", async () => {
     writeQuotaSidecarConfig(workspace.workspaceDir, {
-      enableToast: false,
+      showSessionTokens: false,
       quotaProviders: [quotaProvider({ id: "workspace-endpoint" })],
     });
     const meta = createLoadConfigMeta();
     const config = await loadConfig(undefined, meta, {
       configRootDir: workspace.workspaceDir,
     });
-    expect(config.enableToast).toBe(false);
+    expect(config.showSessionTokens).toBe(false);
     expect(config.quotaProviders).toEqual([]);
     expect(meta.configIssues).toContainEqual({
       path: quotaSidecarConfigSource(workspace.workspaceDir),

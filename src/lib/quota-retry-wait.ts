@@ -55,7 +55,7 @@ export function getQuotaResetRetryDelayMs(
 
 /**
  * The retry delay for a limit error on `event.model`, or undefined to keep OpenCode's decision.
- * Quota comes from the same provider refresh path as the sidebar and toasts, but skips the cache:
+ * Quota comes from the same provider refresh path as the sidebar, but skips the cache:
  * the limit error itself shows the quota changed, so the provider is asked once for fresh data.
  */
 export async function resolveQuotaResetRetryDelayMs(
@@ -81,8 +81,5 @@ export async function resolveQuotaResetRetryDelayMs(
     bypassProviderCache: true,
     providers: runtime.providers,
   });
-  return getQuotaResetRetryDelayMs(
-    collected.providerResults.map((probe) => probe.result),
-    Date.now(),
-  );
+  return getQuotaResetRetryDelayMs(collected.providerResults, Date.now());
 }

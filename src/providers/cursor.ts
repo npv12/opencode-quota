@@ -116,7 +116,7 @@ export const cursorProvider: QuotaProvider = {
       ? [
           {
             label: "Cursor",
-            message: "Unknown Cursor model ids present in local history (see /quota_status)",
+            message: "Unknown Cursor model ids present in local history",
           },
         ]
       : [];

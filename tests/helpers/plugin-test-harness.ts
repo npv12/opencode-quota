@@ -137,13 +137,6 @@ export function makeQuotaToastTestConfig(
           ? [...DEFAULT_CONFIG.enabledProviders]
           : DEFAULT_CONFIG.enabledProviders,
     opencodeGoWindows: [...(overrides.opencodeGoWindows ?? DEFAULT_CONFIG.opencodeGoWindows)],
-    resetNotifications: {
-      ...DEFAULT_CONFIG.resetNotifications,
-      ...overrides.resetNotifications,
-      windows: [
-        ...(overrides.resetNotifications?.windows ?? DEFAULT_CONFIG.resetNotifications.windows),
-      ],
-    },
     pricingSnapshot: {
       ...DEFAULT_CONFIG.pricingSnapshot,
       ...overrides.pricingSnapshot,
@@ -151,14 +144,6 @@ export function makeQuotaToastTestConfig(
     tuiSidebarPanel: {
       ...DEFAULT_CONFIG.tuiSidebarPanel,
       ...overrides.tuiSidebarPanel,
-    },
-    tuiCompactStatus: {
-      ...DEFAULT_CONFIG.tuiCompactStatus,
-      ...overrides.tuiCompactStatus,
-    },
-    maintainerAnnouncements: {
-      ...DEFAULT_CONFIG.maintainerAnnouncements,
-      ...overrides.maintainerAnnouncements,
     },
     telemetry: {
       ...DEFAULT_CONFIG.telemetry,

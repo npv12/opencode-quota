@@ -5,7 +5,6 @@ import plugin from "../src/tui-v2.tsx";
 describe("V2 sidebar format style", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  // The server applies tuiSidebarPanel.formatStyle (tests/lib.quota-surface-data.test.ts).
   it("asks the server for the sidebar surface of its session and formats nothing itself", async () => {
     vi.stubGlobal("React", {
       createElement: (type: unknown, props: Record<string, unknown>) =>

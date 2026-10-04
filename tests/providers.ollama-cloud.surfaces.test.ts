@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { formatQuotaRows } from "../src/lib/format.js";
 import { formatQuotaCommand } from "../src/lib/quota-command-format.js";
 import type { QuotaRenderData } from "../src/lib/quota-render-data.js";
-import { formatQuotaRowsGrouped } from "../src/lib/toast-format-grouped.js";
-import { buildCompactQuotaStatusLine } from "../src/lib/tui-compact-format.js";
 import { buildSidebarQuotaPanelLines } from "../src/lib/tui-sidebar-format.js";
 
 const accounting = {
@@ -32,31 +31,28 @@ const data: QuotaRenderData = {
   errors: [],
 };
 
-describe("Ollama Cloud four-surface formatting", () => {
-  it("shows Ollama Cloud quota on command, toast, sidebar, and compact output", () => {
+describe("Ollama Cloud provider surface formatting", () => {
+  it("shows Ollama Cloud quota on command, show, and sidebar output", () => {
     const command = formatQuotaCommand({ ...data, generatedAtMs: 0 });
-    const toast = formatQuotaRowsGrouped(data);
+    const show = formatQuotaRows({ version: "test", style: "allWindows", ...data });
     const sidebar = buildSidebarQuotaPanelLines({
       data,
-      config: { formatStyle: "allWindows", percentDisplayMode: "remaining" },
+      config: { percentDisplayMode: "remaining" },
     }).join("\n");
-    const compact = buildCompactQuotaStatusLine({
-      data,
-      percentDisplayMode: "remaining",
-      maxWidth: 200,
-    });
 
-    for (const output of [command, toast, sidebar, compact]) {
+    for (const output of [command, show]) {
       expect(output).toContain("Ollama Cloud");
       expect(output).toContain("75%");
-    }
-
-    for (const output of [command, toast, sidebar, compact]) {
       expect(output).not.toContain("requests");
     }
+    expect(sidebar).toContain("Ollama Cloud");
+    expect(sidebar).toContain("7d");
+    expect(sidebar).toContain("60%");
+    expect(sidebar).not.toContain("75%");
+    expect(sidebar).not.toContain("requests");
   });
 
-  it("shows the Ollama Cloud monthly usage pool on command, toast, sidebar, and compact output", () => {
+  it("shows the Ollama Cloud monthly usage pool on command, show, and sidebar output", () => {
     const monthlyData: QuotaRenderData = {
       entries: [
         {
@@ -70,18 +66,13 @@ describe("Ollama Cloud four-surface formatting", () => {
       errors: [],
     };
     const command = formatQuotaCommand({ ...monthlyData, generatedAtMs: 0 });
-    const toast = formatQuotaRowsGrouped(monthlyData);
+    const show = formatQuotaRows({ version: "test", style: "allWindows", ...monthlyData });
     const sidebar = buildSidebarQuotaPanelLines({
       data: monthlyData,
-      config: { formatStyle: "allWindows", percentDisplayMode: "remaining" },
+      config: { percentDisplayMode: "remaining" },
     }).join("\n");
-    const compact = buildCompactQuotaStatusLine({
-      data: monthlyData,
-      percentDisplayMode: "remaining",
-      maxWidth: 200,
-    });
 
-    for (const output of [command, toast, sidebar, compact]) {
+    for (const output of [command, show, sidebar]) {
       expect(output).toContain("Ollama Cloud");
       expect(output).toContain("96%");
     }

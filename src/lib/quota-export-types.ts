@@ -5,14 +5,6 @@ import type {
   AccountingResultType,
 } from "./entries.js";
 
-/**
- * Export types for external tool consumption.
- *
- * These types define the schema for the periodic JSON export file
- * written when `config.export.enabled` is true, and for the
- * `show --json` CLI output.
- */
-
 interface QuotaExportEntryBase {
   /** Human-readable row label (same as QuotaToastEntry.name after projection). */
   name: string;
@@ -69,8 +61,7 @@ export type QuotaExportSource = {
 /**
  * Per-provider export status.
  *
- * One of three states: ok with entries, error with a message, or unavailable
- * (provider not detected or no cache entry exists).
+ * Partial results retain both entries and errors; unavailable means no cache entry exists.
  */
 export type QuotaExportProvider = (
   | { status: "ok"; fetchedAt: number; entries: QuotaExportEntry[] }

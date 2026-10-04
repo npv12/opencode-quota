@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { QuotaToastEntry } from "../src/lib/entries.js";
-import { renderAccountingFourSurfaces } from "./helpers/accounting-four-surface.js";
+import { renderAccountingSurfaces } from "./helpers/accounting-surfaces.js";
 
 const quotaAccounting = {
   resultType: "quota",
@@ -51,9 +51,9 @@ function balanceEntry(
   };
 }
 
-describe("Xiaomi MiMo structured four-surface formatting", () => {
+describe("Xiaomi MiMo structured provider surface formatting", () => {
   it("shows plan identity, monthly token quota, and separate balance components", () => {
-    const outputs = renderAccountingFourSurfaces({
+    const outputs = renderAccountingSurfaces({
       data: {
         entries: [
           monthlyQuota,
@@ -64,12 +64,11 @@ describe("Xiaomi MiMo structured four-surface formatting", () => {
         errors: [],
       },
       accountingDetail: "detailed",
-      toastMaxWidth: 72,
-      toastNarrowAt: 48,
-      compactMaxWidth: 240,
+      showMaxWidth: 72,
+      showNarrowAt: 48,
     });
 
-    for (const output of Object.values(outputs)) {
+    for (const output of [outputs.command, outputs.show]) {
       expect(output).toContain("Xiaomi MiMo");
       expect(output).toContain("Standard");
       expect(output).toContain("Monthly quota");
@@ -77,35 +76,47 @@ describe("Xiaomi MiMo structured four-surface formatting", () => {
       expect(output).toContain("Total balance");
       expect(output).toContain("USD 50.00");
       expect(output).toContain("Cash balance");
+      expect(output).toContain("Gift balance");
       expect(output).not.toContain("$");
     }
-    for (const output of [outputs.command, outputs.toast, outputs.sidebar]) {
-      expect(output).toContain("Gift balance");
-    }
+    expect(outputs.sidebar).toContain("Xiaomi");
+    expect(outputs.sidebar).toContain("30d");
+    expect(outputs.sidebar).toContain("75%");
+    expect(outputs.sidebar).not.toContain("Total");
+    expect(outputs.sidebar).not.toContain("Cash");
+    expect(outputs.sidebar).not.toContain("Gift");
+    expect(outputs.sidebar).toContain("50.00");
+    expect(outputs.sidebar).toContain("30.00");
+    expect(outputs.sidebar).toContain("20.00");
+    expect(outputs.sidebar).not.toContain("$");
     expect(outputs.command).toContain(group);
     expect(outputs.command).toContain("Used: 25 tokens");
     expect(outputs.command).toContain("Limit: 100 tokens");
-    expect(outputs.toast.split("\n").every((line) => line.length <= 72)).toBe(true);
+    expect(outputs.show.split("\n").every((line) => line.length <= 72)).toBe(true);
     expect(outputs.sidebar.split("\n").every((line) => line.length <= 36)).toBe(true);
   });
 
   it("renders missing-currency balances as credit counts", () => {
-    const outputs = renderAccountingFourSurfaces({
+    const outputs = renderAccountingSurfaces({
       data: {
         entries: [balanceEntry("total_balance", "primary", "12.5", null)],
         errors: [],
       },
       accountingDetail: "detailed",
-      toastMaxWidth: 72,
-      toastNarrowAt: 48,
-      compactMaxWidth: 240,
+      showMaxWidth: 72,
+      showNarrowAt: 48,
     });
 
-    for (const output of Object.values(outputs)) {
+    for (const output of [outputs.command, outputs.show]) {
       expect(output).toContain("Total balance");
       expect(output).toContain("12.5 credits");
       expect(output).not.toContain("USD");
       expect(output).not.toContain("$");
     }
+    expect(outputs.sidebar).not.toContain("Total");
+    expect(outputs.sidebar).toContain("12.5");
+    expect(outputs.sidebar).toContain("credits");
+    expect(outputs.sidebar).not.toContain("USD");
+    expect(outputs.sidebar).not.toContain("$");
   });
 });

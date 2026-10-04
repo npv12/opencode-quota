@@ -32,7 +32,7 @@ Also update:
 - `src/lib/provider-registration.ts` with the provider metadata and display order
 - `src/providers/registry.ts` with the provider singleton binding
 - `README.md`
-- `/quota_status` diagnostics when the provider exposes auth-source details
+- Provider metadata and display order, when the provider exposes auth-source details
 
 ## Replacement checklist
 
@@ -49,7 +49,7 @@ Before coding, replace these placeholders everywhere:
 
 Use `Existing OpenCode auth, global config, or env` only after tests prove all three paths work. Do not leave copied template tests skipped, todo-only, or unresolved. If one path is missing, use provider-specific wording instead.
 
-In provider ledgers, use `Data from` rather than `Source`. These are friendly labels, not exact internal result types: use `Quota` as the umbrella for quota and rate-limit windows, join other multiple results with `and`, and use `Quota and usage` in that order. Keep exact internal `resultType` values in code and JSON/export documentation.
+In provider ledgers, use `Data from` rather than `Source`. These are friendly labels, not exact internal result types: use `Quota` as the umbrella for quota and rate-limit windows, join other multiple results with `and`, and use `Quota and usage` in that order. Keep exact internal `resultType` values in code and JSON documentation.
 
 ## Accounting row rule
 

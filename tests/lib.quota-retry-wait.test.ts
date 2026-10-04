@@ -222,6 +222,43 @@ describe("resolveQuotaResetRetryDelayMs", () => {
     }
   });
 
+  it("checks exhausted windows hidden by the report projection", async () => {
+    const zai = makeProvider(
+      "zai",
+      [
+        {
+          ...window("Weekly", 0, at(90 * MINUTE_MS)),
+          semantic: { metric: { kind: "window", window: "week" }, prominence: "primary" },
+        },
+        {
+          ...window("Hourly", 0, at(20 * MINUTE_MS)),
+          semantic: { metric: { kind: "window", window: "hour" }, prominence: "supplementary" },
+        },
+      ],
+      () => true,
+    );
+    mocks.getProviders.mockReturnValue([zai]);
+    mocks.loadConfig.mockResolvedValue(
+      makeQuotaToastTestConfig({ formatStyle: "singleWindow", accountingDetail: "summary" }),
+    );
+
+    await expect(resolve(limitEvent)).resolves.toBe(20 * MINUTE_MS + QUOTA_RESET_RETRY_BUFFER_MS);
+    expect(zai.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    false,
+    true,
+  ])("keeps normal retries without an active provider (enabled: %s)", async (enabled) => {
+    const zai = makeProvider("zai", [window("5h", 0, at(90 * MINUTE_MS))], () => true);
+    zai.isAvailable.mockResolvedValue(false);
+    mocks.getProviders.mockReturnValue([zai]);
+    mocks.loadConfig.mockResolvedValue(makeQuotaToastTestConfig({ enabled }));
+
+    await expect(resolve(limitEvent)).resolves.toBeUndefined();
+    expect(zai.fetch).not.toHaveBeenCalled();
+  });
+
   it("keeps OpenCode's decision when the setting is off", async () => {
     const zai = makeProvider("zai", [window("5h", 0, at(90 * MINUTE_MS))], () => true);
     mocks.getProviders.mockReturnValue([zai]);

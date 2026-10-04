@@ -23,10 +23,6 @@ import { formatQuotaReportMessage } from "../src/lib/quota-report-message.js";
 import plugin from "../src/plugin.js";
 import { createFakeIntegration } from "./helpers/fake-integration.js";
 
-type RegisteredTool = {
-  name: string;
-  execute: (input: unknown, context: { sessionID: string }) => Promise<{ content: string }>;
-};
 type RegisteredCommand = {
   name: string;
   description?: string;
@@ -49,7 +45,6 @@ type RetryEvent = {
 };
 
 function createContext() {
-  const tools: RegisteredTool[] = [];
   const commands: RegisteredCommand[] = [];
   const hooks = new Map<string, (event: HookEvent) => void>();
   const calls: string[] = [];
@@ -70,11 +65,6 @@ function createContext() {
         return { dispose: async () => {} };
       }),
     },
-    tool: {
-      transform: vi.fn(async (callback) => {
-        callback({ add: (tool: RegisteredTool) => tools.push(tool) });
-      }),
-    },
     command: {
       transform: vi.fn(async (callback) => {
         callback({ add: (command: RegisteredCommand) => commands.push(command) });
@@ -84,7 +74,7 @@ function createContext() {
     integration: createFakeIntegration([]),
     event: { subscribe: () => ({ async *[Symbol.asyncIterator]() {} }) },
   };
-  return { ctx, tools, commands, hooks, calls };
+  return { ctx, commands, hooks, calls };
 }
 
 function findCommand(commands: RegisteredCommand[], name: string): RegisteredCommand {
@@ -117,23 +107,6 @@ describe("V2 server plugin", () => {
   beforeEach(() => {
     buildOutput.mockReset();
     resolveRetryDelay.mockReset();
-  });
-
-  it("registers a structured quota diagnostics tool without a server toast dependency", async () => {
-    const { ctx, tools } = createContext();
-    buildOutput.mockResolvedValue({ state: "output", output: "Quota ready" });
-
-    await plugin.setup(ctx as never);
-    expect(tools.map((tool) => tool.name)).toEqual(["quota_status"]);
-    const output = await tools[0].execute({}, { sessionID: "session-test" });
-    expect(output).toEqual({ content: "Quota ready" });
-    expect(buildOutput).toHaveBeenCalledWith(
-      expect.objectContaining({
-        command: "quota_status",
-        sessionID: "session-test",
-      }),
-    );
-    expect(ctx.provider.list).toHaveBeenCalledTimes(0);
   });
 
   it("registers the same slash commands as the TUI", async () => {
@@ -188,28 +161,14 @@ describe("V2 server plugin", () => {
 
   it("passes typed arguments to the output builder", async () => {
     const { ctx, commands } = createContext();
-    buildOutput.mockResolvedValue({ state: "output", title: "Tokens", output: "report" });
+    buildOutput.mockResolvedValue({ state: "output", title: "OpenCode Quota", output: "report" });
 
     await plugin.setup(ctx as never);
-    await runCommand(commands, "tokens_between", " 2026-09-01 2026-09-25 ");
+    await runCommand(commands, "quota", " extra ");
 
     expect(buildOutput).toHaveBeenCalledWith(
-      expect.objectContaining({ command: "tokens_between", arguments: "2026-09-01 2026-09-25" }),
+      expect.objectContaining({ command: "quota", arguments: "extra" }),
     );
-  });
-
-  it("posts the builder's usage text when /tokens_between has no arguments", async () => {
-    const { ctx, commands } = createContext();
-    const usage = "Invalid arguments for /tokens_between\n\nExpected: /tokens_between YYYY-MM-DD";
-    buildOutput.mockResolvedValue({ state: "output", title: "Tokens", output: usage });
-
-    await plugin.setup(ctx as never);
-    await runCommand(commands, "tokens_between", "   ");
-
-    expect(buildOutput).toHaveBeenCalledWith(
-      expect.objectContaining({ command: "tokens_between", arguments: undefined }),
-    );
-    expect(ctx.session.prompt.mock.calls[0][0].text).toBe(formatQuotaReportMessage(usage));
   });
 
   it("posts nothing when the plugin is disabled", async () => {

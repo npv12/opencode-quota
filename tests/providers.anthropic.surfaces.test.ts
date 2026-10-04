@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { QuotaToastEntry } from "../src/lib/entries.js";
-import { renderAccountingFourSurfaces } from "./helpers/accounting-four-surface.js";
+import { renderAccountingSurfaces } from "./helpers/accounting-surfaces.js";
 
 const accounting = {
   resultType: "quota" as const,
@@ -34,27 +34,29 @@ const entries: QuotaToastEntry[] = [
   },
 ];
 
-describe("Anthropic four-surface formatting", () => {
+describe("Anthropic provider surface formatting", () => {
   it("identifies Usage Credits without changing the existing Claude quota rows", () => {
-    const outputs = renderAccountingFourSurfaces({
+    const outputs = renderAccountingSurfaces({
       data: { entries, errors: [] },
       accountingDetail: "summary",
-      toastMaxWidth: 64,
-      toastNarrowAt: 44,
-      compactMaxWidth: 160,
+      showMaxWidth: 64,
+      showNarrowAt: 44,
     });
 
-    for (const output of Object.values(outputs)) {
+    for (const output of [outputs.command, outputs.show]) {
       expect(output).toContain("Claude Usage Credits");
       expect(output).toContain("43%");
       expect(output).toContain("88%");
       expect(output).toContain("62%");
-    }
-
-    for (const output of [outputs.command, outputs.toast, outputs.sidebar]) {
       expect(output).toMatch(/Month(?:ly| quota)/u);
     }
 
-    expect(outputs.compact).toBe("Claude 5h 43%, 7d 88% | Claude Usage Credits 62%");
+    expect(outputs.sidebar).toContain("Claude");
+    expect(outputs.sidebar).toContain("5h");
+    expect(outputs.sidebar).toContain("43%");
+    expect(outputs.sidebar).toContain("30d");
+    expect(outputs.sidebar).toContain("62%");
+    expect(outputs.sidebar.split("\n")).toHaveLength(2);
+    expect(outputs.sidebar).not.toContain("88%");
   });
 });

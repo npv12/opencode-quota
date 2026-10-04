@@ -60,18 +60,21 @@ export interface AnthropicExtraUsage {
 }
 
 export interface AnthropicUsageResponse {
-  five_hour: AnthropicQuotaWindow;
-  seven_day: AnthropicQuotaWindow;
+  five_hour?: AnthropicQuotaWindow | null;
+  seven_day?: AnthropicQuotaWindow | null;
   extra_usage?: AnthropicExtraUsage;
   limits?: unknown[];
 }
 
+export type AnthropicQuotaWindowResult = { percentRemaining: number; resetTimeIso?: string };
+
 export interface AnthropicQuotaResult {
   success: true;
-  five_hour: { percentRemaining: number; resetTimeIso?: string };
-  seven_day: { percentRemaining: number; resetTimeIso?: string };
+  /** Absent when the account has no active window for that period. */
+  five_hour?: AnthropicQuotaWindowResult;
+  seven_day?: AnthropicQuotaWindowResult;
   extra_usage?: { percentRemaining: number };
-  fable_weekly?: { percentRemaining: number; resetTimeIso?: string };
+  fable_weekly?: AnthropicQuotaWindowResult;
 }
 
 export interface AnthropicUsageParseOptions {
@@ -440,28 +443,42 @@ function parseFableWeeklyWindow(
   return undefined;
 }
 
+function buildQuotaResult(
+  root: Record<string, unknown>,
+  options: { includeExtraUsage?: boolean; includeFableWeekly?: boolean },
+): AnthropicQuotaResult | null {
+  const fiveHour = parseQuotaWindow(root["five_hour"] ?? root["fiveHour"]);
+  const sevenDay = parseQuotaWindow(root["seven_day"] ?? root["sevenDay"]);
+
+  if (!fiveHour && !sevenDay) {
+    return null;
+  }
+
+  const extraUsage = options.includeExtraUsage
+    ? parseExtraUsageQuota(root["extra_usage"])
+    : undefined;
+  const fableWeekly = options.includeFableWeekly
+    ? parseFableWeeklyWindow(root["limits"])
+    : undefined;
+
+  return {
+    success: true,
+    ...(fiveHour ? { five_hour: fiveHour } : {}),
+    ...(sevenDay ? { seven_day: sevenDay } : {}),
+    ...(extraUsage ? { extra_usage: extraUsage } : {}),
+    ...(fableWeekly ? { fable_weekly: fableWeekly } : {}),
+  };
+}
+
 function parseUsageResponse(
   data: unknown,
   options: AnthropicUsageParseOptions = {},
 ): AnthropicQuotaResult | null {
   for (const root of getUsageRoots(data)) {
-    const fiveHour = parseQuotaWindow(root["five_hour"] ?? root["fiveHour"]);
-    const sevenDay = parseQuotaWindow(root["seven_day"] ?? root["sevenDay"]);
-
-    if (!fiveHour || !sevenDay) {
-      continue;
+    const result = buildQuotaResult(root, { includeExtraUsage: options.includeExtraUsage });
+    if (result) {
+      return result;
     }
-
-    const extraUsage = options.includeExtraUsage
-      ? parseExtraUsageQuota(root["extra_usage"])
-      : undefined;
-
-    return {
-      success: true,
-      five_hour: fiveHour,
-      seven_day: sevenDay,
-      ...(extraUsage ? { extra_usage: extraUsage } : {}),
-    };
   }
 
   return null;
@@ -469,22 +486,13 @@ function parseUsageResponse(
 
 function parseOAuthUsageResponse(data: unknown): AnthropicQuotaResult | null {
   for (const root of getUsageRoots(data)) {
-    const fiveHour = parseQuotaWindow(root["five_hour"] ?? root["fiveHour"]);
-    const sevenDay = parseQuotaWindow(root["seven_day"] ?? root["sevenDay"]);
-
-    if (!fiveHour || !sevenDay) {
-      continue;
+    const result = buildQuotaResult(root, {
+      includeExtraUsage: true,
+      includeFableWeekly: true,
+    });
+    if (result) {
+      return result;
     }
-
-    const extraUsage = parseExtraUsageQuota(root["extra_usage"]);
-    const fableWeekly = parseFableWeeklyWindow(root["limits"]);
-    return {
-      success: true,
-      five_hour: fiveHour,
-      seven_day: sevenDay,
-      ...(extraUsage ? { extra_usage: extraUsage } : {}),
-      ...(fableWeekly ? { fable_weekly: fableWeekly } : {}),
-    };
   }
 
   return null;

@@ -1,11 +1,6 @@
-/**
- * The reports behind `opencode-quota show` and `status`. The terminal command builds them
- * in its own process (`cli-show.ts`) and prints them.
- */
 import { sanitizeQuotaRenderData } from "./display-sanitize.js";
 import { formatQuotaRows } from "./format.js";
 import { formatQuotaModeHeading } from "./format-utils.js";
-import { buildStatusReportData } from "./quota-dialog-commands.js";
 import { buildQuotaExport, createExportProviderContext } from "./quota-export.js";
 import { resolveQuotaFormatStyle } from "./quota-format-style.js";
 import { collectQuotaRenderData } from "./quota-render-data.js";
@@ -128,10 +123,6 @@ export async function buildCliShowJson(params: {
     return config.enabledProviders.includes(p.id);
   });
 
-  // Read cached quota through the shared export context so the cache key
-  // matches the one the TUI background writer used. Without this, a user with
-  // onlyCurrentModel:true would compute a different key and every provider
-  // would read back as "unavailable".
   const ctx = createExportProviderContext(runtime);
   const exportData = await buildQuotaExport({
     providers: allProviders,
@@ -180,40 +171,4 @@ export async function buildCliShowJson(params: {
   }
 
   return report(0);
-}
-
-/**
- * `status`: the Quota Status report as text, or its payload as JSON. With JSON, exit 2 when
- * no provider produced comparable data.
- */
-export async function buildCliStatus(params: {
-  runtime: QuotaRuntimeContext;
-  providerId?: string;
-  json: boolean;
-}): Promise<CliReport> {
-  const { runtime, providerId, json } = params;
-
-  if (!runtime.config.enabled) {
-    return QUOTA_DISABLED;
-  }
-
-  const data = await buildStatusReportData({
-    runtime,
-    generatedAtMs: Date.now(),
-    providerFilterId: providerId,
-  });
-
-  if (!data.output || !data.payload) {
-    return QUOTA_DISABLED;
-  }
-
-  if (json) {
-    return {
-      exitCode: data.hasComparableProviderData ? 0 : 2,
-      stdout: line(JSON.stringify(data.payload, null, 2)),
-      stderr: "",
-    };
-  }
-
-  return { exitCode: 0, stdout: line(data.output), stderr: "" };
 }

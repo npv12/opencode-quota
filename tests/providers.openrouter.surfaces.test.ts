@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { formatQuotaRows } from "../src/lib/format.js";
 import { formatQuotaCommand } from "../src/lib/quota-command-format.js";
 import type { QuotaRenderData } from "../src/lib/quota-render-data.js";
-import { formatQuotaRowsGrouped } from "../src/lib/toast-format-grouped.js";
-import { buildCompactQuotaStatusLine } from "../src/lib/tui-compact-format.js";
 import { buildSidebarQuotaPanelLines } from "../src/lib/tui-sidebar-format.js";
 
 const data: QuotaRenderData = {
@@ -25,24 +24,20 @@ const data: QuotaRenderData = {
   errors: [],
 };
 
-describe("OpenRouter four-surface formatting", () => {
-  it("shows OpenRouter budget on command, toast, sidebar, and compact output", () => {
+describe("OpenRouter provider surface formatting", () => {
+  it("shows OpenRouter budget on command, show, and sidebar output", () => {
     const command = formatQuotaCommand({ ...data, generatedAtMs: 0 });
-    const toast = formatQuotaRowsGrouped(data);
+    const show = formatQuotaRows({ version: "test", style: "allWindows", ...data });
     const sidebar = buildSidebarQuotaPanelLines({
       data,
-      config: { formatStyle: "allWindows", percentDisplayMode: "remaining" },
+      config: { percentDisplayMode: "remaining" },
     }).join("\n");
-    const compact = buildCompactQuotaStatusLine({
-      data,
-      percentDisplayMode: "remaining",
-      maxWidth: 200,
-    });
 
-    for (const output of [command, toast, sidebar, compact]) {
+    for (const output of [command, show, sidebar]) {
       expect(output).toContain("OpenRouter");
       expect(output).toContain("80%");
       expect(output).not.toContain("reset");
     }
+    expect(sidebar).toMatch(/^OpenRouter\s+80%$/u);
   });
 });

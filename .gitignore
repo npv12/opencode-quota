@@ -4,7 +4,6 @@ dist/
 # Logs
 *.log
 npm-debug.log*
-pnpm-debug.log*
 
 # OS / editors
 .DS_Store
@@ -13,8 +12,6 @@ pnpm-debug.log*
 # Build / tooling artifacts
 *.tsbuildinfo
 coverage/
-.pnpm-store/
-/package-artifacts/
 
 # Local-only config/secrets
 .env
@@ -25,13 +22,10 @@ tui.json
 
 # Local scratch & AI Slop
 references/*
-!references/upstream-plugins/
-!references/upstream-plugins/**
 .git.backup-*/
 docs/*
 !docs/readme/
 !docs/readme/**
-/docs/readme/v4-release-readiness.md
 /docs/adr/
 AGENTS.md
 /.agents

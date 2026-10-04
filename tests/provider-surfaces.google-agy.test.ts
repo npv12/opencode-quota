@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { formatQuotaRows } from "../src/lib/format.js";
 import { formatQuotaCommand } from "../src/lib/quota-command-format.js";
-import { formatQuotaRowsGrouped } from "../src/lib/toast-format-grouped.js";
-import { buildCompactQuotaStatusLine } from "../src/lib/tui-compact-format.js";
+import { buildSidebarQuotaPanelLines } from "../src/lib/tui-sidebar-format.js";
 import { googleAgyProvider } from "../src/providers/google-agy.js";
 
 const mocks = vi.hoisted(() => ({
@@ -43,7 +43,7 @@ function bucket(params: {
 }
 
 describe("Google AGY provider surfaces", () => {
-  it("keeps two accounts, both families, and both windows distinct on every surface", async () => {
+  it("keeps accounts and families distinct while the sidebar selects each limiting window", async () => {
     mocks.queryGoogleAgyQuota.mockResolvedValueOnce({
       success: true,
       buckets: [
@@ -116,36 +116,36 @@ describe("Google AGY provider surfaces", () => {
       "[AGY (bob…): Claude/GPT]",
     ];
 
-    const toast = formatQuotaRowsGrouped({
+    const show = formatQuotaRows({
+      version: "test",
+      style: "allWindows",
       layout: { maxWidth: 50, narrowAt: 42, tinyAt: 32 },
       entries,
       errors,
     });
-    const sidebar = formatQuotaRowsGrouped({
-      layout: { maxWidth: 36, narrowAt: 36, tinyAt: 20 },
-      entries,
-      errors,
-    });
-    const command = formatQuotaCommand({ entries, errors });
-    const compact = buildCompactQuotaStatusLine({
+    const sidebar = buildSidebarQuotaPanelLines({
       data: { entries, errors },
-      maxWidth: 400,
-    });
+      config: { percentDisplayMode: "remaining" },
+    }).join("\n");
+    const command = formatQuotaCommand({ entries, errors });
 
-    for (const output of [toast, sidebar]) {
-      for (const header of headers) expect(output).toContain(header);
-      expect(output).toContain("Weekly");
-      expect(output).toContain("5h");
-      expect(output.indexOf("Weekly")).toBeLessThan(output.indexOf("5h"));
+    for (const header of headers) {
+      expect(show).toContain(header);
+      expect(command).toContain(header);
     }
-    for (const header of headers) expect(command).toContain(header);
+    expect(show).toContain("Weekly");
+    expect(show).toContain("5h");
+    expect(show.indexOf("Weekly")).toBeLessThan(show.indexOf("5h"));
+    expect(sidebar).toContain("Antigravity");
+    expect(sidebar).toContain("7d");
+    expect(sidebar).not.toContain("5h");
+    expect(sidebar).toContain("99%");
+    expect(sidebar).toContain("82%");
+    expect(sidebar).toContain("75%");
+    expect(sidebar).toContain("60%");
+    expect(sidebar.split("\n")).toHaveLength(4);
+    expect(sidebar).not.toContain("left");
     expect(command.indexOf("Week quota")).toBeLessThan(command.indexOf("5h quota"));
-    expect(compact).toBe(
-      "AGY (ali…): Gemini 7d 99%, 5h 100% | " +
-        "AGY (ali…): Claude/GPT 7d 82%, 5h 100% | " +
-        "AGY (bob…): Gemini 7d 75%, 5h 90% | " +
-        "AGY (bob…): Claude/GPT 7d 60%, 5h 80%",
-    );
     expect(entries.map((entry) => entry.accounting.sourceId)).toEqual([
       "account-1",
       "account-1",

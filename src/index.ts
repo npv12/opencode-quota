@@ -32,7 +32,6 @@ export type {
   CopilotEnterpriseUsageResult,
   CopilotOrganizationUsageResult,
   CopilotQuotaResult,
-  MaintainerAnnouncementsConfig,
   MiniMaxResult,
   MiniMaxResultEntry,
   PricingSnapshotSource,

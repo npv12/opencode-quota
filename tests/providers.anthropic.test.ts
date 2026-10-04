@@ -261,6 +261,47 @@ describe("anthropic provider", () => {
     );
   });
 
+  it("shows only the five-hour row when the weekly window is absent", async () => {
+    const { getAnthropicDiagnostics, queryAnthropicQuota } = await import(
+      "../src/lib/anthropic.js"
+    );
+    const quota = {
+      success: true,
+      five_hour: { percentRemaining: 93, resetTimeIso: "2026-10-07T21:10:00.457Z" },
+    };
+    (getAnthropicDiagnostics as any).mockResolvedValueOnce({
+      installed: true,
+      version: "1.2.3",
+      authStatus: "authenticated",
+      quotaSupported: true,
+      quotaSource: "opencode-auth-oauth-api",
+      oauthCredentialSource: "opencode-auth",
+      checkedCommands: ["claude --version"],
+      quota,
+    });
+    (queryAnthropicQuota as any).mockResolvedValueOnce(quota);
+
+    const out = await anthropicProvider.fetch({} as any);
+
+    expectAttemptedWithNoErrors(out);
+    expect(visibleEntries(out.entries, "anthropic")).toEqual([
+      {
+        name: "Claude 5h",
+        group: "Claude",
+        label: "5h:",
+        percentRemaining: 93,
+        resetTimeIso: "2026-10-07T21:10:00.457Z",
+      },
+    ]);
+    expect(out.statusDetails).toContainEqual({
+      key: "five_hour_remaining",
+      value: "93% reset_at=2026-10-07T21:10:00.457Z",
+    });
+    expect(out.statusDetails).not.toContainEqual(
+      expect.objectContaining({ key: "seven_day_remaining" }),
+    );
+  });
+
   it("returns attempted:false when Anthropic quota is unavailable locally", async () => {
     const { queryAnthropicQuota } = await import("../src/lib/anthropic.js");
     (queryAnthropicQuota as any).mockResolvedValueOnce(null);

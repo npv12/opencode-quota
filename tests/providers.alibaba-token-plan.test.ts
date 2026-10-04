@@ -5,7 +5,7 @@ import { modelProviderMatchesRuntimeId } from "../src/lib/provider-model-matchin
 import { matchesQuotaProviderCurrentSelection } from "../src/lib/quota-render-data.js";
 import { alibabaCodingPlanProvider } from "../src/providers/alibaba-coding-plan.js";
 import { alibabaTokenPlanProvider } from "../src/providers/alibaba-token-plan.js";
-import { renderAccountingFourSurfaces } from "./helpers/accounting-four-surface.js";
+import { renderAccountingSurfaces } from "./helpers/accounting-surfaces.js";
 import {
   expectAttemptedWithErrorLabel,
   expectAttemptedWithNoErrors,
@@ -232,8 +232,8 @@ describe("alibaba-token-plan provider", () => {
   });
 });
 
-describe("alibaba-token-plan four-surface formatting", () => {
-  it("renders only returned windows across command, toast, sidebar, and compact", () => {
+describe("alibaba-token-plan command/show/sidebar formatting", () => {
+  it("renders only returned windows across command, show, and sidebar", () => {
     const entries: QuotaToastEntry[] = [
       {
         accounting,
@@ -243,17 +243,21 @@ describe("alibaba-token-plan four-surface formatting", () => {
         percentRemaining: 60,
       },
     ];
-    const outputs = renderAccountingFourSurfaces({
+    const outputs = renderAccountingSurfaces({
       data: { entries, errors: [] },
       accountingDetail: "summary",
-      toastMaxWidth: 80,
-      toastNarrowAt: 44,
-      compactMaxWidth: 160,
+      showMaxWidth: 80,
+      showNarrowAt: 44,
     });
-    for (const output of Object.values(outputs)) {
+    for (const output of [outputs.command, outputs.show]) {
       expect(output).toContain("Alibaba Personal Token Plan");
       expect(output).toContain("60%");
       expect(output).not.toContain("Alibaba Coding Plan");
     }
+    const sidebar = outputs.sidebar.replace(/\s+/gu, " ");
+    expect(sidebar).toContain("Alibaba");
+    expect(sidebar).toContain("Personal Token");
+    expect(sidebar).toContain("60%");
+    expect(sidebar).not.toContain("Alibaba Coding Plan");
   });
 });

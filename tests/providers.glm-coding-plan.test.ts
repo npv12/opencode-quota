@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { formatQuotaCommand } from "../src/lib/quota-command-format.js";
 import type { QuotaRenderData } from "../src/lib/quota-render-data.js";
 import { formatQuotaRowsGrouped } from "../src/lib/toast-format-grouped.js";
-import { buildCompactQuotaStatusLine } from "../src/lib/tui-compact-format.js";
 import { buildSidebarQuotaPanelLines } from "../src/lib/tui-sidebar-format.js";
 
 import {
@@ -258,7 +257,7 @@ describe("Z.ai credit quota surfaces", () => {
     vi.clearAllMocks();
   });
 
-  it("renders credit-backed five-hour and weekly percentages on all four surfaces", async () => {
+  it("renders every window in command and CLI reports and the limiting window in the sidebar", async () => {
     mocks.queryZaiQuota.mockResolvedValueOnce({
       success: true,
       label: "Z.ai",
@@ -289,25 +288,23 @@ describe("Z.ai credit quota surfaces", () => {
 
     const data: QuotaRenderData = { entries: out.entries, errors: out.errors };
     const command = formatQuotaCommand({ ...data, generatedAtMs: 0 });
-    const toast = formatQuotaRowsGrouped(data);
+    const cli = formatQuotaRowsGrouped(data);
     const sidebar = buildSidebarQuotaPanelLines({
       data,
-      config: { formatStyle: "allWindows", percentDisplayMode: "remaining" },
+      config: { percentDisplayMode: "remaining" },
     }).join("\n");
-    const compact = buildCompactQuotaStatusLine({
-      data,
-      percentDisplayMode: "remaining",
-      maxWidth: 240,
-    });
-
-    for (const output of [command, toast, sidebar, compact]) {
+    for (const output of [command, cli]) {
       expect(output).toContain("Z.ai");
       expect(output).toContain("96%");
       expect(output).toContain("89%");
     }
-    for (const output of [command, toast, sidebar]) {
+    for (const output of [command, cli]) {
       expect(output).toContain("5h");
       expect(output).toMatch(/\bWeek(?:ly)?\b/u);
     }
+    expect(sidebar).toContain("Z.ai");
+    expect(sidebar).toContain("7d");
+    expect(sidebar).toContain("89%");
+    expect(sidebar).not.toContain("96%");
   });
 });

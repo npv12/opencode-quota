@@ -10,24 +10,17 @@ import {
   type QuotaDialogCommandOutputResult,
 } from "./lib/quota-dialog-command-specs.js";
 
-export const QUOTA_RPC_ID = "slkiser.opencode-quota";
+export const QUOTA_RPC_ID = "npv12.opencode-quota";
 
 export type QuotaRpcSurfaceInput = {
-  surface: "sidebar" | "idle" | "compacted" | "question";
+  surface: "sidebar";
   sessionID: string;
 };
 export type QuotaRpcSurfaceOutput = {
   quota: {
     message: string;
-    duration: number;
-    activeProviderCount: number;
-    resetNotification?: string;
   } | null;
 };
-export type QuotaRpcFooterInput = { surface: "prompt" | "home"; sessionID?: string };
-export type QuotaRpcFooterOutput = { lines: string[] };
-export type QuotaRpcWriteExportInput = Record<string, never>;
-export type QuotaRpcWriteExportOutput = { written: boolean };
 export type QuotaRpcCommandInput = {
   command: QuotaDialogCommandId;
   arguments?: string;
@@ -69,9 +62,6 @@ function checkOptionalString(input: Record<string, unknown>, field: string): str
     : `${field} must be a string`;
 }
 
-const SURFACES = ["sidebar", "idle", "compacted", "question"];
-const FOOTER_SURFACES = ["prompt", "home"];
-
 export const QuotaRpc = {
   id: QUOTA_RPC_ID,
   events: {},
@@ -79,29 +69,11 @@ export const QuotaRpc = {
     surface: {
       input: schema<QuotaRpcSurfaceInput>((value) => {
         if (!isObject(value)) return "input must be an object";
-        if (typeof value.surface !== "string" || !SURFACES.includes(value.surface)) {
-          return `surface must be one of ${SURFACES.join(", ")}`;
-        }
+        if (value.surface !== "sidebar") return "surface must be sidebar";
         if (typeof value.sessionID !== "string") return "sessionID must be a string";
         return null;
       }),
       output: schema<QuotaRpcSurfaceOutput>(checkOutput),
-    },
-    footer: {
-      input: schema<QuotaRpcFooterInput>((value) => {
-        if (!isObject(value)) return "input must be an object";
-        if (typeof value.surface !== "string" || !FOOTER_SURFACES.includes(value.surface)) {
-          return `surface must be one of ${FOOTER_SURFACES.join(", ")}`;
-        }
-        return checkOptionalString(value, "sessionID");
-      }),
-      output: schema<QuotaRpcFooterOutput>(checkOutput),
-    },
-    writeExport: {
-      input: schema<QuotaRpcWriteExportInput>((value) =>
-        isObject(value) ? null : "input must be an object",
-      ),
-      output: schema<QuotaRpcWriteExportOutput>(checkOutput),
     },
     command: {
       input: schema<QuotaRpcCommandInput>((value) => {

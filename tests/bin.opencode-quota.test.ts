@@ -7,67 +7,17 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const commandMocks = vi.hoisted(() => ({
-  runInitInstaller: vi.fn(),
   runCliShowCommand: vi.fn(),
-  runCliStatusCommand: vi.fn(),
-  runScopedUpdateCommand: vi.fn(),
-}));
-
-vi.mock("../src/lib/init-installer.js", () => ({
-  runInitInstaller: commandMocks.runInitInstaller,
 }));
 
 vi.mock("../src/lib/cli-show.js", () => ({
   runCliShowCommand: commandMocks.runCliShowCommand,
 }));
 
-vi.mock("../src/lib/cli-status.js", () => ({
-  runCliStatusCommand: commandMocks.runCliStatusCommand,
-}));
-
-vi.mock("../src/lib/scoped-update.js", () => ({
-  runScopedUpdateCommand: commandMocks.runScopedUpdateCommand,
-}));
-
 describe("opencode-quota bin", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    commandMocks.runInitInstaller.mockResolvedValue(0);
     commandMocks.runCliShowCommand.mockResolvedValue(0);
-    commandMocks.runCliStatusCommand.mockResolvedValue(0);
-    commandMocks.runScopedUpdateCommand.mockResolvedValue(0);
-  });
-
-  it("dispatches init to the interactive installer", async () => {
-    const { main } = await import("../src/bin/opencode-quota.js");
-
-    const code = await main(["init"]);
-
-    expect(code).toBe(0);
-    expect(commandMocks.runInitInstaller).toHaveBeenCalledOnce();
-    expect(commandMocks.runCliShowCommand).not.toHaveBeenCalled();
-  });
-
-  it("passes the legacy config sync option to init", async () => {
-    const { main } = await import("../src/bin/opencode-quota.js");
-
-    const code = await main(["init", "--sync-legacy-config"]);
-
-    expect(code).toBe(0);
-    expect(commandMocks.runInitInstaller).toHaveBeenCalledWith({ syncLegacyConfig: true });
-    expect(commandMocks.runCliShowCommand).not.toHaveBeenCalled();
-  });
-
-  it("passes init dry-run and legacy sync flags in either order", async () => {
-    const { main } = await import("../src/bin/opencode-quota.js");
-
-    const code = await main(["init", "--sync-legacy-config", "--dry-run"]);
-
-    expect(code).toBe(0);
-    expect(commandMocks.runInitInstaller).toHaveBeenCalledWith({
-      dryRun: true,
-      syncLegacyConfig: true,
-    });
   });
 
   it("dispatches show to the quota CLI command", async () => {
@@ -77,7 +27,6 @@ describe("opencode-quota bin", () => {
 
     expect(code).toBe(0);
     expect(commandMocks.runCliShowCommand).toHaveBeenCalledWith({ argv: [] });
-    expect(commandMocks.runInitInstaller).not.toHaveBeenCalled();
   });
 
   it("passes show provider args through to the quota CLI command", async () => {
@@ -91,38 +40,6 @@ describe("opencode-quota bin", () => {
     });
   });
 
-  it("dispatches update args to the scoped updater", async () => {
-    const { main } = await import("../src/bin/opencode-quota.js");
-
-    const code = await main(["update", "--dry-run", "--yes"]);
-
-    expect(code).toBe(0);
-    expect(commandMocks.runScopedUpdateCommand).toHaveBeenCalledWith({
-      argv: ["--dry-run", "--yes"],
-    });
-  });
-
-  it("dispatches status to the quota status CLI command", async () => {
-    const { main } = await import("../src/bin/opencode-quota.js");
-
-    const code = await main(["status"]);
-
-    expect(code).toBe(0);
-    expect(commandMocks.runCliStatusCommand).toHaveBeenCalledWith({ argv: [] });
-    expect(commandMocks.runCliShowCommand).not.toHaveBeenCalled();
-  });
-
-  it("passes status provider args through to the status CLI command", async () => {
-    const { main } = await import("../src/bin/opencode-quota.js");
-
-    const code = await main(["status", "--provider", "copilot", "--json"]);
-
-    expect(code).toBe(0);
-    expect(commandMocks.runCliStatusCommand).toHaveBeenCalledWith({
-      argv: ["--provider", "copilot", "--json"],
-    });
-  });
-
   it("prints help and exits zero for --help", async () => {
     const { main } = await import("../src/bin/opencode-quota.js");
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -131,19 +48,8 @@ describe("opencode-quota bin", () => {
 
     expect(code).toBe(0);
     expect(log).toHaveBeenCalledWith(expect.stringContaining("Usage:"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("opencode-quota show"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("opencode-quota status"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("responsible preview"));
-    expect(log).toHaveBeenCalledWith(
-      expect.stringContaining("Credential-specific audit sources and values are not read"),
-    );
-    expect(log).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "Values encountered in normal config parsing are never printed, copied, or modified",
-      ),
-    );
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("safe setting/package-cache changes"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("Apply only safe setting/cache work"));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("@npv12/opencode-quota show"));
+    expect(commandMocks.runCliShowCommand).not.toHaveBeenCalled();
     log.mockRestore();
   });
 
@@ -155,7 +61,6 @@ describe("opencode-quota bin", () => {
 
     expect(code).toBe(1);
     expect(log).toHaveBeenCalledWith(expect.stringContaining("Usage:"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("opencode-quota status"));
     log.mockRestore();
   });
 
@@ -167,7 +72,7 @@ describe("opencode-quota bin", () => {
 
     expect(code).toBe(1);
     expect(log).toHaveBeenCalledWith(expect.stringContaining("Usage:"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("opencode-quota status"));
+    expect(commandMocks.runCliShowCommand).not.toHaveBeenCalled();
     log.mockRestore();
   });
 
@@ -213,7 +118,6 @@ describe("opencode-quota bin", () => {
     }
   });
 
-  // Run after `pnpm build`: loads node:sqlite in a real Node process.
   it("keeps the SQLite warning off stderr when the built CLI loads node:sqlite", () => {
     const bin = fileURLToPath(new URL("../dist/bin/opencode-quota.js", import.meta.url));
     expect(existsSync(bin)).toBe(true);

@@ -7,7 +7,6 @@ OpenCode Quota can share its cached quota data with scripts, status bars, CI, an
 | What you need | Use |
 | --- | --- |
 | Run a command and get JSON | `opencode-quota show --json` |
-| Read the same JSON often | Export file |
 | Send numbers to a monitoring system | OpenTelemetry metrics |
 
 ## 1. Get JSON from a command
@@ -18,14 +17,14 @@ Use this for scripts and CI:
 opencode-quota show --json
 ```
 
-It works with OpenCode closed and reads cached data only. It runs with your terminal's settings; see [Terminal commands](troubleshooting.md#terminal-commands).
+`--json` reads cached data only; plain `opencode-quota show` collects live quota instead. Both work with OpenCode closed. `--json` runs with your terminal's settings; see [Terminal commands](troubleshooting.md#terminal-commands).
 
 ```bash
 # Only Copilot
 opencode-quota show --json --provider copilot
 
 # Exit with an error when comparable quota is below 5% (for example in CI)
-npx @slkiser/opencode-quota show --json --threshold 5
+npx @npv12/opencode-quota show --json --threshold 5
 ```
 
 `--threshold` exit codes:
@@ -45,35 +44,7 @@ opencode-quota show --json --provider copilot \
   | jq -r '(.providers.copilot.entries? // []) | map(select(.renderType == "percent" and .percentRemaining != null)) | first | .percentRemaining // empty'
 ```
 
-## 2. Read an export file
-
-Use this for a status bar or another tool that checks quota often. Add this to `opencode-quota/quota-toast.json`:
-
-```jsonc
-{ "export": { "enabled": true } }
-```
-
-- The file is `~/.cache/opencode/quota-export.json` (or `$XDG_CACHE_HOME/opencode/quota-export.json` when `XDG_CACHE_HOME` is set). `export.path` changes it.
-- OpenCode's background service rewrites it about once a minute while the TUI Home screen is open, and it keeps its last contents when OpenCode stops.
-- A write error is logged but never breaks the TUI.
-
-### tmux example (add to your tmux config)
-
-```bash
-set -g status-interval 30
-set -g status-right '#(jq -r "[.providers|to_entries[]|select(.value.status==\"ok\")|first(.value.entries[]?|select(.renderType==\"percent\" and .percentRemaining!=null))|(.percentRemaining|floor|tostring)+\"%\"]|join(\" | \")" ~/.cache/opencode/quota-export.json 2>/dev/null)'
-```
-
-### Starship example (add to `starship.toml`)
-
-```toml
-[custom.quota]
-command = "jq -r '[.providers|to_entries[]|select(.value.status==\"ok\")|first(.value.entries[]?|select(.renderType==\"percent\" and .percentRemaining!=null))|(.percentRemaining|floor|tostring)+\"%\"]|join(\" \")' ~/.cache/opencode/quota-export.json 2>/dev/null"
-when = "true"
-interval = 60
-```
-
-## 3. Send OpenTelemetry metrics
+## 2. Send OpenTelemetry metrics
 
 Use this only when OpenCode's server process (normally the background service) already has an OpenTelemetry metrics provider and exporter. OpenCode Quota does not create or configure them. Add this to `opencode-quota/quota-toast.json`:
 
@@ -139,7 +110,7 @@ export async function shutdownMetrics() {
 
 ## JSON basics
 
-The command and export file both use JSON schema version `2`. Every provider has a `status`, and the other fields depend on it:
+`opencode-quota show --json` uses JSON schema version `2`. Every provider has a `status`, and the other fields depend on it:
 
 | Status | Meaning | Fields |
 | --- | --- | --- |
@@ -151,13 +122,13 @@ The command and export file both use JSON schema version `2`. Every provider has
 A percentage entry uses `renderType: "percent"` and `percentRemaining`. A value entry uses `renderType: "value"` and `value`. Internally typed quantities flatten into formatted value strings (for example, `USD 12.50`), and booleans flatten to `Enabled` or `Disabled`.
 
 - Scripts must not assume the first row is a percentage or that a provider has only one row. Select `renderType`, `resultType`, and any other field you need.
-- Display settings (`accountingDetail`, `formatStyle`, `percentDisplayMode`) never change JSON. The export uses the full cached snapshot, so supplementary rows can add more value entries.
+- Display settings (`accountingDetail`, `formatStyle`, `percentDisplayMode`) never change JSON. The snapshot is the full cached data, so supplementary rows can add more value entries.
 - Version 2 does not expose internal metrics, row prominence, used/limit/remaining basis facts, or per-fact authority.
 - Threshold checks use percentage rows only.
 
 Optional entry fields include `window`, `resetAt`, `observedAt`, and `sourceId`. A provider can also include `rawDetails`: curated, safe provider facts that stay out of normal quota displays. Custom `quotaProviders` rows include `sourceId`, and the `quota-providers` result has a `sources` list so tools can match each row to its definition. Treat `status: "partial"` as incomplete.
 
-Secrets, credentials, URLs, checked paths, and raw provider responses remain excluded from public JSON. Use `/quota_status` for live diagnostics.
+Secrets, credentials, URLs, checked paths, and raw provider responses remain excluded from public JSON.
 
 <details>
 <summary><strong>Configured source details</strong></summary>

@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -40,7 +39,6 @@ const mocks = vi.hoisted(() => ({
   setPricingSnapshotSelection: vi.fn(),
   resolveAlibabaCodingPlanAuthCached: vi.fn(),
   fetchSessionTokensForDisplay: vi.fn(),
-  reconcileDetectedProvidersInGlobalConfig: vi.fn(),
 }));
 
 vi.mock("../src/lib/config.js", () => createConfigModuleMock(mocks.loadConfig));
@@ -57,9 +55,6 @@ vi.mock("../src/lib/alibaba-auth.js", () =>
 vi.mock("../src/lib/opencode-runtime-paths.js", () =>
   createPluginRuntimePathsMockModule(TEST_RUNTIME_ROOT),
 );
-vi.mock("../src/lib/opencode-config-providers.js", () => ({
-  reconcileDetectedProvidersInGlobalConfig: mocks.reconcileDetectedProvidersInGlobalConfig,
-}));
 
 type Handler = (input: unknown, context: unknown) => Promise<unknown>;
 type RegisteredCommand = {
@@ -79,7 +74,6 @@ function useConfig(overrides: Partial<typeof DEFAULT_CONFIG>): void {
       enabledProviders: ["copilot"],
       minIntervalMs: 0,
       showSessionTokens: false,
-      maintainerAnnouncements: { enabled: false, home: false },
       ...overrides,
     }),
   );
@@ -93,7 +87,6 @@ async function setupServer(sessionGet = vi.fn().mockResolvedValue({}), directory
     location: { directory },
     provider: { list: vi.fn().mockResolvedValue({ data: [{ id: "copilot" }] }) },
     session: { get: sessionGet, wait: vi.fn(), prompt: vi.fn(), hook: vi.fn() },
-    tool: { transform: vi.fn() },
     command: {
       transform: vi.fn(async (callback) => {
         callback({ add: (command: RegisteredCommand) => commands.push(command) });
@@ -135,7 +128,6 @@ describe("server quota RPC", () => {
         }),
       },
     ]);
-    mocks.reconcileDetectedProvidersInGlobalConfig.mockResolvedValue({ changed: false });
     await rm(TEST_RUNTIME_ROOT, { recursive: true, force: true });
     const { __resetQuotaStateForTests } = await import("../src/lib/quota-state.js");
     __resetQuotaStateForTests();
@@ -146,81 +138,33 @@ describe("server quota RPC", () => {
     await rm(TEST_RUNTIME_ROOT, { recursive: true, force: true });
   });
 
-  it("registers the quota RPC with its four methods during setup", async () => {
+  it("registers the quota RPC with its two methods during setup", async () => {
     const { QuotaRpc } = await import("../src/rpc.js");
     const { definition, handlers } = await setupServer();
 
     expect(definition).toBe(QuotaRpc);
-    expect(definition.id).toBe("slkiser.opencode-quota");
-    expect(Object.keys(definition.methods)).toEqual([
-      "surface",
-      "footer",
-      "writeExport",
-      "command",
-    ]);
+    expect(definition.id).toBe("npv12.opencode-quota");
+    expect(Object.keys(definition.methods)).toEqual(["surface", "command"]);
     expect(Object.keys(handlers)).toEqual(Object.keys(definition.methods));
   });
 
-  it("serves the sidebar panel and the idle toast", async () => {
-    useConfig({ enableToast: true, showOnIdle: true, toastDurationMs: 7000 });
+  it("serves the sidebar panel", async () => {
+    useConfig({});
     const { call } = await setupServer();
 
     const sidebar = (await call("surface", { surface: "sidebar", sessionID: "session-1" })) as {
       quota: { message: string };
     };
-    expect(sidebar).toEqual({
-      quota: expect.objectContaining({ duration: 7000, activeProviderCount: 1 }),
-    });
     expect(sidebar.quota.message).toContain("Copilot");
-
-    const idle = (await call("surface", { surface: "idle", sessionID: "session-1" })) as {
-      quota: { message: string };
-    };
-    expect(idle).toEqual({
-      quota: expect.objectContaining({ duration: 7000, activeProviderCount: 1 }),
-    });
-    expect(idle.quota.message).toContain("Copilot");
   });
 
-  it("returns a null quota when the surface is turned off", async () => {
-    useConfig({ enableToast: true, showOnIdle: false });
+  it("returns a null quota when the sidebar panel is turned off", async () => {
+    useConfig({ tuiSidebarPanel: { enabled: false } });
     const { call } = await setupServer();
 
-    await expect(call("surface", { surface: "idle", sessionID: "session-1" })).resolves.toEqual({
+    await expect(call("surface", { surface: "sidebar", sessionID: "session-1" })).resolves.toEqual({
       quota: null,
     });
-  });
-
-  it("serves the session prompt line and the Home compact line", async () => {
-    useConfig({
-      tuiPromptBar: { enabled: true },
-      tuiCompactStatus: { enabled: true, homeBottom: true, sessionPrompt: false, maxWidth: 96 },
-    });
-    const { call } = await setupServer();
-
-    const prompt = (await call("footer", { surface: "prompt", sessionID: "session-1" })) as {
-      lines: string[];
-    };
-    expect(prompt.lines).toHaveLength(1);
-    expect(prompt.lines[0]).toContain("Copilot");
-    await expect(call("footer", { surface: "prompt" })).resolves.toEqual({ lines: [] });
-
-    const home = (await call("footer", { surface: "home" })) as { lines: string[] };
-    expect(home.lines).toHaveLength(1);
-    expect(home.lines[0]).toContain("Copilot");
-  });
-
-  it("writes the export file only when the export is enabled", async () => {
-    const exportPath = `${TEST_RUNTIME_ROOT}/quota-export.json`;
-    useConfig({ export: { enabled: false, path: exportPath } });
-    const disabled = await setupServer();
-    await expect(disabled.call("writeExport", {})).resolves.toEqual({ written: false });
-    expect(existsSync(exportPath)).toBe(false);
-
-    useConfig({ export: { enabled: true, path: exportPath } });
-    const enabled = await setupServer();
-    await expect(enabled.call("writeExport", {})).resolves.toEqual({ written: true });
-    expect(existsSync(exportPath)).toBe(true);
   });
 
   it("runs palette commands on the server and returns their output", async () => {
@@ -241,33 +185,6 @@ describe("server quota RPC", () => {
     );
     expect(output.output).toContain("Copilot");
     expect(renderPlainTextReport(output.document)).toBe(output.output);
-  });
-
-  it("never writes detected providers to the global config from the palette", async () => {
-    useConfig({ enabledProviders: "auto" });
-    const dialogModule = await import("../src/lib/quota-dialog-commands.js");
-    vi.spyOn(dialogModule, "buildQuotaDialogCommandOutput").mockImplementation(async (params) => {
-      await params.onDetectedProviderIds?.(["copilot"]);
-      return {
-        state: "output",
-        command: params.command,
-        title: "OpenCode Quota Status",
-        output: "status",
-        document: messageDocument("status"),
-        dialogSize: "xlarge",
-      };
-    });
-    const { call, commands } = await setupServer();
-
-    await call("command", { command: "quota_status", sessionID: "session-1" });
-    expect(mocks.reconcileDetectedProvidersInGlobalConfig).not.toHaveBeenCalled();
-
-    const slash = commands.find((command) => command.name === "quota_status");
-    await slash?.execute({ sessionID: "session-1", prompt: { text: "" } });
-    expect(mocks.reconcileDetectedProvidersInGlobalConfig).toHaveBeenCalledWith({
-      configRootDir: process.cwd(),
-      detectedProviderIds: ["copilot"],
-    });
   });
 
   it("returns a failed palette command as output instead of an RPC error", async () => {
@@ -301,9 +218,7 @@ describe("server quota RPC", () => {
   });
 
   it("computes quota for the location's project folder, not the service's working folder", async () => {
-    useConfig({
-      tuiCompactStatus: { enabled: true, homeBottom: true, sessionPrompt: false, maxWidth: 96 },
-    });
+    useConfig({});
     const workspaceRoots: string[] = [];
     mocks.getProviders.mockReturnValue([
       {
@@ -323,15 +238,14 @@ describe("server quota RPC", () => {
     const { call } = await setupServer(undefined, project);
 
     await call("surface", { surface: "sidebar", sessionID: "session-1" });
-    await call("footer", { surface: "home" });
     await call("command", { command: "quota", sessionID: "session-1" });
 
-    expect(workspaceRoots).toHaveLength(3);
+    expect(workspaceRoots).toHaveLength(2);
     expect(new Set(workspaceRoots)).toEqual(new Set([project]));
     expect(project).not.toBe(process.cwd());
   });
 
-  it("logs why a surface, footer or export RPC failed, without tokens, and still fails it", async () => {
+  it("logs why a surface RPC failed, without tokens, and still fails it", async () => {
     const token = `eyJ${"a".repeat(24)}.${"b".repeat(24)}.${"c".repeat(24)}`;
     mocks.loadConfig.mockRejectedValue(new Error(`config broke ${token}`));
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -339,8 +253,6 @@ describe("server quota RPC", () => {
 
     for (const [method, input] of [
       ["surface", { surface: "sidebar", sessionID: "session-1" }],
-      ["footer", { surface: "home" }],
-      ["writeExport", {}],
     ] as const) {
       await expect(handlers[method](input, callContext)).rejects.toThrow("config broke");
       expect(warn).toHaveBeenLastCalledWith(

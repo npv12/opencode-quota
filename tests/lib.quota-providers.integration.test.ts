@@ -127,7 +127,7 @@ describe("quotaProviders config integration", () => {
       quotaProviders: [quotaProvider({ id: "global-provider" })],
     });
     writeQuotaToastConfig(workspace.workspaceDir, {
-      enableToast: false,
+      showSessionTokens: false,
       quotaProviders: [quotaProvider({ id: "workspace-provider" })],
     });
 
@@ -137,7 +137,7 @@ describe("quotaProviders config integration", () => {
     });
 
     expect(config.quotaProviders.map((definition) => definition.id)).toEqual(["global-provider"]);
-    expect(config.enableToast).toBe(false);
+    expect(config.showSessionTokens).toBe(false);
     expect(meta.configIssues).toContainEqual({
       path: quotaConfigSource(workspace.workspaceDir),
       key: "quotaProviders",

@@ -16,7 +16,7 @@ If no issue exists, include a short rationale/scope summary.
 
 Does this change affect visible UI or human-readable output? If yes, attach matching before-and-after screenshots for each affected surface, using the same configuration, model/provider, theme, and window size.
 
-For quota changes, report the result for Web output, TUI sidebar, toast, and the compact line below the message input. Identify unchanged or untested surfaces explicitly. Include the prompt bar or command dialog when relevant.
+For quota changes, report the result for Web output, the TUI sidebar, and the `/quota` report (dialog or inline). Identify unchanged or untested surfaces explicitly.
 
 Redact credentials, account identifiers, private paths, and other sensitive information. For text-formatting changes, include the relevant text output as well as screenshots.
 
@@ -32,8 +32,8 @@ Surface checks:
 
 ## Quality Checklist
 
-- [ ] I ran `pnpm verify`
+- [ ] I ran `bun run typecheck`, `bun run build`, and `bun run test`
 - [ ] This change is focused and avoids unrelated behavior changes
 - [ ] I updated or added tests when behavior changed
 - [ ] I updated docs when user-facing workflow, command, or config behavior changed
-- [ ] For provider changes, I followed [Provider Changes](https://github.com/slkiser/opencode-quota/blob/main/CONTRIBUTING.md#provider-changes), or this does not apply
+- [ ] For provider changes, I followed [Provider Changes](https://github.com/npv12/opencode-quota/blob/main/CONTRIBUTING.md#provider-changes), or this does not apply

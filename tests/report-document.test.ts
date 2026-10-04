@@ -107,18 +107,16 @@ describe("report-document", () => {
 
     expect(
       commandHeading({
-        title: "Quota Status (opencode-quota v5.0.0) (/quota_status)",
+        title: "Quota (opencode-quota v5.0.0) (/quota)",
         detail: "opencode-quota v5.0.0",
         generatedAtMs,
       }),
     ).toEqual({
-      line: `# Quota Status (opencode-quota v5.0.0) (/quota_status) ${time}`,
+      line: `# Quota (opencode-quota v5.0.0) (/quota) ${time}`,
       subtitle: `opencode-quota v5.0.0 · ${time}`,
     });
-    expect(
-      commandHeading({ title: "Tokens used (Last 7 Days) (/tokens_weekly)", generatedAtMs }),
-    ).toEqual({
-      line: `# Tokens used (Last 7 Days) (/tokens_weekly) ${time}`,
+    expect(commandHeading({ title: "Quota (/quota)", generatedAtMs })).toEqual({
+      line: `# Quota (/quota) ${time}`,
       subtitle: time,
     });
   });
@@ -288,9 +286,7 @@ describe("report-document", () => {
 
     expect(isReportDocument(document)).toBe(true);
     expect(isReportDocument(messageDocument("hi"))).toBe(true);
-    expect(isReportDocument({ heading: { line: "Maintainer announcements" }, sections: [] })).toBe(
-      true,
-    );
+    expect(isReportDocument({ heading: { line: "Quota" }, sections: [] })).toBe(true);
     expect(isReportDocument(JSON.parse(JSON.stringify(document)))).toBe(true);
     for (const value of [
       undefined,
