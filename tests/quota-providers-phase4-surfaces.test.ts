@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { formatQuotaRows } from "../src/lib/format.js";
 import { formatQuotaCommand } from "../src/lib/quota-command-format.js";
 import type { QuotaRenderData } from "../src/lib/quota-render-data.js";
-import { formatQuotaRowsGrouped } from "../src/lib/toast-format-grouped.js";
-import { buildCompactQuotaStatusLine } from "../src/lib/tui-compact-format.js";
 import { buildSidebarQuotaPanelLines } from "../src/lib/tui-sidebar-format.js";
 
 const data: QuotaRenderData = {
@@ -39,22 +38,17 @@ const data: QuotaRenderData = {
   errors: [{ label: "Duplicate label", message: "one source unavailable" }],
 };
 
-describe("quota provider four-surface formatting", () => {
+describe("quota provider surface formatting", () => {
   it("keeps duplicate-label percent/value rows and partial errors in generic formatters", () => {
     const command = formatQuotaCommand({
       ...data,
       generatedAtMs: 0,
     });
-    const toast = formatQuotaRowsGrouped(data);
+    const show = formatQuotaRows({ version: "test", style: "allWindows", ...data });
     const sidebar = buildSidebarQuotaPanelLines({
       data,
-      config: { formatStyle: "allWindows", percentDisplayMode: "remaining" },
+      config: { percentDisplayMode: "remaining" },
     }).join("\n");
-    const compact = buildCompactQuotaStatusLine({
-      data,
-      percentDisplayMode: "remaining",
-      maxWidth: 200,
-    });
 
     expect(command).toMatch(/^Quota \(\/quota\)/);
     expect(command).not.toContain("```");
@@ -70,14 +64,13 @@ describe("quota provider four-surface formatting", () => {
     expect(command).toMatch(/Week quota\s+[█░]{10}\s+10% left \| reset /);
     expect(command).toMatch(/Balance\s+\$4\.00/);
 
-    for (const output of [command, toast, sidebar, compact]) {
+    for (const output of [command, show, sidebar]) {
       expect(output).toContain("10%");
       expect(output).toContain("$4.00");
     }
     expect(command).toContain("one source unavailable");
-    expect(toast).toContain("one source unavailable");
-    // The sidebar wraps long error rows to its width.
+    expect(show).toContain("one source unavailable");
+    expect(sidebar).toContain("Duplicate");
     expect(sidebar.replaceAll("\n", " ")).toContain("one source unavailable");
-    expect(compact).toContain("issue");
   });
 });

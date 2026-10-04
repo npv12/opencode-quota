@@ -33,11 +33,11 @@ async function expectRejected(schema: StandardSchema, value: unknown, message: s
 const methods = QuotaRpc.methods;
 
 describe("quota RPC definition", () => {
-  it("defines the plain RPC id, no events and four methods", () => {
-    expect(QUOTA_RPC_ID).toBe("slkiser.opencode-quota");
+  it("defines the plain RPC id, no events and two methods", () => {
+    expect(QUOTA_RPC_ID).toBe("npv12.opencode-quota");
     expect(QuotaRpc.id).toBe(QUOTA_RPC_ID);
     expect(QuotaRpc.events).toEqual({});
-    expect(Object.keys(methods)).toEqual(["surface", "footer", "writeExport", "command"]);
+    expect(Object.keys(methods)).toEqual(["surface", "command"]);
   });
 
   it("uses Standard Schema v1 validators that carry no runtime types", () => {
@@ -52,51 +52,29 @@ describe("quota RPC definition", () => {
   });
 
   it("validates surface input", async () => {
-    for (const surface of ["sidebar", "idle", "compacted", "question"]) {
-      await expectAccepted(methods.surface.input, { surface, sessionID: "session-1" });
-    }
+    await expectAccepted(methods.surface.input, { surface: "sidebar", sessionID: "session-1" });
     await expectRejected(methods.surface.input, null, "input must be an object");
     await expectRejected(methods.surface.input, [], "input must be an object");
     await expectRejected(
       methods.surface.input,
       { sessionID: "session-1" },
-      "surface must be one of sidebar, idle, compacted, question",
+      "surface must be sidebar",
     );
     await expectRejected(
       methods.surface.input,
-      { surface: "prompt", sessionID: "session-1" },
-      "surface must be one of sidebar, idle, compacted, question",
+      { surface: "idle", sessionID: "session-1" },
+      "surface must be sidebar",
     );
-    await expectRejected(methods.surface.input, { surface: "idle" }, "sessionID must be a string");
     await expectRejected(
       methods.surface.input,
-      { surface: "idle", sessionID: 1 },
-      "sessionID must be a string",
-    );
-  });
-
-  it("validates footer input", async () => {
-    await expectAccepted(methods.footer.input, { surface: "prompt", sessionID: "session-1" });
-    await expectAccepted(methods.footer.input, { surface: "prompt" });
-    await expectAccepted(methods.footer.input, { surface: "home" });
-    await expectRejected(methods.footer.input, "home", "input must be an object");
-    await expectRejected(methods.footer.input, {}, "surface must be one of prompt, home");
-    await expectRejected(
-      methods.footer.input,
       { surface: "sidebar" },
-      "surface must be one of prompt, home",
-    );
-    await expectRejected(
-      methods.footer.input,
-      { surface: "home", sessionID: null },
       "sessionID must be a string",
     );
-  });
-
-  it("validates writeExport input", async () => {
-    await expectAccepted(methods.writeExport.input, {});
-    await expectRejected(methods.writeExport.input, undefined, "input must be an object");
-    await expectRejected(methods.writeExport.input, null, "input must be an object");
+    await expectRejected(
+      methods.surface.input,
+      { surface: "sidebar", sessionID: 1 },
+      "sessionID must be a string",
+    );
   });
 
   it("validates command input", async () => {
@@ -104,8 +82,8 @@ describe("quota RPC definition", () => {
       await expectAccepted(methods.command.input, { command: spec.id });
     }
     await expectAccepted(methods.command.input, {
-      command: "tokens_between",
-      arguments: "2026-01-01 2026-01-15",
+      command: "quota",
+      arguments: "anything",
       sessionID: "session-1",
     });
     await expectRejected(methods.command.input, 1, "input must be an object");
@@ -113,6 +91,11 @@ describe("quota RPC definition", () => {
     await expectRejected(
       methods.command.input,
       { command: "quota_nope" },
+      "command must be a quota command id",
+    );
+    await expectRejected(
+      methods.command.input,
+      { command: "tokens_today" },
       "command must be a quota command id",
     );
     await expectRejected(

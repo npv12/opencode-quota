@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { QuotaToastEntry } from "../src/lib/entries.js";
-import { renderAccountingFourSurfaces } from "./helpers/accounting-four-surface.js";
+import { renderAccountingSurfaces } from "./helpers/accounting-surfaces.js";
 
 const quotaAccounting = {
   resultType: "quota" as const,
@@ -67,17 +67,16 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("Kilo Gateway structured four-surface formatting", () => {
+describe("Kilo Gateway structured provider surface formatting", () => {
   it("shows one credits percentage with USD remaining basis and no duplicate row", () => {
-    const outputs = renderAccountingFourSurfaces({
+    const outputs = renderAccountingSurfaces({
       data: { entries: [positivePass], errors: [] },
       accountingDetail: "detailed",
-      toastMaxWidth: 64,
-      toastNarrowAt: 44,
-      compactMaxWidth: 220,
+      showMaxWidth: 64,
+      showNarrowAt: 44,
     });
 
-    for (const output of Object.values(outputs)) {
+    for (const output of [outputs.command, outputs.show]) {
       expect(output).toContain("Kilo Gateway");
       expect(output).toContain("Credits");
       expect(output).toContain("83%");
@@ -85,11 +84,14 @@ describe("Kilo Gateway structured four-surface formatting", () => {
       expect(output).not.toContain("$");
       expect(output.match(/Credits/gu)).toHaveLength(1);
     }
+    expect(outputs.sidebar).toContain("Kilo");
+    expect(outputs.sidebar).toContain("83%");
+    expect(outputs.sidebar).not.toContain("$");
     expect(outputs.command).toContain("USD 12.50");
     expect(outputs.command).toContain("Used: USD 2.50");
     expect(outputs.command).toContain("Limit: USD 15.00");
     expect(outputs.command).toContain("Remaining: USD 12.50");
-    expect(outputs.toast.split("\n").every((line) => line.length <= 64)).toBe(true);
+    expect(outputs.show.split("\n").every((line) => line.length <= 64)).toBe(true);
     expect(outputs.sidebar.split("\n").every((line) => line.length <= 36)).toBe(true);
   });
 
@@ -97,43 +99,44 @@ describe("Kilo Gateway structured four-surface formatting", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2099-01-01T00:00:00.000Z"));
 
-    const outputs = renderAccountingFourSurfaces({
+    const outputs = renderAccountingSurfaces({
       data: {
         entries: [quantityEntry(quotaAccounting, "remaining_credits", "0", resetTimeIso)],
         errors: [],
       },
       accountingDetail: "detailed",
-      toastMaxWidth: 64,
-      toastNarrowAt: 44,
-      compactMaxWidth: 220,
+      showMaxWidth: 64,
+      showNarrowAt: 44,
     });
 
-    for (const output of Object.values(outputs)) {
+    for (const output of [outputs.command, outputs.show]) {
       expect(output).toContain("Kilo Gateway");
       expect(output).toContain("Remaining credits");
       expect(output).toContain("USD 0.00");
       expect(output).not.toContain("%");
       expect(output).not.toContain("$");
-    }
-    for (const output of [outputs.command, outputs.toast, outputs.sidebar]) {
       expect(output).toContain("31d0h0m");
     }
-    expect(outputs.compact).toContain("31d0h0m");
+    expect(outputs.sidebar).toContain("Kilo");
+    expect(outputs.sidebar).not.toContain("credits");
+    expect(outputs.sidebar).toContain("USD 0.00");
+    expect(outputs.sidebar).toContain("31.0d");
+    expect(outputs.sidebar).not.toContain("%");
+    expect(outputs.sidebar).not.toContain("$");
   });
 
   it("keeps the Gateway fallback as one total-balance quantity", () => {
-    const outputs = renderAccountingFourSurfaces({
+    const outputs = renderAccountingSurfaces({
       data: {
         entries: [quantityEntry(balanceAccounting, "total_balance", "8.25")],
         errors: [],
       },
       accountingDetail: "detailed",
-      toastMaxWidth: 64,
-      toastNarrowAt: 44,
-      compactMaxWidth: 220,
+      showMaxWidth: 64,
+      showNarrowAt: 44,
     });
 
-    for (const output of Object.values(outputs)) {
+    for (const output of [outputs.command, outputs.show]) {
       expect(output).toContain("Kilo Gateway");
       expect(output).toContain("Total balance");
       expect(output).toContain("USD 8.25");
@@ -142,5 +145,11 @@ describe("Kilo Gateway structured four-surface formatting", () => {
       expect(output.toLowerCase()).not.toContain("remaining credits");
       expect(output.toLowerCase()).not.toContain("reset");
     }
+    expect(outputs.sidebar).toContain("Kilo");
+    expect(outputs.sidebar).toContain("USD 8.25");
+    expect(outputs.sidebar).not.toContain("%");
+    expect(outputs.sidebar).not.toContain("$");
+    expect(outputs.sidebar.toLowerCase()).not.toContain("remaining credits");
+    expect(outputs.sidebar).not.toMatch(/reset\s+\d/u);
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { QuotaToastEntry } from "../src/lib/entries.js";
-import { renderAccountingFourSurfaces } from "./helpers/accounting-four-surface.js";
+import { renderAccountingSurfaces } from "./helpers/accounting-surfaces.js";
 
 const quotaAccounting = {
   resultType: "quota",
@@ -66,17 +66,16 @@ const nanoBalance: QuotaToastEntry = {
   quantity: { decimal: "26.71801147", unit: { kind: "custom", symbol: "NANO" } },
 };
 
-describe("NanoGPT structured four-surface formatting", () => {
+describe("NanoGPT structured provider surface formatting", () => {
   it("renders both quota windows, provider-reported basis, resets, and USD balance", () => {
-    const outputs = renderAccountingFourSurfaces({
+    const outputs = renderAccountingSurfaces({
       data: { entries: [daily, monthly, usdBalance], errors: [] },
       accountingDetail: "detailed",
-      toastMaxWidth: 56,
-      toastNarrowAt: 42,
-      compactMaxWidth: 220,
+      showMaxWidth: 56,
+      showNarrowAt: 42,
     });
 
-    for (const output of Object.values(outputs)) {
+    for (const output of [outputs.command, outputs.show]) {
       expect(output).toContain("NanoGPT");
       expect(output).toContain("Daily quota");
       expect(output).toContain("Monthly quota");
@@ -84,15 +83,20 @@ describe("NanoGPT structured four-surface formatting", () => {
       expect(output).toContain("USD 12.34");
       expect(output).not.toContain("$");
     }
+    expect(outputs.sidebar).toContain("NanoGPT");
+    expect(outputs.sidebar).toContain("50%");
+    expect(outputs.sidebar).toContain("12.34");
+    expect(outputs.sidebar).not.toContain("Daily");
+    expect(outputs.sidebar).not.toContain("$");
     expect(outputs.command).toContain("Used: 25 requests");
     expect(outputs.command).toContain("Limit: 100 requests");
     expect(outputs.command).toContain("Remaining: 75 requests");
-    expect(outputs.toast.split("\n").every((line) => line.length <= 56)).toBe(true);
+    expect(outputs.show.split("\n").every((line) => line.length <= 56)).toBe(true);
     expect(outputs.sidebar.split("\n").every((line) => line.length <= 36)).toBe(true);
   });
 
   it("renders the valid NANO fallback while retaining a bounded partial error", () => {
-    const outputs = renderAccountingFourSurfaces({
+    const outputs = renderAccountingSurfaces({
       data: {
         entries: [nanoBalance],
         errors: [
@@ -103,19 +107,16 @@ describe("NanoGPT structured four-surface formatting", () => {
         ],
       },
       accountingDetail: "summary",
-      toastMaxWidth: 56,
-      toastNarrowAt: 42,
-      compactMaxWidth: 220,
+      showMaxWidth: 56,
+      showNarrowAt: 42,
     });
 
-    for (const output of [outputs.command, outputs.toast, outputs.sidebar]) {
+    for (const output of [outputs.command, outputs.show]) {
       expect(output).toContain("26.71801147 NANO");
+      expect(output).toContain("invalid usd_balance decimal");
     }
-    expect(outputs.command).toContain("invalid usd_balance decimal");
-    expect(outputs.toast).toContain("invalid usd_balance decimal");
-    // The sidebar wraps long error rows to its width.
+    expect(outputs.sidebar).toContain("26.7180114");
+    expect(outputs.sidebar).toContain("NANO");
     expect(outputs.sidebar.replaceAll("\n", " ")).toContain("invalid usd_balance decimal");
-    expect(outputs.compact).toContain("26.71801147 NANO");
-    expect(outputs.compact).toContain("1 issue");
   });
 });

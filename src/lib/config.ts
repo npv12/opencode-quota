@@ -23,7 +23,6 @@ import type {
   PercentDisplayMode,
   PercentLabelStyle,
   PricingSnapshotSource,
-  QuotaResetWindow,
   QuotaToastConfig,
   SessionTokenScope,
   TuiCommandDisplay,
@@ -38,9 +37,6 @@ export const QUOTA_TOAST_CONFIG_RELATIVE_PATH = QUOTA_TOAST_CONFIG_RELATIVE_PATH
 
 export const QUOTA_TOAST_SETTING_SOURCE_KEYS = [
   "enabled",
-  "enableToast",
-  "resetNotifications.enabled",
-  "resetNotifications.windows",
   "tuiCommandDisplay",
   "formatStyle",
   "percentDisplayMode",
@@ -51,7 +47,6 @@ export const QUOTA_TOAST_SETTING_SOURCE_KEYS = [
   "resetTimeSpaced",
   "minIntervalMs",
   "requestTimeoutMs",
-  "debug",
   "enabledProviders",
   "quotaProviders",
   "anthropicBinaryPath",
@@ -62,31 +57,14 @@ export const QUOTA_TOAST_SETTING_SOURCE_KEYS = [
   "opencodeMonthlyLimit",
   "pricingSnapshot.source",
   "pricingSnapshot.autoRefresh",
-  "showOnIdle",
-  "showOnQuestion",
-  "showOnCompact",
-  "showOnBothFail",
-  "toastDurationMs",
   "onlyCurrentModel",
   "waitForQuotaReset",
   "showSessionTokens",
   "sessionTokenScope",
   "tuiSidebarPanel.enabled",
-  "tuiSidebarPanel.formatStyle",
-  "tuiSidebarPanel.opencodeGoPreferredWindow",
-  "tuiCompactStatus.enabled",
-  "tuiCompactStatus.homeBottom",
-  "tuiCompactStatus.sessionPrompt",
-  "tuiCompactStatus.maxWidth",
-  "tuiCompactStatus.formatStyle",
-  "tuiPromptBar.enabled",
-  "maintainerAnnouncements.enabled",
-  "maintainerAnnouncements.home",
   "layout.maxWidth",
   "layout.narrowAt",
   "layout.tinyAt",
-  "export.enabled",
-  "export.path",
   "telemetry.enabled",
 ] as const;
 
@@ -135,26 +113,15 @@ const NETWORK_SETTING_SOURCE_KEYS = [
   "requestTimeoutMs",
   "pricingSnapshot.source",
   "pricingSnapshot.autoRefresh",
-  "showOnIdle",
-  "showOnQuestion",
-  "showOnCompact",
-  "showOnBothFail",
 ] as const satisfies readonly QuotaToastSettingSourceKey[];
 
 type PricingSnapshotPatch = Partial<QuotaToastConfig["pricingSnapshot"]>;
-type QuotaResetNotificationsPatch = Partial<QuotaToastConfig["resetNotifications"]>;
 type TuiSidebarPanelPatch = Partial<QuotaToastConfig["tuiSidebarPanel"]>;
-type TuiCompactStatusPatch = Partial<QuotaToastConfig["tuiCompactStatus"]>;
-type TuiPromptBarPatch = Partial<QuotaToastConfig["tuiPromptBar"]>;
-type MaintainerAnnouncementsPatch = Partial<QuotaToastConfig["maintainerAnnouncements"]>;
 type LayoutPatch = Partial<QuotaToastConfig["layout"]>;
-type ExportConfigPatch = Partial<QuotaToastConfig["export"]>;
 type TelemetryConfigPatch = Partial<QuotaToastConfig["telemetry"]>;
 
 type ValidatedQuotaToastPatch = {
   enabled?: boolean;
-  enableToast?: boolean;
-  resetNotifications?: QuotaResetNotificationsPatch;
   tuiCommandDisplay?: TuiCommandDisplay;
   formatStyle?: QuotaToastConfig["formatStyle"];
   percentDisplayMode?: PercentDisplayMode;
@@ -165,7 +132,6 @@ type ValidatedQuotaToastPatch = {
   resetTimeSpaced?: boolean;
   minIntervalMs?: number;
   requestTimeoutMs?: number;
-  debug?: boolean;
   enabledProviders?: string[] | "auto";
   enabledProvidersInvalidEmpty?: boolean;
   anthropicBinaryPath?: string;
@@ -175,21 +141,12 @@ type ValidatedQuotaToastPatch = {
   opencodeGoWindows?: Array<"rolling" | "weekly" | "monthly">;
   opencodeMonthlyLimit?: number;
   pricingSnapshot?: PricingSnapshotPatch;
-  showOnIdle?: boolean;
-  showOnQuestion?: boolean;
-  showOnCompact?: boolean;
-  showOnBothFail?: boolean;
-  toastDurationMs?: number;
   onlyCurrentModel?: boolean;
   waitForQuotaReset?: boolean;
   showSessionTokens?: boolean;
   sessionTokenScope?: SessionTokenScope;
   tuiSidebarPanel?: TuiSidebarPanelPatch;
-  tuiCompactStatus?: TuiCompactStatusPatch;
-  tuiPromptBar?: TuiPromptBarPatch;
-  maintainerAnnouncements?: MaintainerAnnouncementsPatch;
   layout?: LayoutPatch;
-  export?: ExportConfigPatch;
   telemetry?: TelemetryConfigPatch;
 };
 
@@ -339,62 +296,13 @@ function cloneConfig(config: QuotaToastConfig): QuotaToastConfig {
       ? [...config.enabledProviders]
       : config.enabledProviders,
     quotaProviders: cloneQuotaProviders(config.quotaProviders),
-    resetNotifications: {
-      ...config.resetNotifications,
-      windows: [...config.resetNotifications.windows],
-    },
     opencodeGoWindows: [...config.opencodeGoWindows],
     opencodeMonthlyLimit: config.opencodeMonthlyLimit,
     pricingSnapshot: { ...config.pricingSnapshot },
     tuiSidebarPanel: { ...config.tuiSidebarPanel },
-    tuiCompactStatus: { ...config.tuiCompactStatus },
-    tuiPromptBar: { ...config.tuiPromptBar },
-    maintainerAnnouncements: { ...config.maintainerAnnouncements },
     layout: { ...config.layout },
-    export: { ...config.export },
     telemetry: { ...config.telemetry },
   };
-}
-
-const QUOTA_RESET_WINDOWS: readonly QuotaResetWindow[] = [
-  "fiveHour",
-  "hourly",
-  "daily",
-  "weekly",
-  "monthly",
-  "yearly",
-];
-
-function extractQuotaResetNotificationsPatch(
-  value: unknown,
-  reportIssue?: (key: string, message: string) => void,
-): QuotaResetNotificationsPatch | undefined {
-  if (!isPlainObject(value)) return undefined;
-
-  const patch: QuotaResetNotificationsPatch = {};
-  if (hasOwnKey(value, "enabled")) {
-    if (typeof value.enabled === "boolean") patch.enabled = value.enabled;
-    else reportIssue?.("resetNotifications.enabled", "expected boolean");
-  }
-
-  if (hasOwnKey(value, "windows")) {
-    if (
-      Array.isArray(value.windows) &&
-      value.windows.length > 0 &&
-      value.windows.every((window): window is QuotaResetWindow =>
-        QUOTA_RESET_WINDOWS.includes(window as QuotaResetWindow),
-      )
-    ) {
-      patch.windows = dedupe(value.windows);
-    } else {
-      reportIssue?.(
-        "resetNotifications.windows",
-        `expected a non-empty array of: ${QUOTA_RESET_WINDOWS.join(", ")}`,
-      );
-    }
-  }
-
-  return Object.keys(patch).length > 0 ? patch : undefined;
 }
 
 type NormalizedEnabledProviders = {
@@ -482,83 +390,6 @@ function extractTuiSidebarPanelPatch(value: unknown): TuiSidebarPanelPatch | und
     patch.enabled = value.enabled;
   }
 
-  const sidebarFormatStyle = getExplicitFormatStyle(value);
-  if (sidebarFormatStyle) {
-    patch.formatStyle = sidebarFormatStyle;
-  }
-
-  if (
-    hasOwnKey(value, "opencodeGoPreferredWindow") &&
-    isValidOpenCodeGoWindow(value.opencodeGoPreferredWindow)
-  ) {
-    patch.opencodeGoPreferredWindow = value.opencodeGoPreferredWindow;
-  }
-
-  return Object.keys(patch).length > 0 ? patch : undefined;
-}
-
-function extractTuiCompactStatusPatch(value: unknown): TuiCompactStatusPatch | undefined {
-  if (!isPlainObject(value)) {
-    return undefined;
-  }
-
-  const patch: TuiCompactStatusPatch = {};
-
-  if (hasOwnKey(value, "enabled") && typeof value.enabled === "boolean") {
-    patch.enabled = value.enabled;
-  }
-
-  if (hasOwnKey(value, "homeBottom") && typeof value.homeBottom === "boolean") {
-    patch.homeBottom = value.homeBottom;
-  }
-
-  if (hasOwnKey(value, "sessionPrompt") && typeof value.sessionPrompt === "boolean") {
-    patch.sessionPrompt = value.sessionPrompt;
-  }
-
-  if (hasOwnKey(value, "maxWidth") && isPositiveNumber(value.maxWidth)) {
-    patch.maxWidth = value.maxWidth;
-  }
-
-  const compactFormatStyle = getExplicitFormatStyle(value);
-  if (compactFormatStyle) {
-    patch.formatStyle = compactFormatStyle;
-  }
-
-  return Object.keys(patch).length > 0 ? patch : undefined;
-}
-
-function extractTuiPromptBarPatch(value: unknown): TuiPromptBarPatch | undefined {
-  if (!isPlainObject(value)) {
-    return undefined;
-  }
-
-  const patch: TuiPromptBarPatch = {};
-
-  if (hasOwnKey(value, "enabled") && typeof value.enabled === "boolean") {
-    patch.enabled = value.enabled;
-  }
-
-  return Object.keys(patch).length > 0 ? patch : undefined;
-}
-
-function extractMaintainerAnnouncementsPatch(
-  value: unknown,
-): MaintainerAnnouncementsPatch | undefined {
-  if (!isPlainObject(value)) {
-    return undefined;
-  }
-
-  const patch: MaintainerAnnouncementsPatch = {};
-
-  if (hasOwnKey(value, "enabled") && typeof value.enabled === "boolean") {
-    patch.enabled = value.enabled;
-  }
-
-  if (hasOwnKey(value, "home") && typeof value.home === "boolean") {
-    patch.home = value.home;
-  }
-
   return Object.keys(patch).length > 0 ? patch : undefined;
 }
 
@@ -579,24 +410,6 @@ function extractLayoutPatch(value: unknown): LayoutPatch | undefined {
 
   if (hasOwnKey(value, "tinyAt") && isPositiveNumber(value.tinyAt)) {
     patch.tinyAt = value.tinyAt;
-  }
-
-  return Object.keys(patch).length > 0 ? patch : undefined;
-}
-
-function extractExportConfigPatch(value: unknown): ExportConfigPatch | undefined {
-  if (!isPlainObject(value)) {
-    return undefined;
-  }
-
-  const patch: ExportConfigPatch = {};
-
-  if (hasOwnKey(value, "enabled") && typeof value.enabled === "boolean") {
-    patch.enabled = value.enabled;
-  }
-
-  if (hasOwnKey(value, "path") && typeof value.path === "string") {
-    patch.path = value.path;
   }
 
   return Object.keys(patch).length > 0 ? patch : undefined;
@@ -624,21 +437,6 @@ function extractValidatedQuotaToastPatch(
 
   if (hasOwnKey(quotaToastConfig, "enabled") && typeof quotaToastConfig.enabled === "boolean") {
     patch.enabled = quotaToastConfig.enabled;
-  }
-
-  if (
-    hasOwnKey(quotaToastConfig, "enableToast") &&
-    typeof quotaToastConfig.enableToast === "boolean"
-  ) {
-    patch.enableToast = quotaToastConfig.enableToast;
-  }
-
-  if (hasOwnKey(quotaToastConfig, "resetNotifications")) {
-    const resetNotifications = extractQuotaResetNotificationsPatch(
-      quotaToastConfig.resetNotifications,
-      reportIssue,
-    );
-    if (resetNotifications) patch.resetNotifications = resetNotifications;
   }
 
   if (hasOwnKey(quotaToastConfig, "tuiCommandDisplay")) {
@@ -712,10 +510,6 @@ function extractValidatedQuotaToastPatch(
     patch.requestTimeoutMs = quotaToastConfig.requestTimeoutMs;
   }
 
-  if (hasOwnKey(quotaToastConfig, "debug") && typeof quotaToastConfig.debug === "boolean") {
-    patch.debug = quotaToastConfig.debug;
-  }
-
   if (hasOwnKey(quotaToastConfig, "enabledProviders")) {
     const enabledProviders = normalizeEnabledProviders(quotaToastConfig.enabledProviders);
     for (const issue of enabledProviders.issues) {
@@ -786,41 +580,6 @@ function extractValidatedQuotaToastPatch(
   }
 
   if (
-    hasOwnKey(quotaToastConfig, "showOnIdle") &&
-    typeof quotaToastConfig.showOnIdle === "boolean"
-  ) {
-    patch.showOnIdle = quotaToastConfig.showOnIdle;
-  }
-
-  if (
-    hasOwnKey(quotaToastConfig, "showOnQuestion") &&
-    typeof quotaToastConfig.showOnQuestion === "boolean"
-  ) {
-    patch.showOnQuestion = quotaToastConfig.showOnQuestion;
-  }
-
-  if (
-    hasOwnKey(quotaToastConfig, "showOnCompact") &&
-    typeof quotaToastConfig.showOnCompact === "boolean"
-  ) {
-    patch.showOnCompact = quotaToastConfig.showOnCompact;
-  }
-
-  if (
-    hasOwnKey(quotaToastConfig, "showOnBothFail") &&
-    typeof quotaToastConfig.showOnBothFail === "boolean"
-  ) {
-    patch.showOnBothFail = quotaToastConfig.showOnBothFail;
-  }
-
-  if (
-    hasOwnKey(quotaToastConfig, "toastDurationMs") &&
-    isPositiveNumber(quotaToastConfig.toastDurationMs)
-  ) {
-    patch.toastDurationMs = quotaToastConfig.toastDurationMs;
-  }
-
-  if (
     hasOwnKey(quotaToastConfig, "onlyCurrentModel") &&
     typeof quotaToastConfig.onlyCurrentModel === "boolean"
   ) {
@@ -856,40 +615,10 @@ function extractValidatedQuotaToastPatch(
     }
   }
 
-  if (hasOwnKey(quotaToastConfig, "tuiCompactStatus")) {
-    const tuiCompactStatus = extractTuiCompactStatusPatch(quotaToastConfig.tuiCompactStatus);
-    if (tuiCompactStatus) {
-      patch.tuiCompactStatus = tuiCompactStatus;
-    }
-  }
-
-  if (hasOwnKey(quotaToastConfig, "tuiPromptBar")) {
-    const tuiPromptBar = extractTuiPromptBarPatch(quotaToastConfig.tuiPromptBar);
-    if (tuiPromptBar) {
-      patch.tuiPromptBar = tuiPromptBar;
-    }
-  }
-
-  if (hasOwnKey(quotaToastConfig, "maintainerAnnouncements")) {
-    const maintainerAnnouncements = extractMaintainerAnnouncementsPatch(
-      quotaToastConfig.maintainerAnnouncements,
-    );
-    if (maintainerAnnouncements) {
-      patch.maintainerAnnouncements = maintainerAnnouncements;
-    }
-  }
-
   if (hasOwnKey(quotaToastConfig, "layout")) {
     const layout = extractLayoutPatch(quotaToastConfig.layout);
     if (layout) {
       patch.layout = layout;
-    }
-  }
-
-  if (hasOwnKey(quotaToastConfig, "export")) {
-    const exportConfig = extractExportConfigPatch(quotaToastConfig.export);
-    if (exportConfig) {
-      patch.export = exportConfig;
     }
   }
 
@@ -920,22 +649,6 @@ function applyValidatedQuotaToastPatch(
   if (hasOwnKey(patch, "enabled")) {
     config.enabled = patch.enabled!;
     applySettingSource(settingSources, "enabled", sourcePath);
-  }
-
-  if (hasOwnKey(patch, "enableToast")) {
-    config.enableToast = patch.enableToast!;
-    applySettingSource(settingSources, "enableToast", sourcePath);
-  }
-
-  if (patch.resetNotifications) {
-    if (hasOwnKey(patch.resetNotifications, "enabled")) {
-      config.resetNotifications.enabled = patch.resetNotifications.enabled!;
-      applySettingSource(settingSources, "resetNotifications.enabled", sourcePath);
-    }
-    if (hasOwnKey(patch.resetNotifications, "windows")) {
-      config.resetNotifications.windows = [...patch.resetNotifications.windows!];
-      applySettingSource(settingSources, "resetNotifications.windows", sourcePath);
-    }
   }
 
   if (hasOwnKey(patch, "tuiCommandDisplay")) {
@@ -988,11 +701,6 @@ function applyValidatedQuotaToastPatch(
     applySettingSource(settingSources, "requestTimeoutMs", sourcePath);
   }
 
-  if (hasOwnKey(patch, "debug")) {
-    config.debug = patch.debug!;
-    applySettingSource(settingSources, "debug", sourcePath);
-  }
-
   if (hasOwnKey(patch, "enabledProviders")) {
     if (!(patch.enabledProvidersInvalidEmpty && settingSources.enabledProviders)) {
       config.enabledProviders =
@@ -1043,31 +751,6 @@ function applyValidatedQuotaToastPatch(
     }
   }
 
-  if (hasOwnKey(patch, "showOnIdle")) {
-    config.showOnIdle = patch.showOnIdle!;
-    applySettingSource(settingSources, "showOnIdle", sourcePath);
-  }
-
-  if (hasOwnKey(patch, "showOnQuestion")) {
-    config.showOnQuestion = patch.showOnQuestion!;
-    applySettingSource(settingSources, "showOnQuestion", sourcePath);
-  }
-
-  if (hasOwnKey(patch, "showOnCompact")) {
-    config.showOnCompact = patch.showOnCompact!;
-    applySettingSource(settingSources, "showOnCompact", sourcePath);
-  }
-
-  if (hasOwnKey(patch, "showOnBothFail")) {
-    config.showOnBothFail = patch.showOnBothFail!;
-    applySettingSource(settingSources, "showOnBothFail", sourcePath);
-  }
-
-  if (hasOwnKey(patch, "toastDurationMs")) {
-    config.toastDurationMs = patch.toastDurationMs!;
-    applySettingSource(settingSources, "toastDurationMs", sourcePath);
-  }
-
   if (hasOwnKey(patch, "onlyCurrentModel")) {
     config.onlyCurrentModel = patch.onlyCurrentModel!;
     applySettingSource(settingSources, "onlyCurrentModel", sourcePath);
@@ -1093,62 +776,6 @@ function applyValidatedQuotaToastPatch(
       config.tuiSidebarPanel.enabled = patch.tuiSidebarPanel.enabled!;
       applySettingSource(settingSources, "tuiSidebarPanel.enabled", sourcePath);
     }
-
-    if (hasOwnKey(patch.tuiSidebarPanel, "formatStyle")) {
-      config.tuiSidebarPanel.formatStyle = patch.tuiSidebarPanel.formatStyle!;
-      applySettingSource(settingSources, "tuiSidebarPanel.formatStyle", sourcePath);
-    }
-    if (hasOwnKey(patch.tuiSidebarPanel, "opencodeGoPreferredWindow")) {
-      config.tuiSidebarPanel.opencodeGoPreferredWindow =
-        patch.tuiSidebarPanel.opencodeGoPreferredWindow!;
-      applySettingSource(settingSources, "tuiSidebarPanel.opencodeGoPreferredWindow", sourcePath);
-    }
-  }
-
-  if (patch.tuiCompactStatus) {
-    if (hasOwnKey(patch.tuiCompactStatus, "enabled")) {
-      config.tuiCompactStatus.enabled = patch.tuiCompactStatus.enabled!;
-      applySettingSource(settingSources, "tuiCompactStatus.enabled", sourcePath);
-    }
-
-    if (hasOwnKey(patch.tuiCompactStatus, "homeBottom")) {
-      config.tuiCompactStatus.homeBottom = patch.tuiCompactStatus.homeBottom!;
-      applySettingSource(settingSources, "tuiCompactStatus.homeBottom", sourcePath);
-    }
-
-    if (hasOwnKey(patch.tuiCompactStatus, "sessionPrompt")) {
-      config.tuiCompactStatus.sessionPrompt = patch.tuiCompactStatus.sessionPrompt!;
-      applySettingSource(settingSources, "tuiCompactStatus.sessionPrompt", sourcePath);
-    }
-
-    if (hasOwnKey(patch.tuiCompactStatus, "maxWidth")) {
-      config.tuiCompactStatus.maxWidth = patch.tuiCompactStatus.maxWidth!;
-      applySettingSource(settingSources, "tuiCompactStatus.maxWidth", sourcePath);
-    }
-
-    if (hasOwnKey(patch.tuiCompactStatus, "formatStyle")) {
-      config.tuiCompactStatus.formatStyle = patch.tuiCompactStatus.formatStyle!;
-      applySettingSource(settingSources, "tuiCompactStatus.formatStyle", sourcePath);
-    }
-  }
-
-  if (patch.tuiPromptBar) {
-    if (hasOwnKey(patch.tuiPromptBar, "enabled")) {
-      config.tuiPromptBar.enabled = patch.tuiPromptBar.enabled!;
-      applySettingSource(settingSources, "tuiPromptBar.enabled", sourcePath);
-    }
-  }
-
-  if (patch.maintainerAnnouncements) {
-    if (hasOwnKey(patch.maintainerAnnouncements, "enabled")) {
-      config.maintainerAnnouncements.enabled = patch.maintainerAnnouncements.enabled!;
-      applySettingSource(settingSources, "maintainerAnnouncements.enabled", sourcePath);
-    }
-
-    if (hasOwnKey(patch.maintainerAnnouncements, "home")) {
-      config.maintainerAnnouncements.home = patch.maintainerAnnouncements.home!;
-      applySettingSource(settingSources, "maintainerAnnouncements.home", sourcePath);
-    }
   }
 
   if (patch.layout) {
@@ -1165,18 +792,6 @@ function applyValidatedQuotaToastPatch(
     if (hasOwnKey(patch.layout, "tinyAt")) {
       config.layout.tinyAt = patch.layout.tinyAt!;
       applySettingSource(settingSources, "layout.tinyAt", sourcePath);
-    }
-  }
-
-  if (patch.export) {
-    if (hasOwnKey(patch.export, "enabled")) {
-      config.export.enabled = patch.export.enabled!;
-      applySettingSource(settingSources, "export.enabled", sourcePath);
-    }
-
-    if (hasOwnKey(patch.export, "path")) {
-      config.export.path = patch.export.path!;
-      applySettingSource(settingSources, "export.path", sourcePath);
     }
   }
 

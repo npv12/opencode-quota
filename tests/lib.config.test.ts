@@ -148,50 +148,6 @@ describe("loadConfig", () => {
     });
   });
 
-  it("defaults and validates quota reset notifications with provenance", async () => {
-    const defaults = await loadSdkConfig({});
-    expect(defaults.config.resetNotifications).toEqual({
-      enabled: false,
-      windows: ["weekly"],
-    });
-
-    const configured = await loadSdkConfig({
-      resetNotifications: {
-        enabled: true,
-        windows: ["weekly", "monthly", "weekly"],
-      },
-    });
-    expect(configured.config.resetNotifications).toEqual({
-      enabled: true,
-      windows: ["weekly", "monthly"],
-    });
-    expect(configured.meta.settingSources).toEqual({
-      "resetNotifications.enabled": "client.config.get",
-      "resetNotifications.windows": "client.config.get",
-    });
-    expect(configured.meta.networkSettingSources).toEqual({});
-
-    const invalid = await loadSdkConfig({
-      resetNotifications: { enabled: "yes", windows: ["rolling"] },
-    });
-    expect(invalid.config.resetNotifications).toEqual({
-      enabled: false,
-      windows: ["weekly"],
-    });
-    expect(invalid.meta.configIssues).toEqual([
-      {
-        path: "client.config.get",
-        key: "resetNotifications.enabled",
-        message: "expected boolean",
-      },
-      {
-        path: "client.config.get",
-        key: "resetNotifications.windows",
-        message: "expected a non-empty array of: fiveHour, hourly, daily, weekly, monthly, yearly",
-      },
-    ]);
-  });
-
   it("defaults and validates session token scope with provenance", async () => {
     const defaults = await loadSdkConfig({});
     expect(defaults.config.sessionTokenScope).toBe("current");
@@ -220,50 +176,6 @@ describe("loadConfig", () => {
         message: 'expected "current" or "tree"',
       },
     ]);
-  });
-
-  it("defaults maintainer announcements config and accepts validated nested overrides", async () => {
-    const defaults = await loadSdkConfig({});
-    expect(defaults.config.maintainerAnnouncements).toEqual(DEFAULT_CONFIG.maintainerAnnouncements);
-    expect(defaults.config.maintainerAnnouncements).not.toBe(
-      DEFAULT_CONFIG.maintainerAnnouncements,
-    );
-
-    const explicit = await loadSdkConfig({
-      maintainerAnnouncements: {
-        enabled: false,
-        home: false,
-      },
-    });
-    expect(explicit.config.maintainerAnnouncements).toEqual({
-      enabled: false,
-      home: false,
-    });
-    expect(explicit.meta.settingSources).toEqual({
-      "maintainerAnnouncements.enabled": "client.config.get",
-      "maintainerAnnouncements.home": "client.config.get",
-    });
-    expect(explicit.meta.networkSettingSources).toEqual({});
-
-    const partialInvalid = await loadSdkConfig({
-      maintainerAnnouncements: {
-        enabled: true,
-        home: "no",
-      },
-    });
-    expect(partialInvalid.config.maintainerAnnouncements).toEqual({
-      ...DEFAULT_CONFIG.maintainerAnnouncements,
-      enabled: true,
-    });
-    expect(partialInvalid.meta.settingSources).toEqual({
-      "maintainerAnnouncements.enabled": "client.config.get",
-    });
-
-    const invalidNested = await loadSdkConfig({ maintainerAnnouncements: false });
-    expect(invalidNested.config.maintainerAnnouncements).toEqual(
-      DEFAULT_CONFIG.maintainerAnnouncements,
-    );
-    expect(invalidNested.meta.settingSources).toEqual({});
   });
 
   it("defaults telemetry off and accepts an opt-in without changing network settings", async () => {
@@ -317,193 +229,23 @@ describe("loadConfig", () => {
     expect(invalidNested.config.tuiSidebarPanel).toEqual(DEFAULT_CONFIG.tuiSidebarPanel);
     expect(invalidNested.meta.settingSources).toEqual({});
 
-    const withFormatStyle = await loadSdkConfig({
-      tuiSidebarPanel: {
-        formatStyle: "allWindows",
-      },
-    });
-    expect(withFormatStyle.config.tuiSidebarPanel).toEqual({
-      ...DEFAULT_CONFIG.tuiSidebarPanel,
-      formatStyle: "allWindows",
-    });
-    expect(withFormatStyle.meta.settingSources).toEqual({
-      "tuiSidebarPanel.formatStyle": "client.config.get",
-    });
-
-    const withInvalidFormatStyle = await loadSdkConfig({
-      tuiSidebarPanel: {
-        formatStyle: "invalid-style",
-      },
-    });
-    expect(withInvalidFormatStyle.config.tuiSidebarPanel).toEqual(DEFAULT_CONFIG.tuiSidebarPanel);
-    expect(withInvalidFormatStyle.meta.settingSources).toEqual({});
-
-    const validPreferredWindows = ["rolling", "weekly", "monthly"] as const;
-    for (const opencodeGoPreferredWindow of validPreferredWindows) {
-      const preferred = await loadSdkConfig({
-        tuiSidebarPanel: { opencodeGoPreferredWindow },
-      });
-      expect(preferred.config.tuiSidebarPanel).toEqual({
-        ...DEFAULT_CONFIG.tuiSidebarPanel,
-        opencodeGoPreferredWindow,
-      });
-      expect(preferred.meta.settingSources).toEqual({
-        "tuiSidebarPanel.opencodeGoPreferredWindow": "client.config.get",
-      });
-    }
-
-    const invalidPreferred = await loadSdkConfig({
-      tuiSidebarPanel: { opencodeGoPreferredWindow: "daily" },
-    });
-    expect(invalidPreferred.config.tuiSidebarPanel).toEqual(DEFAULT_CONFIG.tuiSidebarPanel);
-    expect(invalidPreferred.meta.settingSources).toEqual({});
-
-    const withLegacyToastStyle = await loadSdkConfig({
+    const withUnknownNestedKey = await loadSdkConfig({
       tuiSidebarPanel: {
         toastStyle: "allWindows",
       },
     });
-    expect(withLegacyToastStyle.config.tuiSidebarPanel).toEqual(DEFAULT_CONFIG.tuiSidebarPanel);
-    expect(withLegacyToastStyle.meta.settingSources).toEqual({});
-  });
-
-  it("defaults tuiCompactStatus and accepts validated nested overrides", async () => {
-    const defaults = await loadSdkConfig({});
-    expect(defaults.config.tuiCompactStatus).toEqual(DEFAULT_CONFIG.tuiCompactStatus);
-    expect(defaults.config.tuiCompactStatus).not.toBe(DEFAULT_CONFIG.tuiCompactStatus);
-
-    const explicit = await loadSdkConfig({
-      tuiCompactStatus: {
-        enabled: true,
-        homeBottom: false,
-        sessionPrompt: false,
-        maxWidth: 72,
-      },
-    });
-    expect(explicit.config.tuiCompactStatus).toEqual({
-      enabled: true,
-      homeBottom: false,
-      sessionPrompt: false,
-      maxWidth: 72,
-    });
-    expect(explicit.meta.settingSources).toEqual({
-      "tuiCompactStatus.enabled": "client.config.get",
-      "tuiCompactStatus.homeBottom": "client.config.get",
-      "tuiCompactStatus.sessionPrompt": "client.config.get",
-      "tuiCompactStatus.maxWidth": "client.config.get",
-    });
-    expect(explicit.meta.networkSettingSources).toEqual({});
-
-    const partialInvalid = await loadSdkConfig({
-      tuiCompactStatus: {
-        enabled: true,
-        homeBottom: "no",
-        sessionPrompt: null,
-        maxWidth: -1,
-      },
-    });
-    expect(partialInvalid.config.tuiCompactStatus).toEqual({
-      ...DEFAULT_CONFIG.tuiCompactStatus,
-      enabled: true,
-    });
-    expect(partialInvalid.meta.settingSources).toEqual({
-      "tuiCompactStatus.enabled": "client.config.get",
-    });
-
-    const invalidNested = await loadSdkConfig({ tuiCompactStatus: "enabled" });
-    expect(invalidNested.config.tuiCompactStatus).toEqual(DEFAULT_CONFIG.tuiCompactStatus);
-    expect(invalidNested.meta.settingSources).toEqual({});
-
-    const withFormatStyle = await loadSdkConfig({
-      tuiCompactStatus: {
-        enabled: true,
-        formatStyle: "singleWindow",
-      },
-    });
-    expect(withFormatStyle.config.tuiCompactStatus).toEqual({
-      ...DEFAULT_CONFIG.tuiCompactStatus,
-      enabled: true,
-      formatStyle: "singleWindow",
-    });
-    expect(withFormatStyle.meta.settingSources).toEqual({
-      "tuiCompactStatus.enabled": "client.config.get",
-      "tuiCompactStatus.formatStyle": "client.config.get",
-    });
-
-    const withInvalidCompactFormatStyle = await loadSdkConfig({
-      tuiCompactStatus: {
-        formatStyle: 42,
-      },
-    });
-    expect(withInvalidCompactFormatStyle.config.tuiCompactStatus).toEqual(
-      DEFAULT_CONFIG.tuiCompactStatus,
-    );
-    expect(withInvalidCompactFormatStyle.meta.settingSources).toEqual({});
-
-    const withLegacyCompactToastStyle = await loadSdkConfig({
-      tuiCompactStatus: {
-        toastStyle: "allWindows",
-      },
-    });
-    expect(withLegacyCompactToastStyle.config.tuiCompactStatus).toEqual(
-      DEFAULT_CONFIG.tuiCompactStatus,
-    );
-    expect(withLegacyCompactToastStyle.meta.settingSources).toEqual({});
-  });
-
-  it("defaults tuiPromptBar off and accepts validated opt-in overrides", async () => {
-    const defaults = await loadSdkConfig({});
-    expect(defaults.config.tuiPromptBar).toEqual({ enabled: false });
-    expect(defaults.config.tuiPromptBar).not.toBe(DEFAULT_CONFIG.tuiPromptBar);
-
-    const enabled = await loadSdkConfig({ tuiPromptBar: { enabled: true } });
-    expect(enabled.config.tuiPromptBar).toEqual({ enabled: true });
-    expect(enabled.meta.settingSources).toEqual({
-      "tuiPromptBar.enabled": "client.config.get",
-    });
-
-    const disabled = await loadSdkConfig({ tuiPromptBar: { enabled: false } });
-    expect(disabled.config.tuiPromptBar).toEqual({ enabled: false });
-    expect(disabled.meta.settingSources).toEqual({
-      "tuiPromptBar.enabled": "client.config.get",
-    });
-
-    const invalidValue = await loadSdkConfig({ tuiPromptBar: { enabled: "yes" } });
-    expect(invalidValue.config.tuiPromptBar).toEqual({ enabled: false });
-    expect(invalidValue.meta.settingSources).toEqual({});
-
-    const invalidNested = await loadSdkConfig({ tuiPromptBar: true });
-    expect(invalidNested.config.tuiPromptBar).toEqual({ enabled: false });
-    expect(invalidNested.meta.settingSources).toEqual({});
+    expect(withUnknownNestedKey.config.tuiSidebarPanel).toEqual(DEFAULT_CONFIG.tuiSidebarPanel);
+    expect(withUnknownNestedKey.meta.settingSources).toEqual({});
   });
 
   it("deep-clones default config when no config source exists", async () => {
     const meta = createLoadConfigMeta();
     const first = await loadConfig(undefined, meta, { cwd: isolatedCwd });
     first.tuiSidebarPanel.enabled = false;
-    first.tuiCompactStatus.enabled = true;
-    first.tuiCompactStatus.maxWidth = 1;
-    first.tuiPromptBar.enabled = true;
-    first.maintainerAnnouncements.enabled = false;
-    first.maintainerAnnouncements.home = false;
 
     const second = await loadConfig(undefined, undefined, { cwd: isolatedCwd });
     expect(second.tuiSidebarPanel).toEqual(DEFAULT_CONFIG.tuiSidebarPanel);
-    expect(second.tuiCompactStatus).toEqual(DEFAULT_CONFIG.tuiCompactStatus);
-    expect(second.tuiPromptBar).toEqual(DEFAULT_CONFIG.tuiPromptBar);
     expect(DEFAULT_CONFIG.tuiSidebarPanel).toEqual({ enabled: true });
-    expect(DEFAULT_CONFIG.tuiCompactStatus).toEqual({
-      enabled: false,
-      homeBottom: true,
-      sessionPrompt: true,
-      maxWidth: 96,
-    });
-    expect(DEFAULT_CONFIG.tuiPromptBar).toEqual({ enabled: false });
-    expect(second.maintainerAnnouncements).toEqual(DEFAULT_CONFIG.maintainerAnnouncements);
-    expect(DEFAULT_CONFIG.maintainerAnnouncements).toEqual({
-      enabled: true,
-      home: true,
-    });
   });
 
   it("defaults requestTimeoutMs to 5000 and accepts positive finite overrides", async () => {
@@ -1089,14 +831,14 @@ describe("loadConfig", () => {
 
   it("records sdk fallback provenance only for explicitly applied valid settings", async () => {
     const { config, meta } = await loadSdkConfig({
-      enableToast: false,
+      onlyCurrentModel: true,
       enabledProviders: ["nano-gpt"],
       pricingSnapshot: { source: "remote", autoRefresh: 2 },
       layout: { tinyAt: 28, maxWidth: 0 },
       toastStyle: "grouped",
     });
 
-    expect(config.enableToast).toBe(false);
+    expect(config.onlyCurrentModel).toBe(true);
     expect(config.enabledProviders).toEqual(["nanogpt"]);
     expect(config.formatStyle).toBe("allWindows");
     expect(config.pricingSnapshot).toEqual({ source: "auto", autoRefresh: 2 });
@@ -1107,7 +849,7 @@ describe("loadConfig", () => {
     expect(meta.globalConfigPaths).toEqual([]);
     expect(meta.workspaceConfigPaths).toEqual([]);
     expect(meta.settingSources).toEqual({
-      enableToast: "client.config.get",
+      onlyCurrentModel: "client.config.get",
       enabledProviders: "client.config.get",
       formatStyle: "client.config.get",
       "pricingSnapshot.autoRefresh": "client.config.get",

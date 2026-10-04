@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { QuotaToastEntry } from "../src/lib/entries.js";
-import { renderAccountingFourSurfaces } from "./helpers/accounting-four-surface.js";
+import { renderAccountingSurfaces } from "./helpers/accounting-surfaces.js";
 
 const balanceAccounting = {
   resultType: "balance",
@@ -40,9 +40,9 @@ function availabilityEntry(value: boolean): QuotaToastEntry {
   };
 }
 
-describe("DeepSeek structured four-surface formatting", () => {
+describe("DeepSeek structured provider surface formatting", () => {
   it("keeps USD and CNY totals separate and hides supplementary components in summary", () => {
-    const outputs = renderAccountingFourSurfaces({
+    const outputs = renderAccountingSurfaces({
       data: {
         entries: [
           balanceEntry("USD", "total_balance", "primary", "12.340000000000000001"),
@@ -51,12 +51,11 @@ describe("DeepSeek structured four-surface formatting", () => {
         errors: [],
       },
       accountingDetail: "summary",
-      toastMaxWidth: 64,
-      toastNarrowAt: 44,
-      compactMaxWidth: 240,
+      showMaxWidth: 64,
+      showNarrowAt: 44,
     });
 
-    for (const output of Object.values(outputs)) {
+    for (const output of [outputs.command, outputs.show, outputs.sidebar]) {
       expect(output).toContain("DeepSeek");
       expect(output).toContain("USD 12.34");
       expect(output).toContain("CNY 88.25");
@@ -68,7 +67,7 @@ describe("DeepSeek structured four-surface formatting", () => {
   });
 
   it("shows granted and topped-up components in detailed output", () => {
-    const outputs = renderAccountingFourSurfaces({
+    const outputs = renderAccountingSurfaces({
       data: {
         entries: [
           balanceEntry("USD", "total_balance", "primary", "12.34"),
@@ -78,18 +77,21 @@ describe("DeepSeek structured four-surface formatting", () => {
         errors: [],
       },
       accountingDetail: "detailed",
-      toastMaxWidth: 64,
-      toastNarrowAt: 44,
-      compactMaxWidth: 240,
+      showMaxWidth: 64,
+      showNarrowAt: 44,
     });
 
-    for (const output of [outputs.command, outputs.toast, outputs.sidebar]) {
+    for (const output of [outputs.command, outputs.show]) {
       expect(output).toContain("Granted balance");
       expect(output).toContain("USD 2.00");
       expect(output).toContain("Topped-up balance");
       expect(output).toContain("USD 10.34");
     }
-    expect(outputs.toast.split("\n").every((line) => line.length <= 64)).toBe(true);
+    expect(outputs.sidebar).not.toContain("Granted");
+    expect(outputs.sidebar).toContain("USD 2.00");
+    expect(outputs.sidebar).not.toContain("Topped-up");
+    expect(outputs.sidebar).toContain("USD 10.34");
+    expect(outputs.show.split("\n").every((line) => line.length <= 64)).toBe(true);
     expect(outputs.sidebar.split("\n").every((line) => line.length <= 36)).toBe(true);
   });
 
@@ -97,18 +99,19 @@ describe("DeepSeek structured four-surface formatting", () => {
     [true, "Available"],
     [false, "Low balance"],
   ])("renders the boolean availability fallback as %s", (value, text) => {
-    const outputs = renderAccountingFourSurfaces({
+    const outputs = renderAccountingSurfaces({
       data: { entries: [availabilityEntry(value)], errors: [] },
       accountingDetail: "summary",
-      toastMaxWidth: 64,
-      toastNarrowAt: 44,
-      compactMaxWidth: 240,
+      showMaxWidth: 64,
+      showNarrowAt: 44,
     });
 
-    for (const output of Object.values(outputs)) {
+    for (const output of [outputs.command, outputs.show]) {
       expect(output).toContain("Availability");
       expect(output).toContain(text);
       expect(output).not.toContain("Balance: 0");
     }
+    expect(outputs.sidebar).toContain(text.startsWith("Low") ? "Low" : "Available");
+    expect(outputs.sidebar).not.toContain("Balance: 0");
   });
 });

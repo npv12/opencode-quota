@@ -30,7 +30,7 @@ function filesQueryingCredentials(reached: string[]): string[] {
 }
 
 describe("tui dist import graph", () => {
-  // Run after `pnpm build`. The TUI asks the server plugin for quota over the RPC, so it
+  // Run after `bun run build`. The TUI asks the server plugin for quota over the RPC, so it
   // must load no login reader and no provider code.
   it("reaches no credential or provider module from dist/tui.js", () => {
     const entry = resolve(distDir, "tui.js");

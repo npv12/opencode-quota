@@ -9,7 +9,6 @@ import type {
   QuotaToastError,
   SessionTokensData,
 } from "./entries.js";
-import { cloneQuotaToastEntry } from "./entries.js";
 import {
   getQuotaProviderDisplayLabel,
   getQuotaProviderIdsForRuntimeId,
@@ -19,13 +18,12 @@ import { projectQuotaProviderResults } from "./quota-accounting-projection.js";
 import type { QuotaFormatStyle } from "./quota-format-style.js";
 import { createQuotaProviderRuntimeContext } from "./quota-runtime-context.js";
 import { fetchQuotaProviderResult } from "./quota-state.js";
-import type { SessionTokenError } from "./quota-status.js";
 import { retainQuotaTelemetryProviders } from "./quota-telemetry.js";
 import {
   createRuntimeProviderIdResolver,
   type RuntimeProviderIdResolver,
 } from "./runtime-provider-ids.js";
-import { fetchSessionTokensForDisplay } from "./session-tokens.js";
+import { fetchSessionTokensForDisplay, type SessionTokenError } from "./session-tokens.js";
 import type { QuotaToastConfig } from "./types.js";
 
 export type SessionModelMeta = {
@@ -79,41 +77,15 @@ async function getProviderAvailability(params: {
   }
 }
 
-export async function collectConcreteEnabledProviderIds(params: {
-  providers: QuotaProvider[];
-  ctx: QuotaProviderContext;
-  enabledProviders: string[] | "auto";
-}): Promise<string[]> {
-  const candidates =
-    params.enabledProviders === "auto"
-      ? params.providers
-      : params.providers.filter((provider) => params.enabledProviders.includes(provider.id));
-
-  const availability = await Promise.all(
-    candidates.map((provider) => getProviderAvailability({ provider, ctx: params.ctx })),
-  );
-
-  return availability.filter((item) => item.ok).map((item) => item.provider.id);
-}
-
 export type CollectQuotaRenderDataResult = {
   selection: QuotaRenderSelection | null;
   availability: QuotaAvailability[];
   active: QuotaProvider[];
-  /** Unprojected provider results for stateful observers such as reset detection. */
-  providerResults: QuotaStatusLiveProbe[];
+  providerResults: QuotaProviderResult[];
   attemptedAny: boolean;
   hasExplicitProviderIssues: boolean;
   data: QuotaRenderData | null;
-  allWindowsData?: QuotaRenderData | null;
-  /** Pre-computed singleWindow-projected data. Only present when includeAllWindowsData=true and root style is allWindows. */
-  singleWindowData?: QuotaRenderData | null;
   sessionTokenError?: SessionTokenError;
-};
-
-export type QuotaStatusLiveProbe = {
-  providerId: string;
-  result: QuotaProviderResult;
 };
 
 export function matchesQuotaProviderCurrentSelection(params: {
@@ -302,77 +274,6 @@ export async function fetchProviderResults(params: {
   );
 }
 
-export async function collectQuotaStatusLiveProbes(params: {
-  client: QuotaProviderContext["client"];
-  config: QuotaToastConfig;
-  request?: QuotaRequestContext;
-  workspaceRoot: string;
-  configMeta?: Pick<LoadConfigMeta, "settingSources">;
-  providers: QuotaProvider[];
-  resolveRuntimeProviderIds?: RuntimeProviderIdResolver;
-}): Promise<QuotaStatusLiveProbe[]> {
-  if (params.providers.length === 0) {
-    return [];
-  }
-
-  let currentModel: string | undefined;
-  let currentProviderID: string | undefined;
-  if (params.config.onlyCurrentModel && params.request?.sessionMeta) {
-    currentModel = params.request.sessionMeta.modelID;
-    currentProviderID = params.request.sessionMeta.providerID;
-  }
-
-  const ctx = createQuotaProviderRuntimeContext({
-    client: params.client,
-    config: params.config,
-    configMeta: params.configMeta,
-    resolveRuntimeProviderIds:
-      params.resolveRuntimeProviderIds ?? createRuntimeProviderIdResolver(params.client),
-    workspaceRoot: params.workspaceRoot,
-    session: {
-      sessionMeta: {
-        modelID: currentModel,
-        providerID: currentProviderID,
-      },
-    },
-  });
-
-  const resultsByProviderId = new Map<string, Promise<QuotaProviderResult>>();
-  const results = await Promise.all(
-    params.providers.map((provider) => {
-      let result = resultsByProviderId.get(provider.id);
-      if (!result) {
-        result = fetchProviderWithCache({
-          provider,
-          ctx,
-          ttlMs: 0,
-          bypassCache: true,
-        }).catch(() => makeProviderFetchFailure(provider));
-        resultsByProviderId.set(provider.id, result);
-      }
-      return result;
-    }),
-  );
-
-  return params.providers.map((provider, index) => ({
-    providerId: provider.id,
-    result: {
-      ...results[index]!,
-      entries: results[index]!.entries.map(cloneQuotaToastEntry),
-      errors: results[index]!.errors.map((error) => ({ ...error })),
-      ...(results[index]!.statusDetails
-        ? { statusDetails: results[index]!.statusDetails!.map((detail) => ({ ...detail })) }
-        : {}),
-      ...(results[index]!.rawDetails
-        ? { rawDetails: results[index]!.rawDetails!.map((detail) => ({ ...detail })) }
-        : {}),
-      ...(results[index]!.presentation
-        ? { presentation: { ...results[index]!.presentation } }
-        : {}),
-    },
-  }));
-}
-
 function getExplicitNoDataMessage(provider: QuotaProvider): string {
   if (provider.id === "cursor") {
     return "No local usage yet";
@@ -469,7 +370,6 @@ export async function collectQuotaRenderData(params: {
   configMeta?: Pick<LoadConfigMeta, "settingSources">;
   bypassProviderCache?: boolean;
   providers?: QuotaProvider[];
-  includeAllWindowsData?: boolean;
   resolveRuntimeProviderIds?: RuntimeProviderIdResolver;
 }): Promise<CollectQuotaRenderDataResult> {
   const resolveRuntimeProviderIds =
@@ -599,51 +499,14 @@ export async function collectQuotaRenderData(params: {
 
   const data = packageQuotaRenderData({ entries, errors, sessionTokens });
 
-  let allWindowsData: QuotaRenderData | null | undefined;
-  let singleWindowData: QuotaRenderData | null | undefined;
-  if (params.includeAllWindowsData) {
-    const allWindowsEntries =
-      style === "allWindows"
-        ? entries
-        : projectQuotaProviderResults(
-            results,
-            "allWindows",
-            params.config.accountingDetail,
-            projectionOptions,
-          );
-    allWindowsData = packageQuotaRenderData({
-      entries: allWindowsEntries,
-      errors: [...errors],
-      sessionTokens,
-    });
-
-    if (style === "allWindows") {
-      singleWindowData = packageQuotaRenderData({
-        entries: projectQuotaProviderResults(
-          results,
-          "singleWindow",
-          params.config.accountingDetail,
-          projectionOptions,
-        ),
-        errors: [...errors],
-        sessionTokens,
-      });
-    }
-  }
-
   return {
     selection,
     availability,
     active,
-    providerResults: active.map((provider, index) => ({
-      providerId: provider.id,
-      result: results[index]!,
-    })),
+    providerResults: results,
     attemptedAny,
     hasExplicitProviderIssues,
     data,
-    allWindowsData,
-    singleWindowData,
     sessionTokenError,
   };
 }

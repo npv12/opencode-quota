@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { QuotaRenderData } from "../src/lib/quota-render-data.js";
-import { renderAccountingFourSurfaces } from "./helpers/accounting-four-surface.js";
+import { renderAccountingSurfaces } from "./helpers/accounting-surfaces.js";
 
 const EMPTY_OBJECT_DIAGNOSTIC = "Synthetic returned no quota data for this account.";
 
@@ -10,18 +10,16 @@ const emptyObjectData: QuotaRenderData = {
   errors: [{ label: "Synthetic", message: EMPTY_OBJECT_DIAGNOSTIC }],
 };
 
-describe("Synthetic empty-object four-surface formatting", () => {
+describe("Synthetic empty-object provider surface formatting", () => {
   it("shows the no-quota diagnostic without fabricating rows or auth inference", () => {
-    const outputs = renderAccountingFourSurfaces({
+    const outputs = renderAccountingSurfaces({
       data: emptyObjectData,
       accountingDetail: "summary",
-      toastMaxWidth: 64,
-      toastNarrowAt: 44,
-      compactMaxWidth: 160,
+      showMaxWidth: 64,
+      showNarrowAt: 44,
     });
 
     for (const output of Object.values(outputs)) {
-      // The sidebar wraps long error rows to its width.
       expect(output.replaceAll("\n", " ")).toContain(EMPTY_OBJECT_DIAGNOSTIC);
       expect(output).not.toContain("5h:");
       expect(output).not.toContain("Weekly:");

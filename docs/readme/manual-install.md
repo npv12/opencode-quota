@@ -2,18 +2,12 @@
 
 # Manual install
 
-The guided installer is easier and safer:
-
-```bash
-npx @slkiser/opencode-quota@latest init
-```
-
-Use this page only if you want to edit OpenCode files yourself.
+Edit the OpenCode files yourself. This fork ships no guided installer.
 
 ## Requirements
 
-- OpenCode `2.0.16` or newer. On OpenCode 1, use `npx @slkiser/opencode-quota@4 init`.
-- Node.js `22.13+` is required for `npx @slkiser/opencode-quota ...` (on Node 23, `23.4+`).
+- OpenCode `2.0.16` or newer.
+- Node.js `22.13+` is required for `npx @npv12/opencode-quota ...` (on Node 23, `23.4+`).
 
 ## Choose where to install
 
@@ -25,14 +19,16 @@ Use `.jsonc` files if you want comments, or `.json` if another tool needs strict
 
 ## 1. Add the plugin
 
-Add OpenCode Quota to `opencode.jsonc` or `opencode.json`, and keep your other plugins. This one entry loads both the server and the TUI; no `tui.json` entry is needed:
+Add OpenCode Quota to `opencode.jsonc` or `opencode.json`, and keep your other plugins. The package exports both a server plugin and a `./tui` CLI plugin, and OpenCode loads the `./tui` export automatically beside the server plugin:
 
 ```jsonc
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@slkiser/opencode-quota"],
+  "plugins": ["@npv12/opencode-quota"],
 }
 ```
+
+A package that ships only a CLI plugin is listed in `cli.json` instead; `@npv12/opencode-quota` is not CLI-only.
 
 ## 2. Add quota settings
 
@@ -46,37 +42,19 @@ Create `opencode-quota/quota-toast.jsonc` next to that OpenCode config:
   // Show the Quota panel in the TUI sidebar.
   "tuiSidebarPanel": { "enabled": true },
 
-  // Keep the other automatic TUI displays off.
-  "enableToast": false,
-  "tuiCompactStatus": { "enabled": false },
-
-  // Show a one-time count of maintainer notices.
-  "maintainerAnnouncements": { "enabled": true, "home": true },
+  // Keep slash reports in the chat instead of a popup.
+  "tuiCommandDisplay": "inline",
 }
 ```
 
-Restart OpenCode, then run `/quota` and `/quota_status` in the TUI. `/quota_status` shows the exact files OpenCode Quota loaded.
+Restart OpenCode, then run `/quota` in the TUI.
 
-## Choose what appears in the TUI
+## TUI notes
 
-| You want                   | Setting                                   |
-| -------------------------- | ----------------------------------------- |
-| Sidebar panel              | `tuiSidebarPanel.enabled: true`           |
-| Popup quota notifications  | `enableToast: true`                       |
-| Compact quota line         | `tuiCompactStatus.enabled: true`          |
-| Quota bar under the prompt | `tuiPromptBar.enabled: true`              |
-| Slash commands only        | Turn off sidebar, toast, and compact line |
-
-Web and Desktop show none of these. See [Configuration](configuration.md) for every setting.
-
-## Web and Desktop notes
-
-- Slash commands work in the TUI, Web, and Desktop. Add arguments after the command, like `/tokens_between 2026-09-01 2026-09-25`.
-- **TUI:** a slash command opens the report in a popup and leaves no chat message (default `tuiCommandDisplay: "dialog"`). Set `"inline"` to keep it in the chat. The command palette runs the same commands, always in a popup, and asks for missing dates.
+- **TUI:** `/quota` opens the report in a popup and leaves no chat message (default `tuiCommandDisplay: "dialog"`). Set `"inline"` to keep it in the chat.
 - **Web and Desktop:** `/quota` posts the report in the chat as your message. The AI never answers it, and the plugin filters it out of every AI request. If you uninstall the plugin, old reports in past chats are no longer filtered.
 - Each report starts with `[OpenCode Quota report]` and ends with `[End of OpenCode Quota report]`, which also keeps it out of compaction summaries.
-- Web uses a proportional font, so columns may not line up. Use the TUI or `npx @slkiser/opencode-quota show` for aligned columns.
+- Web uses a proportional font, so columns may not line up. Use the TUI or `npx @npv12/opencode-quota show` for aligned columns.
 - If the AI is busy, the report appears after it finishes. A new session whose first message is a report keeps its default title.
-- The AI can call the `quota_status` tool to check your setup.
 
-To update later, see [Updating safely](updating.md).
+See [Configuration](configuration.md) for every setting.

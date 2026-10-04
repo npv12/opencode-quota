@@ -246,33 +246,21 @@ describe("GitHub workflows", () => {
     }
   });
 
-  it("keeps upstream issue reconciliation on Node 22 with minimal permissions", async () => {
-    const source = await readFile(".github/workflows/upstream-plugin-update-check.yml", "utf8");
-    const workflow = parse(source) as Workflow;
-    const checkJob = workflow.jobs.check;
-    const setupNode = checkJob?.steps?.find((step) => step.name === "Setup Node.js");
-    const reconcile = checkJob?.steps?.find(
-      (step) => step.name === "Reconcile upstream plugin issues",
-    );
-
-    expect(workflow.concurrency?.["cancel-in-progress"]).toBe(false);
-    expect(checkJob?.permissions).toEqual({
-      contents: "read",
-      issues: "write",
-    });
-    expect(setupNode?.with?.["node-version"]).toBe(22);
-    expect(reconcile?.run).toBe("node scripts/check-upstream-plugin-updates.mjs --write-issues");
-
+  it("ships no issue-writing or upstream reconciliation workflow", async () => {
     const workflowFiles = (await readdir(".github/workflows")).filter((file) =>
       /\.ya?ml$/u.test(file),
     );
-    const writeIssueWorkflows: string[] = [];
+    expect(workflowFiles.sort()).toEqual([
+      "ci.yml",
+      "close-inactive-issues.yml",
+      "publish-npm.yml",
+      "thin-issue-check.yml",
+    ]);
+
     for (const file of workflowFiles) {
       const workflowSource = await readFile(`.github/workflows/${file}`, "utf8");
-      if (workflowSource.includes("--write-issues")) {
-        writeIssueWorkflows.push(file);
-      }
+      expect(workflowSource, file).not.toContain("--write-issues");
+      expect(workflowSource, file).not.toContain("upstream-plugin");
     }
-    expect(writeIssueWorkflows).toEqual(["upstream-plugin-update-check.yml"]);
   });
 });

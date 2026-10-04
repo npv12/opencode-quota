@@ -61,10 +61,6 @@ describe("loadConfig layered precedence", () => {
           quotaToast: {
             enabled: false,
             enabledProviders: ["openai"],
-            showOnIdle: false,
-            showOnQuestion: false,
-            showOnCompact: false,
-            showOnBothFail: false,
             minIntervalMs: 600000,
             pricingSnapshot: { source: "bundled", autoRefresh: 30 },
             formatStyle: "singleWindow",
@@ -82,10 +78,6 @@ describe("loadConfig layered precedence", () => {
           quotaToast: {
             enabled: true,
             enabledProviders: ["chutes"],
-            showOnIdle: true,
-            showOnQuestion: true,
-            showOnCompact: true,
-            showOnBothFail: true,
             minIntervalMs: 1000,
             pricingSnapshot: { source: "runtime", autoRefresh: 1 },
             formatStyle: "allWindows",
@@ -116,10 +108,6 @@ describe("loadConfig layered precedence", () => {
 
     expect(cfg.enabled).toBe(true);
     expect(cfg.enabledProviders).toEqual(["chutes"]);
-    expect(cfg.showOnIdle).toBe(true);
-    expect(cfg.showOnQuestion).toBe(true);
-    expect(cfg.showOnCompact).toBe(true);
-    expect(cfg.showOnBothFail).toBe(true);
     expect(cfg.minIntervalMs).toBe(1000);
     expect(cfg.pricingSnapshot).toEqual({ source: "runtime", autoRefresh: 1 });
     expect(cfg.formatStyle).toBe("allWindows");
@@ -275,51 +263,6 @@ describe("loadConfig layered precedence", () => {
     expect(meta.networkSettingSources).toEqual({});
   });
 
-  it("merges maintainer announcements per field and ignores invalid workspace fields", async () => {
-    writeFileSync(
-      join(xdgConfigHome, "opencode", "opencode.json"),
-      JSON.stringify({
-        experimental: {
-          quotaToast: {
-            maintainerAnnouncements: {
-              enabled: false,
-            },
-          },
-        },
-      }),
-      "utf-8",
-    );
-
-    writeFileSync(
-      join(workspaceDir, "opencode.json"),
-      JSON.stringify({
-        experimental: {
-          quotaToast: {
-            maintainerAnnouncements: {
-              home: false,
-            },
-          },
-        },
-      }),
-      "utf-8",
-    );
-
-    const meta = createLoadConfigMeta();
-    const cfg = await loadConfig(undefined, meta, { cwd: workspaceDir });
-
-    expect(cfg.maintainerAnnouncements).toEqual({
-      enabled: false,
-      home: false,
-    });
-    expect(meta.settingSources["maintainerAnnouncements.enabled"]).toBe(
-      quotaConfigSource(join(xdgConfigHome, "opencode")),
-    );
-    expect(meta.settingSources["maintainerAnnouncements.home"]).toBe(
-      quotaConfigSource(workspaceDir),
-    );
-    expect(meta.networkSettingSources).toEqual({});
-  });
-
   it("merges tuiSidebarPanel enabled per layer and ignores invalid workspace fields", async () => {
     writeFileSync(
       join(xdgConfigHome, "opencode", "opencode.json"),
@@ -328,7 +271,6 @@ describe("loadConfig layered precedence", () => {
           quotaToast: {
             tuiSidebarPanel: {
               enabled: false,
-              opencodeGoPreferredWindow: "rolling",
             },
           },
         },
@@ -343,7 +285,6 @@ describe("loadConfig layered precedence", () => {
           quotaToast: {
             tuiSidebarPanel: {
               enabled: "yes",
-              opencodeGoPreferredWindow: "daily",
             },
           },
         },
@@ -356,68 +297,9 @@ describe("loadConfig layered precedence", () => {
 
     expect(cfg.tuiSidebarPanel).toEqual({
       enabled: false,
-      opencodeGoPreferredWindow: "rolling",
     });
     expect(meta.settingSources["tuiSidebarPanel.enabled"]).toBe(
       quotaConfigSource(join(xdgConfigHome, "opencode")),
-    );
-    expect(meta.settingSources["tuiSidebarPanel.opencodeGoPreferredWindow"]).toBe(
-      quotaConfigSource(join(xdgConfigHome, "opencode")),
-    );
-  });
-
-  it("merges tuiCompactStatus per field and ignores invalid workspace fields", async () => {
-    writeFileSync(
-      join(xdgConfigHome, "opencode", "opencode.json"),
-      JSON.stringify({
-        experimental: {
-          quotaToast: {
-            tuiCompactStatus: {
-              enabled: true,
-              sessionPrompt: false,
-              maxWidth: 80,
-            },
-          },
-        },
-      }),
-      "utf-8",
-    );
-
-    writeFileSync(
-      join(workspaceDir, "opencode.json"),
-      JSON.stringify({
-        experimental: {
-          quotaToast: {
-            tuiCompactStatus: {
-              homeBottom: false,
-              maxWidth: 0,
-            },
-          },
-        },
-      }),
-      "utf-8",
-    );
-
-    const meta = createLoadConfigMeta();
-    const cfg = await loadConfig(undefined, meta, { cwd: workspaceDir });
-
-    expect(cfg.tuiCompactStatus).toEqual({
-      enabled: true,
-      homeBottom: false,
-      sessionPrompt: false,
-      maxWidth: 80,
-    });
-    expect(meta.settingSources["tuiCompactStatus.enabled"]).toBe(
-      quotaConfigSource(join(xdgConfigHome, "opencode")),
-    );
-    expect(meta.settingSources["tuiCompactStatus.sessionPrompt"]).toBe(
-      quotaConfigSource(join(xdgConfigHome, "opencode")),
-    );
-    expect(meta.settingSources["tuiCompactStatus.maxWidth"]).toBe(
-      quotaConfigSource(join(xdgConfigHome, "opencode")),
-    );
-    expect(meta.settingSources["tuiCompactStatus.homeBottom"]).toBe(
-      quotaConfigSource(workspaceDir),
     );
   });
 

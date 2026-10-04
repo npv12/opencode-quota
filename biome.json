@@ -8,11 +8,9 @@
   "files": {
     "includes": [
       "**",
-      "!!pnpm-lock.yaml",
+      "!!bun.lock",
       "!!dist",
       "!!node_modules",
-      "!!package-artifacts",
-      "!!references/upstream-plugins",
       "!!src/data/modelsdev-pricing.min.json"
     ]
   },

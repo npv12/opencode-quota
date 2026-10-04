@@ -1,325 +1,150 @@
-import { rm } from "node:fs/promises";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createLoadConfigMeta } from "../src/lib/config.js";
+import type { CollectQuotaRenderDataResult } from "../src/lib/quota-render-data.js";
+import type { QuotaRuntimeContext } from "../src/lib/quota-runtime-context.js";
 import type { QuotaSurfaceHost } from "../src/lib/quota-surface-data.js";
-import {
-  createAlibabaAuthModuleMock,
-  createConfigModuleMock,
-  createPluginRuntimePathsMockModule,
-  createPricingModuleMock,
-  createProvidersRegistryModuleMock,
-  makeQuotaToastTestConfig,
-  seedDefaultPluginBootstrapMocks,
-} from "./helpers/plugin-test-harness.js";
+import { createRuntimeProviderIdResolver } from "../src/lib/runtime-provider-ids.js";
+import { DEFAULT_CONFIG } from "../src/lib/types.js";
 
-const TEST_RUNTIME_ROOT = "/tmp/opencode-quota-lib-quota-surface-data-tests";
-const TEST_ACCOUNTING = {
-  resultType: "quota",
-  acquisitionMethod: "remote_api",
-  ownership: "maintained",
-  authority: "provider_reported",
-} as const;
-const ANNOUNCEMENT_HOME_MESSAGE =
-  "Notice: Maintainer announcement available. Run /quota_announcements.";
-
-const TEST_ANNOUNCEMENT = vi.hoisted(() => ({
-  id: "copilot-credits",
-  message: "If you use Copilot, GitHub billing is moving to AI Credits.",
-  url: "https://github.blog/example",
-  providerIds: ["copilot"],
+const mocks = vi.hoisted(() => ({ resolve: vi.fn(), collect: vi.fn() }));
+vi.mock("../src/lib/quota-runtime-context.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/lib/quota-runtime-context.js")>()),
+  resolveQuotaRuntimeContext: mocks.resolve,
+}));
+vi.mock("../src/lib/quota-render-data.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/lib/quota-render-data.js")>()),
+  collectQuotaRenderData: mocks.collect,
 }));
 
-const mocks = vi.hoisted(() => ({
-  loadConfig: vi.fn(),
-  getProviders: vi.fn(),
-  maybeRefreshPricingSnapshot: vi.fn(),
-  getPricingSnapshotMeta: vi.fn(),
-  getPricingSnapshotSource: vi.fn(),
-  getRuntimePricingRefreshStatePath: vi.fn(),
-  getRuntimePricingSnapshotPath: vi.fn(),
-  setPricingSnapshotAutoRefresh: vi.fn(),
-  setPricingSnapshotSelection: vi.fn(),
-  resolveAlibabaCodingPlanAuthCached: vi.fn(),
-  getMaintainerAnnouncementsSummary: vi.fn(),
-  formatMaintainerAnnouncementHomeCountLine: vi.fn(),
-}));
+import { getQuotaMessage } from "../src/lib/quota-surface-data.js";
 
-vi.mock("../src/lib/config.js", () => createConfigModuleMock(mocks.loadConfig));
-vi.mock("../src/providers/registry.js", () =>
-  createProvidersRegistryModuleMock(mocks.getProviders),
-);
-vi.mock("../src/lib/modelsdev-pricing.js", () => createPricingModuleMock(mocks));
-vi.mock("../src/lib/alibaba-auth.js", () =>
-  createAlibabaAuthModuleMock(mocks.resolveAlibabaCodingPlanAuthCached),
-);
-vi.mock("../src/lib/opencode-runtime-paths.js", () =>
-  createPluginRuntimePathsMockModule(TEST_RUNTIME_ROOT),
-);
-vi.mock("../src/lib/maintainer-announcements.js", () => ({
-  BUNDLED_MAINTAINER_ANNOUNCEMENTS: [TEST_ANNOUNCEMENT],
-  formatMaintainerAnnouncementHomeCountLine: mocks.formatMaintainerAnnouncementHomeCountLine,
-  getMaintainerAnnouncementsSummary: mocks.getMaintainerAnnouncementsSummary,
-  getMaintainerAnnouncementTargetProviderIds: () => ["copilot"],
-}));
-
-function createHost(): QuotaSurfaceHost {
-  return {
-    client: {
-      config: {
-        get: async () => ({ data: {} }),
-        providers: async () => ({ data: { providers: [{ id: "copilot" }] } }),
-      },
+const host: QuotaSurfaceHost = {
+  client: {
+    config: {
+      get: async () => ({ data: {} }),
+      providers: async () => ({ data: { providers: [] } }),
     },
-    roots: {
-      workspaceRoot: process.cwd(),
-      configRoot: process.cwd(),
-      fallbackDirectory: process.cwd(),
-    },
-    resolveSessionMeta: async () => ({}),
-  };
-}
+  },
+  roots: {
+    workspaceRoot: "/project",
+    configRoot: "/project",
+    fallbackDirectory: "/project/nested",
+  },
+  resolveSessionMeta: vi.fn().mockResolvedValue({ providerID: "openai", modelID: "gpt-5" }),
+};
 
-function makeCopilotProvider() {
-  return {
-    id: "copilot",
-    isAvailable: vi.fn().mockResolvedValue(true),
-    fetch: vi.fn().mockResolvedValue({
-      attempted: true,
-      entries: [{ accounting: TEST_ACCOUNTING, name: "Copilot", percentRemaining: 81 }],
-      errors: [],
-    }),
-  };
-}
+describe("sidebar quota data", () => {
+  let runtime: QuotaRuntimeContext;
+  let result: CollectQuotaRenderDataResult;
 
-describe("quota surface data", () => {
-  beforeEach(async () => {
-    seedDefaultPluginBootstrapMocks(mocks, { resetPluginState: true });
-    mocks.getMaintainerAnnouncementsSummary.mockReturnValue({
-      source: "bundled_only",
-      network: false,
-      bundledCount: 1,
-      activeCount: 1,
-      futureCount: 0,
-      expiredCount: 0,
-      activeAnnouncements: [{ announcement: TEST_ANNOUNCEMENT, active: true, reasons: [] }],
-      evaluations: [],
-    });
-    mocks.formatMaintainerAnnouncementHomeCountLine.mockImplementation((activeCount: number) =>
-      activeCount === 1 ? ANNOUNCEMENT_HOME_MESSAGE : "",
-    );
-    await rm(TEST_RUNTIME_ROOT, { recursive: true, force: true });
-  });
-
-  afterEach(async () => {
-    vi.restoreAllMocks();
-    await rm(TEST_RUNTIME_ROOT, { recursive: true, force: true });
-  });
-
-  it("projects all sidebar windows before formatting when it overrides singleWindow", async () => {
-    const runtimeModule = await import("../src/lib/quota-runtime-context.js");
-    const renderDataModule = await import("../src/lib/quota-render-data.js");
-    const sidebarModule = await import("../src/lib/tui-sidebar-format.js");
-    vi.spyOn(runtimeModule, "resolveQuotaRuntimeContext").mockResolvedValue({
-      client: {},
-      config: {
-        enabled: true,
-        enableToast: true,
-        formatStyle: "singleWindow",
-        percentDisplayMode: "remaining",
-        resetTimeDecimals: undefined,
-        toastDurationMs: 5000,
-        tuiSidebarPanel: { enabled: true, formatStyle: "allWindows" },
-      },
-      configMeta: {},
-      providers: [],
-      resolveRuntimeProviderIds: vi.fn(),
+  beforeEach(() => {
+    vi.clearAllMocks();
+    runtime = {
+      client: host.client,
       roots: { workspaceRoot: "/project", configRoot: "/project" },
-      session: { sessionID: "session-1" },
-    } as never);
-    const collect = vi.spyOn(renderDataModule, "collectQuotaRenderData").mockImplementation(
-      async ({ formatStyle }) =>
-        ({
-          active: [{ id: "copilot" }],
-          data: {
-            entries:
-              formatStyle === "allWindows"
-                ? [
-                    { name: "Copilot 5h", percentRemaining: 50 },
-                    { name: "Copilot Weekly", percentRemaining: 80 },
-                  ]
-                : [{ name: "Copilot 5h", percentRemaining: 50 }],
-            errors: [],
-          },
-        }) as never,
-    );
-    const buildSidebarQuotaPanelLines = vi
-      .spyOn(sidebarModule, "buildSidebarQuotaPanelLines")
-      .mockImplementation(({ data }) => data.entries.map((entry) => entry.name));
-    const { getQuotaMessage } = await import("../src/lib/quota-surface-data.js");
-
-    const quota = await getQuotaMessage(createHost(), "session-1", "sidebar");
-
-    expect(quota).toEqual({
-      message: "Copilot 5h\nCopilot Weekly",
-      duration: 5000,
-      activeProviderCount: 1,
-      resetNotification: undefined,
-    });
-    expect(buildSidebarQuotaPanelLines).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          entries: [
-            expect.objectContaining({ name: "Copilot 5h" }),
-            expect.objectContaining({ name: "Copilot Weekly" }),
-          ],
-        }),
-        config: expect.objectContaining({ formatStyle: "allWindows" }),
-      }),
-    );
-    expect(collect).toHaveBeenCalledWith(expect.objectContaining({ formatStyle: "allWindows" }));
-  });
-
-  it("spaces reset countdowns the same way on the toast, sidebar and footers", async () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
-    try {
-      const copilot = makeCopilotProvider();
-      copilot.fetch.mockResolvedValue({
-        attempted: true,
+      config: { ...DEFAULT_CONFIG },
+      configMeta: createLoadConfigMeta(),
+      providers: [],
+      resolveRuntimeProviderIds: createRuntimeProviderIdResolver(host.client),
+      session: { sessionID: "ses_1", sessionMeta: { providerID: "openai", modelID: "gpt-5" } },
+    };
+    result = {
+      selection: null,
+      availability: [],
+      active: [],
+      providerResults: [],
+      attemptedAny: true,
+      hasExplicitProviderIssues: false,
+      data: {
         entries: [
           {
-            accounting: TEST_ACCOUNTING,
-            name: "Copilot",
-            percentRemaining: 81,
-            resetTimeIso: "2026-01-04T00:35:00.000Z",
+            accounting: {
+              resultType: "quota",
+              acquisitionMethod: "remote_api",
+              ownership: "maintained",
+              authority: "provider_reported",
+            },
+            name: "OpenAI",
+            group: "OpenAI",
+            label: "5h",
+            percentRemaining: 80,
+          },
+          {
+            accounting: {
+              resultType: "quota",
+              acquisitionMethod: "remote_api",
+              ownership: "maintained",
+              authority: "provider_reported",
+            },
+            name: "OpenAI",
+            group: "OpenAI",
+            label: "Weekly",
+            percentRemaining: 15,
           },
         ],
         errors: [],
-      });
-      mocks.getProviders.mockReturnValue([copilot]);
-      const { getQuotaFooter, getQuotaMessage } = await import("../src/lib/quota-surface-data.js");
-      const configBase = {
-        enabled: true,
-        enabledProviders: ["copilot"],
-        minIntervalMs: 0,
-        maintainerAnnouncements: { enabled: false, home: false },
-        tuiSidebarPanel: { enabled: true },
-        tuiPromptBar: { enabled: true },
-        tuiCompactStatus: { enabled: true, homeBottom: true, sessionPrompt: true, maxWidth: 96 },
-      } as const;
-
-      mocks.loadConfig.mockResolvedValue(makeQuotaToastTestConfig(configBase));
-      const spacedToast = await getQuotaMessage(createHost(), "session-1", "idle");
-      const spacedSidebar = await getQuotaMessage(createHost(), "session-1", "sidebar");
-      const spacedHome = await getQuotaFooter(createHost(), undefined, "home");
-      const spacedPrompt = await getQuotaFooter(createHost(), "session-1", "prompt");
-      for (const text of [
-        spacedToast?.message,
-        spacedSidebar?.message,
-        spacedHome.join("\n"),
-        spacedPrompt.join("\n"),
-      ]) {
-        expect(text).toContain("3d 0h 35m");
-      }
-
-      mocks.loadConfig.mockResolvedValue(
-        makeQuotaToastTestConfig({ ...configBase, resetTimeSpaced: false }),
-      );
-      const denseToast = await getQuotaMessage(createHost(), "session-1", "idle");
-      const denseSidebar = await getQuotaMessage(createHost(), "session-1", "sidebar");
-      const denseHome = await getQuotaFooter(createHost(), undefined, "home");
-      for (const text of [denseToast?.message, denseSidebar?.message, denseHome.join("\n")]) {
-        expect(text).toContain("3d0h35m");
-      }
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("computes no prompt footer for the Home prompt, which has no session", async () => {
-    const runtimeModule = await import("../src/lib/quota-runtime-context.js");
-    const resolve = vi.spyOn(runtimeModule, "resolveQuotaRuntimeContext");
-    const { getQuotaFooter } = await import("../src/lib/quota-surface-data.js");
-
-    await expect(getQuotaFooter(createHost(), undefined, "prompt")).resolves.toEqual([]);
-    expect(resolve).not.toHaveBeenCalled();
-  });
-
-  it("loads Home for every enabled provider without a session, even with onlyCurrentModel", async () => {
-    const runtimeModule = await import("../src/lib/quota-runtime-context.js");
-    const renderDataModule = await import("../src/lib/quota-render-data.js");
-    vi.spyOn(runtimeModule, "resolveQuotaRuntimeContext").mockResolvedValue({
-      client: {},
-      config: {
-        enabled: true,
-        onlyCurrentModel: true,
-        showSessionTokens: true,
-        formatStyle: "singleWindow",
-        percentDisplayMode: "remaining",
-        maintainerAnnouncements: { enabled: false, home: false },
-        tuiPromptBar: { enabled: false },
-        tuiCompactStatus: { enabled: true, homeBottom: true, sessionPrompt: true, maxWidth: 80 },
       },
-      configMeta: {},
-      providers: [],
-      resolveRuntimeProviderIds: vi.fn(),
-      roots: { workspaceRoot: "/project", configRoot: "/project" },
-      session: { sessionID: "ses_1", sessionMeta: { modelID: "m", providerID: "p" } },
-    } as never);
-    const collect = vi.spyOn(renderDataModule, "collectQuotaRenderData").mockResolvedValue({
-      active: [],
-      data: { entries: [{ name: "Copilot", percentRemaining: 50 }], errors: [] },
-    } as never);
-    const { getQuotaFooter } = await import("../src/lib/quota-surface-data.js");
-
-    await getQuotaFooter(createHost(), undefined, "home");
-
-    const params = collect.mock.calls[0][0];
-    expect(params.config).toMatchObject({ onlyCurrentModel: false, showSessionTokens: false });
-    expect(params.request).toEqual({ sessionID: undefined, sessionMeta: undefined });
-    expect(params.workspaceRoot).toBe("/project");
+    };
+    mocks.resolve.mockResolvedValue(runtime);
+    mocks.collect.mockResolvedValue(result);
   });
 
-  it("computes the count-only Home announcement from the enabled providers", async () => {
-    mocks.loadConfig.mockResolvedValue(
-      makeQuotaToastTestConfig({
-        enabled: true,
-        enabledProviders: ["copilot"],
-        minIntervalMs: 0,
-        maintainerAnnouncements: { enabled: true, home: true },
+  it("collects all windows regardless of root CLI style before selecting the minimum", async () => {
+    const quota = await getQuotaMessage(host, "ses_1");
+    expect(mocks.collect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: runtime.config,
+        formatStyle: "allWindows",
+        workspaceRoot: "/project",
+        request: runtime.session,
+        resolveRuntimeProviderIds: runtime.resolveRuntimeProviderIds,
+        surfaceExplicitProviderIssues: true,
       }),
     );
-    mocks.getProviders.mockReturnValue([makeCopilotProvider()]);
-    const { getQuotaFooter } = await import("../src/lib/quota-surface-data.js");
-
-    await expect(getQuotaFooter(createHost(), undefined, "home")).resolves.toEqual([
-      ANNOUNCEMENT_HOME_MESSAGE,
-    ]);
-    expect(mocks.getMaintainerAnnouncementsSummary).toHaveBeenCalledWith(
-      expect.objectContaining({ enabledProviders: ["copilot"] }),
-    );
+    expect(quota?.message).toMatch(/OpenAI\s+7d\s+15%$/u);
+    expect(quota?.message).not.toContain("80%");
+    expect(Object.keys(quota!)).toEqual(["message"]);
   });
 
-  it("skips the Home announcement when maintainerAnnouncements.home is off", async () => {
-    const copilot = makeCopilotProvider();
-    mocks.loadConfig.mockResolvedValue(
-      makeQuotaToastTestConfig({
-        enabled: true,
-        enabledProviders: ["copilot"],
-        minIntervalMs: 0,
-        maintainerAnnouncements: { enabled: true, home: false },
-        tuiCompactStatus: { enabled: true, homeBottom: true, sessionPrompt: false, maxWidth: 96 },
-      }),
-    );
-    mocks.getProviders.mockReturnValue([copilot]);
-    const { getQuotaFooter } = await import("../src/lib/quota-surface-data.js");
+  it("uses the same location roots and session model policy as server commands", async () => {
+    await getQuotaMessage(host, "ses_1");
+    const params = mocks.resolve.mock.calls[0]![0];
+    expect(params).toMatchObject({
+      client: host.client,
+      roots: host.roots,
+      sessionID: "ses_1",
+      resolveSessionMeta: host.resolveSessionMeta,
+    });
+    expect(params.includeSessionMeta({ ...DEFAULT_CONFIG, onlyCurrentModel: false })).toBe(false);
+    expect(params.includeSessionMeta({ ...DEFAULT_CONFIG, onlyCurrentModel: true })).toBe(true);
+  });
 
-    const lines = await getQuotaFooter(createHost(), undefined, "home");
+  it.each(["plugin", "sidebar"])("does not collect quota when %s is disabled", async (feature) => {
+    runtime.config =
+      feature === "plugin"
+        ? { ...DEFAULT_CONFIG, enabled: false }
+        : { ...DEFAULT_CONFIG, tuiSidebarPanel: { enabled: false } };
+    await expect(getQuotaMessage(host, "ses_1")).resolves.toBeUndefined();
+    expect(mocks.collect).not.toHaveBeenCalled();
+  });
 
-    expect(copilot.fetch).toHaveBeenCalled();
-    expect(lines).toHaveLength(1);
-    expect(lines[0]).toContain("Copilot");
-    expect(mocks.getMaintainerAnnouncementsSummary).not.toHaveBeenCalled();
-    expect(mocks.formatMaintainerAnnouncementHomeCountLine).not.toHaveBeenCalled();
+  it("returns no message when provider collection has no data", async () => {
+    result.data = null;
+    await expect(getQuotaMessage(host, "ses_1")).resolves.toBeUndefined();
+  });
+
+  it("preserves errors even when no provider returned a quota row", async () => {
+    result.data = {
+      entries: [],
+      errors: [{ label: "Copilot", message: "Sign in required\u0007" }],
+    };
+    await expect(getQuotaMessage(host, "ses_1")).resolves.toEqual({
+      message: "Copilot: Sign in required",
+    });
+  });
+
+  it("propagates collection failures to the server RPC error handler", async () => {
+    mocks.collect.mockRejectedValue(new Error("Collection failed"));
+    await expect(getQuotaMessage(host, "ses_1")).rejects.toThrow("Collection failed");
   });
 });

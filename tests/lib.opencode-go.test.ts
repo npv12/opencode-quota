@@ -446,7 +446,7 @@ describe("queryOpenCodeGoConsoleStatus", () => {
     vi.clearAllMocks();
   });
 
-  function mockConsoleStatus(): void {
+  function mockConsoleStatus(rolling: Record<string, unknown> = {}): void {
     const meter = (usedMicroCents: number) => ({
       limitMicroCents: 1_000,
       usedMicroCents,
@@ -456,7 +456,14 @@ describe("queryOpenCodeGoConsoleStatus", () => {
       ok: true,
       text: vi.fn().mockResolvedValue(
         JSON.stringify({
-          access: { meters: { fiveHour: meter(0), week: meter(250), month: meter(500) } },
+          access: {
+            endsAt: "2026-10-30T18:40:02.000Z",
+            meters: {
+              fiveHour: { ...meter(0), ...rolling },
+              week: meter(250),
+              month: meter(500),
+            },
+          },
         }),
       ),
     });
@@ -509,6 +516,58 @@ describe("queryOpenCodeGoConsoleStatus", () => {
         consume: expect.any(Function),
       },
     );
+  });
+
+  it.each([
+    null,
+    undefined,
+  ])("does not substitute the subscription end for an unused meter's %s reset", async (resetsAt) => {
+    mockConsoleStatus({ resetsAt });
+
+    const result = await queryOpenCodeGoConsoleStatus({ accessToken: "console-access" });
+
+    expect(result).toMatchObject({
+      success: true,
+      rolling: { percentRemaining: 100 },
+      weekly: { percentRemaining: 75, resetTimeIso: "2026-10-01T00:00:00.000Z" },
+      monthly: { percentRemaining: 50, resetTimeIso: "2026-10-01T00:00:00.000Z" },
+    });
+    if (!result.success) throw new Error(result.error);
+    expect(result.rolling.resetTimeIso).toBeUndefined();
+  });
+
+  it("preserves a real reset when a meter is completely unused", async () => {
+    mockConsoleStatus();
+
+    const result = await queryOpenCodeGoConsoleStatus({ accessToken: "console-access" });
+
+    expect(result).toMatchObject({
+      success: true,
+      rolling: { percentRemaining: 100, resetTimeIso: "2026-10-01T00:00:00.000Z" },
+    });
+  });
+
+  it("keeps an unknown reset unknown when some quota has been used", async () => {
+    mockConsoleStatus({ usedMicroCents: 250, resetsAt: null });
+
+    const result = await queryOpenCodeGoConsoleStatus({ accessToken: "console-access" });
+
+    expect(result).toMatchObject({ success: true, rolling: { percentRemaining: 75 } });
+    if (!result.success) throw new Error(result.error);
+    expect(result.rolling.resetTimeIso).toBeUndefined();
+  });
+
+  it.each([
+    "invalid",
+    "",
+    123,
+  ])("rejects an explicit invalid reset %s instead of substituting the subscription end", async (resetsAt) => {
+    mockConsoleStatus({ resetsAt });
+
+    await expect(queryOpenCodeGoConsoleStatus({ accessToken: "console-access" })).resolves.toEqual({
+      success: false,
+      error: "Invalid OpenCode Go API response: console rolling resetsAt is invalid",
+    });
   });
 
   it("reads HTTP 404 as no Go subscription", async () => {

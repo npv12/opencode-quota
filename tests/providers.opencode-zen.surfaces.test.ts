@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { QuotaToastEntry } from "../src/lib/entries.js";
 import { formatQuotaRows } from "../src/lib/format.js";
-import { renderAccountingFourSurfaces } from "./helpers/accounting-four-surface.js";
+import { renderAccountingSurfaces } from "./helpers/accounting-surfaces.js";
 
 const budgetAccounting = {
   resultType: "budget",
@@ -86,87 +86,83 @@ const autoReload: QuotaToastEntry = {
   value: true,
 };
 
-describe("OpenCode Zen structured four-surface formatting", () => {
+describe("OpenCode Zen structured provider surface formatting", () => {
   it("renders summary budget semantics without supplementary accounting rows", () => {
-    const outputs = renderAccountingFourSurfaces({
+    const outputs = renderAccountingSurfaces({
       data: { entries: [budget], errors: [] },
       accountingDetail: "summary",
-      toastMaxWidth: 50,
-      toastNarrowAt: 42,
-      compactMaxWidth: 200,
+      showMaxWidth: 50,
+      showNarrowAt: 42,
     });
 
-    for (const output of Object.values(outputs)) {
+    for (const output of [outputs.command, outputs.show]) {
       expect(output).toContain("OpenCode Zen");
       expect(output).toContain("94%");
       expect(output).not.toContain("Current balance");
       expect(output).not.toContain("Auto-reload");
+      expect(output).toContain("Remaining: USD 94.25");
     }
-    expect(outputs.command).toContain("Remaining: USD 94.25");
-    expect(outputs.toast).toContain("Remaining: USD 94.25");
+    expect(outputs.sidebar).toBe("");
   });
 
   it("renders a primary structured balance fallback without financial legacy fields", () => {
-    const outputs = renderAccountingFourSurfaces({
+    const outputs = renderAccountingSurfaces({
       data: { entries: [primaryBalance], errors: [] },
       accountingDetail: "summary",
-      toastMaxWidth: 50,
-      toastNarrowAt: 42,
-      compactMaxWidth: 200,
+      showMaxWidth: 50,
+      showNarrowAt: 42,
     });
 
-    for (const output of Object.values(outputs)) {
+    for (const output of [outputs.command, outputs.show]) {
       expect(output).toContain("OpenCode Zen");
       expect(output).toContain("Current balance");
       expect(output).toContain("USD 42.50");
       expect(output).not.toContain("$");
     }
+    expect(outputs.sidebar).toBe("");
     expect(primaryBalance).not.toHaveProperty("right");
     expect(primaryBalance).not.toHaveProperty("barValue");
     expect(primaryBalance).not.toHaveProperty("value");
   });
 
   it("renders current-month spend next to the balance when there is no monthly limit", () => {
-    const outputs = renderAccountingFourSurfaces({
+    const outputs = renderAccountingSurfaces({
       data: { entries: [monthlySpend, primaryBalance], errors: [] },
       accountingDetail: "summary",
-      toastMaxWidth: 50,
-      toastNarrowAt: 42,
-      compactMaxWidth: 200,
+      showMaxWidth: 50,
+      showNarrowAt: 42,
     });
 
-    for (const output of Object.values(outputs)) {
+    for (const output of [outputs.command, outputs.show]) {
       expect(output).toContain("OpenCode Zen");
       expect(output).toContain("Monthly spend");
       expect(output).toContain("USD 11.82");
-    }
-    for (const output of [outputs.command, outputs.toast, outputs.sidebar]) {
       expect(output).toContain("Current balance");
       expect(output).toContain("USD 42.50");
     }
+    expect(outputs.sidebar).toBe("");
   });
 
   it("renders detailed basis and supplementary values within each surface width", () => {
-    const outputs = renderAccountingFourSurfaces({
+    const outputs = renderAccountingSurfaces({
       data: { entries: [budget, balance, autoReload], errors: [] },
       accountingDetail: "detailed",
-      toastMaxWidth: 50,
-      toastNarrowAt: 42,
-      compactMaxWidth: 200,
+      showMaxWidth: 50,
+      showNarrowAt: 42,
     });
 
-    for (const output of Object.values(outputs)) {
+    for (const output of [outputs.command, outputs.show]) {
       expect(output).toContain("Monthly budget");
       expect(output).toContain("Current balance");
       expect(output).toContain("USD 42.50");
       expect(output).toContain("Auto-reload");
       expect(output).toContain("Enabled");
     }
+    expect(outputs.sidebar).toBe("");
     expect(outputs.command).toContain("Used: USD 5.75");
     expect(outputs.command).toContain("Limit: USD 100.00");
     expect(outputs.command).toContain("Remaining: USD 94.25");
-    expect(outputs.toast.split("\n").every((line) => line.length <= 50)).toBe(true);
-    expect(outputs.sidebar.split("\n").every((line) => line.length <= 36)).toBe(true);
+    expect(outputs.show.split("\n").every((line) => line.length <= 50)).toBe(true);
   });
 
   it("omits an incomplete financial basis phrase at tiny popup width", () => {
