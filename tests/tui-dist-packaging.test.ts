@@ -39,7 +39,7 @@ describe("tui dist packaging", () => {
     const [local, source] = await Promise.all([import("../tui.js"), import("../src/tui-v2.js")]);
 
     expect(local.default).toBe(source.default);
-    expect(local.default).toMatchObject({ id: "@npv12/opencode-quota" });
+    expect(local.default).toMatchObject({ id: "npv12.opencode-quota" });
     expect(typeof local.default.setup).toBe("function");
   });
 
@@ -63,7 +63,7 @@ describe("tui dist packaging", () => {
 
   it("can load the packaged TUI module", () => {
     expect(packagedTui.default).toMatchObject({
-      id: "@npv12/opencode-quota",
+      id: "npv12.opencode-quota",
     });
     expect(typeof packagedTui.default.setup).toBe("function");
   });

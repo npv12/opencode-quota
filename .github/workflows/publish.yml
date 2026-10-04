@@ -3,12 +3,13 @@ name: Publish to npm
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       id-token: write
 
     steps:
@@ -32,6 +33,7 @@ jobs:
         run: npm install -g npm@latest
 
       - name: Assert release ref, tag, and commit match
+        if: github.event_name == 'release'
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
@@ -54,6 +56,12 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Set version from release tag
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: npm version "${RELEASE_TAG#v}" --no-git-tag-version --allow-same-version --ignore-scripts
+
       - name: Verify package version matches release tag
         run: bun run verify:release-version
 
@@ -63,5 +71,29 @@ jobs:
       - name: Build
         run: bun run build
 
+      - name: Verify tarball contents
+        run: npm pack --dry-run --ignore-scripts
+
       - name: Publish to npm
         run: npm publish --access public --provenance --ignore-scripts
+
+      - name: Checkout main for version bump
+        if: github.event_name == 'release'
+        uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - name: Commit and push version bump
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          npm version "${RELEASE_TAG#v}" --no-git-tag-version --allow-same-version --ignore-scripts
+          git add package.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: release v${RELEASE_TAG#v}"
+          git push origin HEAD:main

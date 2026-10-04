@@ -6,6 +6,7 @@ import { parse } from "yaml";
 interface WorkflowStep {
   id?: string;
   name?: string;
+  if?: string;
   env?: Record<string, string>;
   uses?: string;
   run?: string;
@@ -64,7 +65,7 @@ const ciWorkflow = parse(
   await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"),
 ) as Workflow;
 const publishWorkflow = parse(
-  await readFile(new URL("../.github/workflows/publish-npm.yml", import.meta.url), "utf8"),
+  await readFile(new URL("../.github/workflows/publish.yml", import.meta.url), "utf8"),
 ) as Workflow;
 
 function namedStep(job: WorkflowJob, name: string): WorkflowStep {
@@ -87,9 +88,9 @@ function runLines(job: WorkflowJob): string[] {
 }
 
 describe("package manifest compatibility", () => {
-  it("publishes the @npv12 fork identity at version 5.0.1 on the current Node runtime", () => {
+  it("publishes the @npv12 fork identity on the current Node runtime", () => {
     expect(pkg.name).toBe("@npv12/opencode-quota");
-    expect(pkg.version).toBe("5.0.1");
+    expect(pkg.version).toMatch(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/u);
     expect(pkg.packageManager).toBeUndefined();
     expect(pkg.engines?.node).toBe("^22.13.0 || >=23.4.0");
     expect(pkg.engines).not.toHaveProperty("opencode");
@@ -227,16 +228,21 @@ describe("package manifest compatibility", () => {
   });
 
   it("publishes one release-tag job with provenance and OIDC", () => {
-    expect(publishWorkflow.on).toEqual({ release: { types: ["published"] } });
+    expect(publishWorkflow.on).toEqual({
+      release: { types: ["published"] },
+      workflow_dispatch: null,
+    });
     expect(Object.keys(publishWorkflow.jobs)).toEqual(["publish"]);
 
     const publish = publishWorkflow.jobs.publish;
-    expect(publish.permissions).toEqual({ contents: "read", "id-token": "write" });
+    expect(publish.permissions).toEqual({ contents: "write", "id-token": "write" });
 
     const checkout = publish.steps?.find((step) => step.uses === "actions/checkout@v6");
     expect(checkout?.with?.ref).toBe("${{ github.sha }}");
 
-    const identityRun = namedStep(publish, "Assert release ref, tag, and commit match").run ?? "";
+    const identity = namedStep(publish, "Assert release ref, tag, and commit match");
+    expect(identity.if).toBe("github.event_name == 'release'");
+    const identityRun = identity.run ?? "";
     expect(identityRun).toContain('CHECKED_OUT_SHA="$(git rev-parse HEAD)"');
     expect(identityRun).toContain('TAG_SHA="$(git rev-parse "$RELEASE_TAG^{commit}")"');
 
@@ -244,10 +250,55 @@ describe("package manifest compatibility", () => {
       "bun run verify:release-version",
     );
     expect(namedStep(publish, "Install dependencies").run).toBe("bun install --frozen-lockfile");
+    expect(namedStep(publish, "Verify tarball contents").run).toBe(
+      "npm pack --dry-run --ignore-scripts",
+    );
 
     const publishRun = namedStep(publish, "Publish to npm").run ?? "";
     expect(publishRun).toBe("npm publish --access public --provenance --ignore-scripts");
     expect(publishRun).not.toContain("pnpm");
+  });
+
+  it("sets the release version before verification and building, accepting unchanged versions", () => {
+    const publish = publishWorkflow.jobs.publish;
+    const version = namedStep(publish, "Set version from release tag");
+    expect(version.if).toBe("github.event_name == 'release'");
+    expect(version.env).toEqual({ RELEASE_TAG: `\${{ github.event.release.tag_name }}` });
+    expect(version.run).toBe(
+      `npm version "\${RELEASE_TAG#v}" --no-git-tag-version --allow-same-version --ignore-scripts`,
+    );
+
+    const steps = publish.steps ?? [];
+    expect(steps.indexOf(version)).toBeLessThan(
+      steps.indexOf(namedStep(publish, "Verify package version matches release tag")),
+    );
+    expect(steps.indexOf(version)).toBeLessThan(steps.indexOf(namedStep(publish, "Build")));
+  });
+
+  it("updates current main only after publication and skips empty version commits", () => {
+    const publish = publishWorkflow.jobs.publish;
+    const checkout = namedStep(publish, "Checkout main for version bump");
+    expect(checkout.if).toBe("github.event_name == 'release'");
+    expect(checkout.uses).toBe("actions/checkout@v6");
+    expect(checkout.with?.ref).toBe("main");
+
+    const versionCommit = namedStep(publish, "Commit and push version bump");
+    expect(versionCommit.if).toBe("github.event_name == 'release'");
+    expect(versionCommit.env).toEqual({ RELEASE_TAG: `\${{ github.event.release.tag_name }}` });
+    expect(versionCommit.run).toContain(
+      `npm version "\${RELEASE_TAG#v}" --no-git-tag-version --allow-same-version --ignore-scripts`,
+    );
+    expect(versionCommit.run).toContain("git add package.json");
+    expect(versionCommit.run).toContain("if git diff --cached --quiet; then\n  exit 0\nfi");
+    expect(versionCommit.run).toContain(`git commit -m "chore: release v\${RELEASE_TAG#v}"`);
+    expect(versionCommit.run).toContain("git push origin HEAD:main");
+    expect(versionCommit.run).not.toContain("--force");
+
+    const steps = publish.steps ?? [];
+    expect(steps.indexOf(namedStep(publish, "Publish to npm"))).toBeLessThan(
+      steps.indexOf(checkout),
+    );
+    expect(steps.indexOf(checkout)).toBeLessThan(steps.indexOf(versionCommit));
   });
 
   it("keeps no announcement or removed-command residue in shipped docs", async () => {
