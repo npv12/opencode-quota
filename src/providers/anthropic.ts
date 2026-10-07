@@ -90,10 +90,10 @@ export const anthropicProvider: QuotaProvider = {
         oauth_credential_source: diagnostics.oauthCredentialSource ?? "(none)",
         checked_commands: diagnostics.checkedCommands.join(" | ") || "(none)",
         message: diagnostics.message,
-        five_hour_remaining: quota
+        five_hour_remaining: quota?.five_hour
           ? `${quota.five_hour.percentRemaining}% reset_at=${quota.five_hour.resetTimeIso ?? "(none)"}`
           : undefined,
-        seven_day_remaining: quota
+        seven_day_remaining: quota?.seven_day
           ? `${quota.seven_day.percentRemaining}% reset_at=${quota.seven_day.resetTimeIso ?? "(none)"}`
           : undefined,
         fable_weekly_remaining: quota?.fable_weekly
@@ -132,24 +132,24 @@ export const anthropicProvider: QuotaProvider = {
           if (result) errors.push({ label: group, message: result.error });
           continue;
         }
-        entries.push(
-          ...[["5h", result.five_hour] as const, ["Weekly", result.seven_day] as const].map(
-            ([label, window]) => ({
-              accounting: {
-                resultType: "quota" as const,
-                acquisitionMethod: "remote_api" as const,
-                ownership: "maintained" as const,
-                authority: "provider_reported" as const,
-                sourceId: row.id,
-              },
-              name: `${group} ${label}`,
-              group,
-              label: `${label}:`,
-              percentRemaining: window.percentRemaining,
-              resetTimeIso: window.resetTimeIso,
-            }),
-          ),
-        );
+        const windows = [["5h", result.five_hour] as const, ["Weekly", result.seven_day] as const];
+        for (const [label, window] of windows) {
+          if (!window) continue;
+          entries.push({
+            accounting: {
+              resultType: "quota" as const,
+              acquisitionMethod: "remote_api" as const,
+              ownership: "maintained" as const,
+              authority: "provider_reported" as const,
+              sourceId: row.id,
+            },
+            name: `${group} ${label}`,
+            group,
+            label: `${label}:`,
+            percentRemaining: window.percentRemaining,
+            resetTimeIso: window.resetTimeIso,
+          });
+        }
         if (result.extra_usage) {
           entries.push({
             accounting: {
@@ -198,34 +198,24 @@ export const anthropicProvider: QuotaProvider = {
       return withStatusDetails(attemptedErrorResult("Claude", result.error), statusDetails);
     }
 
-    const entries: QuotaToastEntry[] = [
-      {
+    const entries: QuotaToastEntry[] = [];
+    const windows = [["5h", result.five_hour] as const, ["Weekly", result.seven_day] as const];
+    for (const [label, window] of windows) {
+      if (!window) continue;
+      entries.push({
         accounting: {
           resultType: "quota",
           acquisitionMethod,
           ownership: "maintained",
           authority: "provider_reported",
         },
-        name: "Claude 5h",
+        name: `Claude ${label}`,
         group: "Claude",
-        label: "5h:",
-        percentRemaining: result.five_hour.percentRemaining,
-        resetTimeIso: result.five_hour.resetTimeIso,
-      },
-      {
-        accounting: {
-          resultType: "quota",
-          acquisitionMethod,
-          ownership: "maintained",
-          authority: "provider_reported",
-        },
-        name: "Claude Weekly",
-        group: "Claude",
-        label: "Weekly:",
-        percentRemaining: result.seven_day.percentRemaining,
-        resetTimeIso: result.seven_day.resetTimeIso,
-      },
-    ];
+        label: `${label}:`,
+        percentRemaining: window.percentRemaining,
+        resetTimeIso: window.resetTimeIso,
+      });
+    }
 
     if (result.extra_usage) {
       entries.push({

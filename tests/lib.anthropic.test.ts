@@ -377,9 +377,51 @@ describe("parseUsageResponse", () => {
     expect(result?.seven_day.resetTimeIso).toBeUndefined();
   });
 
-  it("returns null when required quota windows are missing or invalid", () => {
+  it("parses a five-hour-only OAuth response whose weekly window is null", () => {
+    const result = parseOAuthUsageResponse({
+      five_hour: {
+        utilization: 7,
+        resets_at: "2026-10-07T21:10:00.457485+00:00",
+      },
+      seven_day: null,
+      seven_day_opus: null,
+      extra_usage: { is_enabled: false, utilization: null },
+      limits: [
+        { kind: "session", percent: 7, is_active: true },
+        {
+          kind: "weekly_scoped",
+          percent: 0,
+          scope: { model: { display_name: "Fable" } },
+          is_active: false,
+        },
+      ],
+    });
+
+    expect(result).toEqual({
+      success: true,
+      five_hour: {
+        percentRemaining: 93,
+        resetTimeIso: "2026-10-07T21:10:00.457Z",
+      },
+      fable_weekly: { percentRemaining: 100, resetTimeIso: undefined },
+    });
+  });
+
+  it("returns null when no quota window is present", () => {
     expect(parseUsageResponse(null)).toBeNull();
     expect(parseUsageResponse("bad-shape")).toBeNull();
+    expect(parseUsageResponse({})).toBeNull();
+    expect(
+      parseUsageResponse({
+        rate_limits: {
+          five_hour: { used_percentage: "nope" },
+          seven_day: { utilization: "also-nope" },
+        },
+      }),
+    ).toBeNull();
+  });
+
+  it("keeps only the windows present in the response", () => {
     expect(
       parseUsageResponse({
         rate_limits: {
@@ -387,14 +429,14 @@ describe("parseUsageResponse", () => {
           seven_day: { utilization: 12 },
         },
       }),
-    ).toBeNull();
+    ).toEqual({ success: true, seven_day: { percentRemaining: 88 } });
     expect(
       parseUsageResponse({
         rateLimits: {
           fiveHour: { used_percentage: 30 },
         },
       }),
-    ).toBeNull();
+    ).toEqual({ success: true, five_hour: { percentRemaining: 70 } });
   });
 });
 
