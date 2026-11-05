@@ -1,5 +1,5 @@
-import { readFile } from "fs/promises";
-import { join } from "path";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 import { isRecord } from "./json-guards.js";
 import { getOpencodeRuntimeDirs } from "./opencode-runtime-paths.js";

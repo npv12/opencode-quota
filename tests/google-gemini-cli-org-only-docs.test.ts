@@ -1,9 +1,8 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it } from "vitest";
 
 import { AGY_FLAVOR } from "../src/lib/google-agy.js";
 import { GEMINI_CLI_AUTH_KEYS, GEMINI_CLI_FLAVOR } from "../src/lib/google-gemini-cli.js";
-import { BUNDLED_MAINTAINER_ANNOUNCEMENTS } from "../src/lib/maintainer-announcements.js";
 
 function read(path: string): string {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -17,7 +16,7 @@ function section(document: string, start: string, end: string): string {
   return document.slice(startIndex, endIndex);
 }
 
-const ORG_ONLY = "Gemini Code Assist Standard or Enterprise (organization) accounts";
+const _ORG_ONLY = "Gemini Code Assist Standard or Enterprise (organization) accounts";
 
 describe("Gemini CLI organization-only documentation", () => {
   const readme = read("README.md");
@@ -36,20 +35,6 @@ describe("Gemini CLI organization-only documentation", () => {
       expect(document).not.toContain("v5.0.0");
       expect(document).not.toContain("Existing setups only");
     }
-  });
-
-  it("states organization-only support where the bundled notice does", () => {
-    const notice = BUNDLED_MAINTAINER_ANNOUNCEMENTS.find(
-      (announcement) => announcement.id === "google-gemini-cli-org-only",
-    );
-    expect(notice?.message).toContain(ORG_ONLY);
-    for (const document of [readme, providerSection, googleFixes]) {
-      expect(document).toContain(`Gemini CLI works only with ${ORG_ONLY}.`);
-    }
-    expect(providerSection).toContain(
-      "https://developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals",
-    );
-    expect(providerSection).toContain("[Google AGY](#google-agy-quick-setup)");
   });
 
   it("lists Gemini CLI only in the provider guide's Business / Enterprise table", () => {

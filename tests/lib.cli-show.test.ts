@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PROVIDER_IDS as CONFIG_PROVIDER_IDS } from "../src/settings/schema.js";
 
 import { answer, percentRow } from "./helpers/fake-answers.js";
@@ -169,7 +169,7 @@ describe("createCliQuotaClient", () => {
   });
 });
 
-describe("show and status arguments", () => {
+describe("show arguments", () => {
   it.each([
     ["show", ["--provider"], "Missing value for --provider"],
     ["show", ["--json", "--bogus-flag"], "Unknown option: --bogus-flag"],
@@ -177,14 +177,6 @@ describe("show and status arguments", () => {
     ["show", ["--json", "--threshold", "0"], "--threshold must be a positive finite number"],
     ["show", ["--json", "--threshold"], "Missing value for --threshold"],
     ["show", ["--threshold", "5"], "--threshold requires --json"],
-    ["status", ["--provider"], "Missing value for --provider"],
-    ["status", ["--bogus"], "Unknown option: --bogus"],
-    [
-      "status",
-      ["--threshold", "50"],
-      "--threshold is not supported by status. For threshold exit codes, use: opencode-quota show --json --threshold",
-    ],
-    ["status", ["--json", "--threshold=10"], "--threshold is not supported by status"],
   ] as const)("%s %j exits 1 with the error and the usage", async (command, argv, error) => {
     const provider = zai();
     mockProviders.push(provider);
@@ -198,19 +190,16 @@ describe("show and status arguments", () => {
     expect(provider.isAvailable).not.toHaveBeenCalled();
   });
 
-  it.each(["show", "status"] as const)(
-    "%s rejects an unknown provider before checking any provider",
-    async (command) => {
-      const provider = zai();
-      mockProviders.push(provider);
+  it("rejects an unknown provider before checking any provider", async () => {
+    const provider = zai();
+    mockProviders.push(provider);
 
-      const result = await run(command, ["--provider", "not-a-provider"]);
+    const result = await run("show", ["--provider", "not-a-provider"]);
 
-      expect(result).toEqual({ code: 1, stdout: "", stderr: "Unknown provider: not-a-provider\n" });
-      expect(provider.isAvailable).not.toHaveBeenCalled();
-      expect(provider.fetch).not.toHaveBeenCalled();
-    },
-  );
+    expect(result).toEqual({ code: 1, stdout: "", stderr: "Unknown provider: not-a-provider\n" });
+    expect(provider.isAvailable).not.toHaveBeenCalled();
+    expect(provider.fetch).not.toHaveBeenCalled();
+  });
 
   it("prints help without starting a report", async () => {
     const provider = zai();
@@ -221,17 +210,11 @@ describe("show and status arguments", () => {
     expect(show.stdout).toContain("opencode-quota show");
     expect(show.stdout).not.toContain("OpenCode running");
     expect(show.stdout).not.toMatch(/exit code 3/i);
-
-    const status = await run("status", ["-h"]);
-    expect(status.code).toBe(0);
-    expect(status.stderr).toBe("");
-    expect(status.stdout).toContain("opencode-quota status");
-    expect(status.stdout).toContain("Exit codes:");
     expect(provider.isAvailable).not.toHaveBeenCalled();
   });
 });
 
-describe.each(["show", "status"] as const)("%s report frame", (command) => {
+describe("show report frame", () => {
   it("checks the providers with the price list and refresh age the settings choose", async () => {
     writeSettings({
       providers: {
@@ -248,7 +231,7 @@ describe.each(["show", "status"] as const)("%s report frame", (command) => {
     });
     mockProviders.push(provider);
 
-    await run(command, []);
+    await run("show", []);
 
     expect(seen).toEqual([{ source: "bundled", maxAgeMs: 3 * 24 * 60 * 60 * 1000 }]);
   });
@@ -403,70 +386,5 @@ describe("runCliShowCommand", () => {
     expect(parsed.providers.zai.entries[0].renderType).toBe("percent");
     expect(parsed.providers.zai.entries[0]).not.toHaveProperty("unlimited");
     expect(provider.fetch).toHaveBeenCalledTimes(1); // only OpenCode's store asked it
-  });
-});
-
-describe("runCliStatusCommand", () => {
-  it("prints the text report, or JSON with --json", async () => {
-    mockProviders.push(zai());
-
-    const text = await run("status", []);
-    expect(text.code).toBe(0);
-    expect(text.stdout).toMatch(/^# Quota Status/u);
-
-    const json = await run("status", ["--json"]);
-    expect(json.code).toBe(0);
-    expect(JSON.parse(json.stdout)).toHaveProperty("version", "6");
-  });
-
-  it.each([
-    [["--provider", "zai"], "zai"],
-    [["--provider", "  CLAUDE  "], "anthropic"],
-  ])("%j filters the report to %s", async (argv, providerId) => {
-    mockProviders.push(zai(), { ...zai(), id: "anthropic" });
-    const result = await run("status", argv);
-
-    expect(result.code).toBe(0);
-    expect(result.stderr).toBe("");
-    expect(result.stdout).toMatch(new RegExp(`\nproviders:\n- ${providerId}: [^\n]+\n\n`, "u"));
-  });
-
-  it("--provider --json lists only that provider and still emits JSON", async () => {
-    mockProviders.push(zai(), { ...zai(), id: "anthropic" });
-    const result = await run("status", ["--json", "--provider", "zai"]);
-
-    expect(result.code).toBe(0);
-    const parsed = JSON.parse(result.stdout);
-    expect(parsed.providers.map((provider: { id: string }) => provider.id)).toEqual(["zai"]);
-    expect(parsed).not.toHaveProperty("providerFilterId");
-  });
-
-  it("builds the report with the database login source bound and unbinds it afterwards", async () => {
-    let sourceDuringRun: unknown;
-    const provider = zai();
-    provider.fetch.mockImplementation(async () => {
-      sourceDuringRun = getCredentialSourceDiagnostics();
-      return answer();
-    });
-    mockProviders.push(provider);
-
-    const result = await run("status", []);
-
-    expect(result.code).toBe(0);
-    expect(sourceDuringRun).toMatchObject({ state: "bound", kind: "sqlite" });
-    expect(getCredentialSourceDiagnostics().state).toBe("unbound");
-  });
-
-  it("returns non-zero when report building throws", async () => {
-    mockProviders.push({
-      get id(): string {
-        throw new Error("boom");
-      },
-    });
-    const result = await run("status", []);
-
-    expect(result.code).toBe(1);
-    expect(result.stderr).toContain("Failed to generate quota status: boom");
-    expect(getCredentialSourceDiagnostics().state).toBe("unbound");
   });
 });

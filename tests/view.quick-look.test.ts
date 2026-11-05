@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it } from "vitest";
 import type { ProviderSnapshot, QuotaRow, QuotaSnapshot } from "../src/core/types.js";
 import type { UsageProviderRow, UsageReport } from "../src/core/usage.js";
 import { defaultSettings } from "../src/settings/schema.js";
@@ -203,7 +203,7 @@ describe("quick look: short text", () => {
 
   it("says when quota found no provider", () => {
     expect(shortText({ snapshot: snapshot([]), usage: report([]) })).toBe(
-      "Quota · 7 days · no usage\nNo quota providers found. Run /quota_status to see why.",
+      "Quota · 7 days · no usage\nNo quota providers found.",
     );
   });
 });

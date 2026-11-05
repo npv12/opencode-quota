@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { rowsFromProviderResult } from "../src/core/rows.js";
 import type { QuotaRow } from "../src/core/types.js";
 import { type CredentialRow, readCredentialRows } from "../src/lib/opencode-auth.js";
@@ -303,20 +303,22 @@ describe("openai provider", () => {
       logins: ["key-id", "oauth-id"],
       source: "openai",
     },
-  ])(
-    "lists the session's active login first ($rows, $config)",
-    async ({ rows, config, logins, source }) => {
-      const { http } = chatgptHttp();
-      const key = keyRow("key-id", { label: "API key", active: true });
-      const oauth = oauthRow("oauth-id", { integrationId: "codex", label: "Work", active: true });
+  ])("lists the session's active login first ($rows, $config)", async ({
+    rows,
+    config,
+    logins,
+    source,
+  }) => {
+    const { http } = chatgptHttp();
+    const key = keyRow("key-id", { label: "API key", active: true });
+    const oauth = oauthRow("oauth-id", { integrationId: "codex", label: "Work", active: true });
 
-      const fetched = await fetchRows(rows === "key, oauth" ? [key, oauth] : [oauth, key], config);
+    const fetched = await fetchRows(rows === "key, oauth" ? [key, oauth] : [oauth, key], config);
 
-      expect(fetched.rowLogins).toEqual(logins);
-      expect(http).toHaveBeenCalledOnce();
-      expect(fetched.debug).toContainEqual({ key: "auth_source", value: source });
-    },
-  );
+    expect(fetched.rowLogins).toEqual(logins);
+    expect(http).toHaveBeenCalledOnce();
+    expect(fetched.debug).toContainEqual({ key: "auth_source", value: source });
+  });
 
   it("keeps other active logins and inactive ones in source order after the session's", async () => {
     const fetched = await fetchRows(
@@ -356,7 +358,7 @@ describe("openai provider", () => {
     // One line per account, each named differently ("OpenAI", "OpenAI (2)", …).
     const lines = quotaCommandText(fetched.rows).split("\n");
     expect(lines).toHaveLength(labels.length);
-    expect(new Set(lines.map((line) => line.split(" Status")[0]!.trim())).size).toBe(labels.length);
+    expect(new Set(lines.map((line) => line.split(" Status")[0]?.trim())).size).toBe(labels.length);
     for (const line of lines) expect(line).toContain("ChatGPT quota unavailable for API key");
   });
 
@@ -391,16 +393,18 @@ describe("openai provider", () => {
     },
     // Provider lookup failure falls back to available.
     { providersError: new Error("boom"), expected: true },
-  ])(
-    "isAvailable is $expected for $providerIds ($logins.length logins)",
-    async ({ providerIds, providersError, logins, expected }) => {
-      readRows.mockResolvedValue(logins ?? []);
+  ])("isAvailable is $expected for $providerIds ($logins.length logins)", async ({
+    providerIds,
+    providersError,
+    logins,
+    expected,
+  }) => {
+    readRows.mockResolvedValue(logins ?? []);
 
-      await expect(
-        openaiProvider.isAvailable(
-          createProviderAvailabilityContext({ providerIds, providersError }),
-        ),
-      ).resolves.toBe(expected);
-    },
-  );
+    await expect(
+      openaiProvider.isAvailable(
+        createProviderAvailabilityContext({ providerIds, providersError }),
+      ),
+    ).resolves.toBe(expected);
+  });
 });

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { QuotaSnapshot } from "../src/core/types.js";
 import { createQuotaClient, ownFolderEvents } from "../src/tui/client.js";
 

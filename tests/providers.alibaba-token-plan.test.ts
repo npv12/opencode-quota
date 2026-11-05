@@ -2,7 +2,7 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { paceOf } from "../src/core/pace.js";
 import { rowsFromProviderResult } from "../src/core/rows.js";
@@ -21,8 +21,8 @@ import {
   PLATFORM,
   paths,
   replying,
-  seatPage,
   SUPPORTED,
+  seatPage,
   useAlibabaCliFixture,
   WAITS,
 } from "./helpers/alibaba-cli-fixture.js";

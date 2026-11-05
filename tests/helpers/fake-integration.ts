@@ -1,4 +1,4 @@
-import { vi } from "vite-plus/test";
+import { vi } from "vitest";
 
 /** One stored OpenCode login, in the shape OpenCode 2 keeps it. */
 export type FakeCredential = {

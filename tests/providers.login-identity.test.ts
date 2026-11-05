@@ -5,7 +5,7 @@
  */
 
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { loadProviderSource } from "../src/core/provider-source.js";
 import { createQuotaStore } from "../src/core/store.js";

@@ -55,7 +55,7 @@ In provider ledgers, use `Data from` rather than `Source`. These are friendly la
 
 ## Row rule
 
-A provider returns the row contract in `src/providers/contract.ts`: per account, its rows and its errors, plus debug details for `/quota_status`. The copied `provider.ts` shows one remote quota row with the percent left (`quotaRow`). Keep that shape when the provider only reports a percentage.
+A provider returns the row contract in `src/providers/contract.ts`: per account, its rows and its errors, plus debug details for `the quota window`. The copied `provider.ts` shows one remote quota row with the percent left (`quotaRow`). Keep that shape when the provider only reports a percentage.
 
 Each row's `key` becomes its id (`example-provider.monthly`), which users' hide, rename and order settings use, so a key never changes once released. List every key in the provider's `rowKeys`; `fetchRows` in the provider tests fails on a key that is not listed.
 

@@ -1,6 +1,6 @@
 /** Alibaba Coding Plan from the shared fake `bl`: one console command, rows from the windows it reports. */
 
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { rowsFromProviderResult } from "../src/core/rows.js";
 import { clearAlibabaIdentityCacheForTests, ERROR_MESSAGES } from "../src/lib/alibaba.js";

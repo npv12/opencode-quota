@@ -941,7 +941,7 @@ function validateJsonV1Metric(
         if (!["remaining", "balance"].includes(value.valueType)) {
           requireLiteralNumber(source, `${key}.value`, issues, "non-negative");
         }
-        if (resultType && !allowed[value.valueType]!.includes(resultType)) {
+        if (resultType && !allowed[value.valueType]?.includes(resultType)) {
           adapterIssue(issues, `${key}.valueType`, "valueType is incompatible with resultType");
         }
       }
@@ -1610,7 +1610,7 @@ export function validateQuotaProviders(value: unknown): QuotaProvidersValidation
       const overlap =
         current.modelIds === undefined ||
         earlier.modelIds === undefined ||
-        current.modelIds.some((modelId) => earlier.modelIds!.includes(modelId));
+        current.modelIds.some((modelId) => earlier.modelIds?.includes(modelId));
       if (!overlap) continue;
       issues.push({
         key: current.modelIds

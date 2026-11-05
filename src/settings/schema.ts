@@ -182,12 +182,6 @@ export const SETTINGS_SCHEMA = {
   "providers.checking.waitForQuotaReset": bool(true),
   "providers.pricing.source": choice(["auto", "bundled", "runtime"], "auto"),
   "providers.pricing.autoRefreshDays": { ...whole(1), default: 7 },
-  "system.exportFile": bool(false),
-  /** "" = `$XDG_CACHE_HOME/opencode/quota-export.json`. */
-  "system.exportPath": { kind: "path", allowEmpty: true, default: "", fileOnly: true },
-  "system.telemetry": bool(false),
-  /** The 4.x and 5.x /tokens_* commands, each `/quota_usage` on its range. */
-  "system.oldCommands": bool(true),
 } as const satisfies Record<string, SettingRule>;
 
 const RULES: Readonly<Record<string, SettingRule>> = SETTINGS_SCHEMA;
@@ -604,15 +598,15 @@ export function diffSettings(
   after: Settings,
   fromFile?: { before: readonly string[]; after: readonly string[] },
 ): Array<{ key: string; before: unknown; after: unknown }> {
-  const valueOf = (settings: Settings, keys: readonly string[] | undefined, key: string) =>
+  const valueAtKey = (settings: Settings, keys: readonly string[] | undefined, key: string) =>
     keys !== undefined && UNSET_IS_NOT_DEFAULT.has(key) && !keys.includes(key)
       ? null
       : getSetting(settings, key);
   return Object.keys(RULES)
     .map((key) => ({
       key,
-      before: valueOf(before, fromFile?.before, key),
-      after: valueOf(after, fromFile?.after, key),
+      before: valueAtKey(before, fromFile?.before, key),
+      after: valueAtKey(after, fromFile?.after, key),
     }))
     .filter((change) => JSON.stringify(change.before) !== JSON.stringify(change.after));
 }

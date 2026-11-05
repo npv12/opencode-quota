@@ -5,7 +5,7 @@
  * or key that does not exist throws, so a renamed or renumbered layer fails loudly.
  */
 import { createRoot } from "solid-js";
-import { vi } from "vite-plus/test";
+import { vi } from "vitest";
 import { KEY_LAYERS, type KeyLayerName } from "../../src/tui/key-layers.js";
 
 export type KeyCommand = {

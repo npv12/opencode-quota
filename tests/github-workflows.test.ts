@@ -1,6 +1,6 @@
-import { readdir, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
 interface WorkflowStep {
@@ -234,38 +234,6 @@ describe("GitHub workflows", () => {
       expect(form.title, file).toBeUndefined();
       expect(form.labels, file).toEqual(labels);
     }
-  });
-
-  it("keeps upstream issue reconciliation on Node 22 with minimal permissions", async () => {
-    const source = await readFile(".github/workflows/upstream-plugin-update-check.yml", "utf8");
-    const workflow = parse(source) as Workflow;
-    const checkJob = workflow.jobs.check;
-    const setupNode = checkJob?.steps?.find((step) => step.name === "Setup Node.js");
-    const reconcile = checkJob?.steps?.find(
-      (step) => step.name === "Reconcile upstream plugin issues",
-    );
-
-    expect(workflow.concurrency?.["cancel-in-progress"]).toBe(false);
-    expect(checkJob?.permissions).toEqual({
-      contents: "read",
-      issues: "write",
-    });
-    expect(setupNode?.with?.["node-version"]).toBe(22);
-    expect(reconcile?.run).toBe(
-      "node .github/scripts/check-upstream-plugin-updates.mjs --write-issues",
-    );
-
-    const workflowFiles = (await readdir(".github/workflows")).filter((file) =>
-      /\.ya?ml$/u.test(file),
-    );
-    const writeIssueWorkflows: string[] = [];
-    for (const file of workflowFiles) {
-      const workflowSource = await readFile(`.github/workflows/${file}`, "utf8");
-      if (workflowSource.includes("--write-issues")) {
-        writeIssueWorkflows.push(file);
-      }
-    }
-    expect(writeIssueWorkflows).toEqual(["upstream-plugin-update-check.yml"]);
   });
 
   it("cancels a stale pull request CI run but never a push to main", async () => {

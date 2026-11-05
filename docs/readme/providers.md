@@ -94,9 +94,9 @@ Providers OpenCode Quota doesn't include (for example Chutes AI, NanoGPT, Synthe
 Add a custom OpenCode Quota provider for <provider> with the quota_provider_add tool, following docs/readme/providers.md#custom-providers in https://github.com/slkiser/opencode-quota. Never put a key or other secret in the definition: set apiKeyEnv to the name of the environment variable that holds the key, or leave it out to use the key OpenCode has for that provider. The tool saves the provider switched off; tell me the address and key source it returns. After I switch it on, test it with quota_provider_test, and fix what it reports (add it again with the same id; I switch it on again) until it shows rows.
 ```
 
-The agent saves the provider switched off: until you switch it on, it is never fetched and its key is never sent, and no agent tool can switch it on. Switch it on by setting `"enabled": true` in `opencode-quota/settings.jsonc`, or tick it in `/quota_settings` → **Providers**, which shows its address and the key it sends. The agent tools change only OpenCode Quota's own settings file, never `opencode.json`, and refuse a definition holding anything that looks like a key.
+A custom provider is saved switched off: until you switch it on, it is never fetched and its key is never sent. Switch it on by setting `"enabled": true` in `opencode-quota/settings.jsonc`, or tick it in `/quota` → **Providers**, which shows its address and the key it sends.
 
-To write one yourself, add it to `providers.custom` in `settings.jsonc` ([where](configuration.md#where-settings-live)); `/quota_status` checks it with the plugin's own validator.
+To write one yourself, add it to `providers.custom` in `settings.jsonc` ([where](configuration.md#where-settings-live)); `/quota` checks it with the plugin's own validator.
 
 - **Identity:** `id` is the stable identity; add `providerId` only when it differs. A definition is on unless it has `"enabled": false`. Definitions keep file order, and `custom` in `providers.off` skips them all.
 - **Credentials:** the variable named by `apiKeyEnv`, then `provider.<providerId>.options.apiKey` in the [OpenCode config files](troubleshooting.md#opencode-config-files) (no `{env:…}` unless it names `apiKeyEnv`), then an API-key login saved in OpenCode 2 (`opencode.db`) for that provider id.
@@ -362,14 +362,14 @@ Organization example (for an enterprise, use `"tier": "enterprise"`, add `"enter
 
 ### Anthropic (Claude)
 
-OpenCode's Anthropic login is enough: each `anthropic` login is asked at Anthropic's OAuth usage endpoint (a good reply is reused for up to a minute), and an expired one shows "Sign in again". Claude Code is optional. A placeholder login from an auth plugin such as `@cortexkit/opencode-anthropic-auth` is skipped; quota then needs a Claude Code login. Without an OpenCode Anthropic login, quota comes from Claude Code itself or from Anthropic's usage endpoint with Claude Code's credentials (macOS Keychain, then `~/.claude/.credentials.json`). When Anthropic rejects an OpenCode login, `/quota_status` shows whether Claude Code and its credentials still work. With openchamber's `claude-code` provider or OpenCode's Claude Agent provider (`claude-agent`), quota uses Claude Code's login. To use Claude Code, install it and sign in:
+OpenCode's Anthropic login is enough: each `anthropic` login is asked at Anthropic's OAuth usage endpoint (a good reply is reused for up to a minute), and an expired one shows "Sign in again". Claude Code is optional. A placeholder login from an auth plugin such as `@cortexkit/opencode-anthropic-auth` is skipped; quota then needs a Claude Code login. Without an OpenCode Anthropic login, quota comes from Claude Code itself or from Anthropic's usage endpoint with Claude Code's credentials (macOS Keychain, then `~/.claude/.credentials.json`). When Anthropic rejects an OpenCode login, `/quota` shows whether Claude Code and its credentials still work. With openchamber's `claude-code` provider or OpenCode's Claude Agent provider (`claude-agent`), quota uses Claude Code's login. To use Claude Code, install it and sign in:
 
 ```bash
 claude auth login
 claude auth status
 ```
 
-OpenCode Quota runs `claude` from OpenCode's `PATH`, or else the first working one of `~/.claude/local/claude`, `~/.local/bin/claude`, `/opt/homebrew/bin/claude`, and `/usr/local/bin/claude` (not on Windows). If Claude lives elsewhere, or on Windows when `claude` is not on OpenCode's `PATH`, set `providers.anthropic.binaryPath`. `/quota_status` shows the one it ran as `binary_path`.
+OpenCode Quota runs `claude` from OpenCode's `PATH`, or else the first working one of `~/.claude/local/claude`, `~/.local/bin/claude`, `/opt/homebrew/bin/claude`, and `/usr/local/bin/claude` (not on Windows). If Claude lives elsewhere, or on Windows when `claude` is not on OpenCode's `PATH`, set `providers.anthropic.binaryPath`. `/quota` shows the one it ran as `binary_path`.
 
 A plan without a weekly limit, such as Enterprise, shows the 5h row and no Weekly row.
 
@@ -377,11 +377,11 @@ A plan without a weekly limit, such as Enterprise, shows the 5h row and no Weekl
 
 ### Cursor
 
-Use companion plugin [`cursor-opencode-provider`](https://github.com/oakimov/cursor-opencode-provider#readme). Add its OpenCode 2 entry **before** `@slkiser/opencode-quota` in `opencode.json`:
+Use companion plugin [`cursor-opencode-provider`](https://github.com/oakimov/cursor-opencode-provider#readme). Add its OpenCode 2 entry **before** `@npv12/opencode-quota` in `opencode.json`:
 
 ```jsonc
 {
-  "plugin": ["cursor-opencode-provider/plugin/opencode2", "@slkiser/opencode-quota"],
+  "plugin": ["cursor-opencode-provider/plugin/opencode2", "@npv12/opencode-quota"],
 }
 ```
 
@@ -425,7 +425,7 @@ OpenCode Quota runs two commands, each with its own sign-in. They are independen
 
 - **Personal** (one row per quota window, `alibaba-token-plan.personal.monthly`) runs `bl usage token-plan --output json` and needs the same **console** token (an API Key can mint one too, see [Coding Plan setup](#alibaba-coding-plan)).
 - It reports every window `bl` sends, one row each with the percent of that window left. Five windows keep their standard ids: `per1Hour` is `alibaba-token-plan.personal.hour`, `per5Hour` is `…personal.five_hour`, `per1Day` is `…personal.day`, `per1Week` is `…personal.weekly` and `per1Month` is `…personal.monthly`. Any other window is named by its count and unit: `per2Day` is `alibaba-token-plan.personal.2_day` (label `2d`), `per3Hour` is `…personal.3_hour` (label `3h`). A window the reply does not carry has no row.
-- A window the reply reports no quota for has no row either: it carries no usage ratio. `/quota_status` says so in `window_hint`, and when other windows do have rows, `no_data_windows` lists the ones without.
+- A window the reply reports no quota for has no row either: it carries no usage ratio. `/quota` says so in `window_hint`, and when other windows do have rows, `no_data_windows` lists the ones without.
 - **Team seats** (one `Credits` row per seat, `alibaba-token-plan.team.<slug>`) run `bl token-plan list-seats --status NORMAL --query-assigned true --page-size 100 --output json` and need **API Key** (AK/SK) credentials: `bl auth login --open-api`, or `ALIBABA_CLOUD_ACCESS_KEY_ID` and `ALIBABA_CLOUD_ACCESS_KEY_SECRET`. Each seat shows the credits left in its billing cycle, out of the cycle total, and the percent of that grant left.
 - Without the AK/SK no team row is reported; the personal row still is. A seat whose status is not `NORMAL` has no row by design.
 - Neither command carries a region or account, so you see the plan `bl` is signed in to. `bl auth status` says which account, region and site that is.
@@ -440,7 +440,7 @@ OpenCode Quota's Google integrations use independent community companion plugins
 
 ### Google AGY
 
-Use companion plugin [`@anthonyhaussman/opencode-agy-auth`](https://github.com/anthonyhaussman/opencode-agy-auth). OpenCode 2 needs its OpenCode 2 build, currently the alpha: `@anthonyhaussman/opencode-agy-auth@alpha`. Add it **before** `@slkiser/opencode-quota` in `opencode.json`, then sign in once and choose **Antigravity CLI (OAuth)**:
+Use companion plugin [`@anthonyhaussman/opencode-agy-auth`](https://github.com/anthonyhaussman/opencode-agy-auth). OpenCode 2 needs its OpenCode 2 build, currently the alpha: `@anthonyhaussman/opencode-agy-auth@alpha`. Add it **before** `@npv12/opencode-quota` in `opencode.json`, then sign in once and choose **Antigravity CLI (OAuth)**:
 
 ```bash
 opencode auth login google-agy
@@ -456,7 +456,7 @@ opencode auth login google-agy
 
 Gemini CLI works only with Gemini Code Assist Standard or Enterprise (organization) accounts. Google ended personal Gemini Code Assist accounts (individual, AI Pro, and AI Ultra) on 2026-06-18; see [Google's notice](https://developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals). Personal Google users should use [Google AGY](#google-agy-quick-setup).
 
-Use companion plugin [`opencode-gemini-auth`](https://github.com/jenslys/opencode-gemini-auth#readme) 2.x, which supports OpenCode 2. Add it **before** `@slkiser/opencode-quota` in `opencode.json`, then sign in once and choose **OAuth with Google (Gemini CLI)**:
+Use companion plugin [`opencode-gemini-auth`](https://github.com/jenslys/opencode-gemini-auth#readme) 2.x, which supports OpenCode 2. Add it **before** `@npv12/opencode-quota` in `opencode.json`, then sign in once and choose **OAuth with Google (Gemini CLI)**:
 
 ```bash
 opencode auth login google
@@ -553,9 +553,9 @@ Zen uses your OpenCode Console sign-in from OpenCode 2; no cookie or workspace I
 
 1. Run `opencode auth login opencode`, sign in to the Console in your browser, and pick the organization to track.
 2. To track another organization, sign in again and pick it. With several saved sign-ins, `opencode auth switch opencode` picks the active one.
-3. Check it with `/quota_status` in OpenCode, or `opencode-quota status` in a terminal.
+3. Check it with `/quota` in OpenCode, or `opencode-quota show` in a terminal.
 
 - An OpenCode API key alone is not a Console sign-in. Inside OpenCode an expired sign-in is refreshed; the terminal command does not refresh it.
-- **Monthly budget** is your member budget in the Console when Zen can use it, else the Console credit limit plus this month's usage. `providers.opencode.monthlyLimitUsd` (Providers tab: **Monthly budget**) overrides both. `/quota_status` shows `member_budget_note` when a member budget can't be used.
+- **Monthly budget** is your member budget in the Console when Zen can use it, else the Console credit limit plus this month's usage. `providers.opencode.monthlyLimitUsd` (Providers tab: **Monthly budget**) overrides both. `/quota` shows `member_budget_note` when a member budget can't be used.
 - **Auto-reload** is an extra row (Layout → All places → **Extra rows**), and so is **Balance** when there is a budget. If a route other than the balance fails, Zen still shows the rows that don't need it.
 - The `opencode-quota/opencode.json` file and the `OPENCODE_WORKSPACE_ID` / `OPENCODE_AUTH_COOKIE` variables are not read.

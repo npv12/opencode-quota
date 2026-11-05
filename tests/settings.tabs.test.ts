@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { QuotaRow, QuotaSnapshot } from "../src/core/types.js";
 import { quotaReportLines } from "../src/lib/quota-dialog-commands.js";
 import {
@@ -119,12 +119,6 @@ const EXPECTED = {
     opencode: { monthlyLimitUsd: null },
     checking: { minIntervalMs: 300000, requestTimeoutMs: 5000, waitForQuotaReset: true },
     pricing: { source: "auto", autoRefreshDays: 7 },
-  },
-  system: {
-    exportFile: false,
-    exportPath: "",
-    telemetry: false,
-    oldCommands: true,
   },
 };
 

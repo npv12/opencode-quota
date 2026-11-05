@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it } from "vitest";
 
 import { QUOTA_RPC_ID, QuotaRpc } from "../src/rpc.js";
 
@@ -33,15 +33,12 @@ const methods = QuotaRpc.methods;
 
 describe("quota RPC definition", () => {
   it("defines the plain RPC id, the changed event and its methods", () => {
-    expect(QUOTA_RPC_ID).toBe("slkiser.opencode-quota");
+    expect(QUOTA_RPC_ID).toBe("npv12.opencode-quota");
     expect(QuotaRpc.id).toBe(QUOTA_RPC_ID);
     expect(Object.keys(QuotaRpc.events)).toEqual(["changed"]);
     expect(Object.keys(methods)).toEqual([
       "snapshot",
       "refresh",
-      "notices",
-      "noticeList",
-      "status",
       "usage",
       "downloadPrices",
       "settings",
@@ -97,33 +94,6 @@ describe("quota RPC definition", () => {
       { reason: "poll", sessionID: false },
       "sessionID must be a string",
     );
-  });
-
-  it("validates notices input and requires a homeLine string in its output", async () => {
-    await expectAccepted(methods.notices.input, {});
-    for (const value of [undefined, null, []]) {
-      await expectRejected(methods.notices.input, value, "input must be an object");
-    }
-    await expectAccepted(methods.notices.output, { homeLine: "" });
-    for (const value of [null, {}, { homeLine: 1 }]) {
-      await expectRejected(methods.notices.output, value, "output must carry a homeLine string");
-    }
-  });
-
-  it("validates noticeList and status input and requires their output", async () => {
-    await expectAccepted(methods.noticeList.input, {});
-    for (const input of [undefined, null, []]) {
-      await expectRejected(methods.noticeList.input, input, "input must be an object");
-    }
-    await expectAccepted(methods.noticeList.output, { notices: [] });
-    await expectRejected(methods.noticeList.output, {}, "output must carry notices");
-
-    await expectAccepted(methods.status.input, {});
-    await expectAccepted(methods.status.input, { sessionID: "ses_1" });
-    await expectRejected(methods.status.input, [], "input must be an object");
-    await expectRejected(methods.status.input, { sessionID: 1 }, "sessionID must be a string");
-    await expectAccepted(methods.status.output, { text: "" });
-    await expectRejected(methods.status.output, { text: 1 }, "output must carry a text");
   });
 
   it("validates usage input", async () => {

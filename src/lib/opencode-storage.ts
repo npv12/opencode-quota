@@ -1,4 +1,4 @@
-import { existsSync } from "fs";
+import { existsSync } from "node:fs";
 
 import { getOpenCodeDbPath } from "./opencode-db-path.js";
 import { openOpenCodeSqliteReadOnly, type SqliteConn } from "./opencode-sqlite.js";

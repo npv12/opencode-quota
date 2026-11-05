@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { rowsFromProviderResult } from "../src/core/rows.js";
 import {
   bindCredentialSource,
@@ -10,16 +10,16 @@ import {
   notifyCredentialsChanged,
 } from "../src/lib/opencode-auth.js";
 import {
-  fetchRemoteQuotaProvider,
-  QUOTA_PROVIDER_MAX_BODY_BYTES,
-  resolveQuotaProviderApiKey,
-} from "../src/lib/quota-providers-remote.js";
-import {
   type JsonV1Mapping,
   QUOTA_PROVIDERS_AGGREGATE_ID,
   type RemoteApiQuotaProviderDefinition,
   validateQuotaProviders,
 } from "../src/lib/quota-providers.js";
+import {
+  fetchRemoteQuotaProvider,
+  QUOTA_PROVIDER_MAX_BODY_BYTES,
+  resolveQuotaProviderApiKey,
+} from "../src/lib/quota-providers-remote.js";
 import { customAccount } from "../src/providers/quota-providers.js";
 import {
   NEURALWATT_LIKE_ADAPTER,
@@ -682,51 +682,45 @@ describe("json-v1", () => {
     ["USD", "prefix", 0.001, "$0.00"],
     ["usd", "suffix", 95.5, "$95.50"],
     ["Usd", "suffix", 95.5, "$95.50"],
-  ] as const)(
-    "shows a value in %j (%s) as money, like built-in money",
-    async (unit, unitPosition, balance, expected) => {
-      const adapter: JsonV1Source["adapter"] = {
-        mappings: [
-          {
-            resultType: "balance",
-            name: "Balance",
-            unit,
-            unitPosition,
-            metric: { type: "value", valueType: "balance", value: { path: ["balance"] } },
-          },
-        ],
-      };
-      await expect(fetchBody({ balance }, jsonSource(adapter))).resolves.toEqual({
-        success: true,
-        rows: [expect.objectContaining({ key: "Balance", text: expected })],
-      });
-    },
-  );
+  ] as const)("shows a value in %j (%s) as money, like built-in money", async (unit, unitPosition, balance, expected) => {
+    const adapter: JsonV1Source["adapter"] = {
+      mappings: [
+        {
+          resultType: "balance",
+          name: "Balance",
+          unit,
+          unitPosition,
+          metric: { type: "value", valueType: "balance", value: { path: ["balance"] } },
+        },
+      ],
+    };
+    await expect(fetchBody({ balance }, jsonSource(adapter))).resolves.toEqual({
+      success: true,
+      rows: [expect.objectContaining({ key: "Balance", text: expected })],
+    });
+  });
 
   it.each([
     ["tokens", "suffix", { path: ["used"] }, 0.30000000000000004, "0.3 tokens"],
     ["tokens", "suffix", { path: ["used"], divideBy: 100 }, 0.7, "0.007 tokens"],
     ["€", "prefix", { path: ["used"] }, 0.313942875, "€0.313942875"],
     [undefined, undefined, { path: ["used"] }, 1e-7, "0.0000001"],
-  ] as const)(
-    "shows a value in %j (%s) without float noise",
-    async (unit, unitPosition, value, used, expected) => {
-      const adapter: JsonV1Source["adapter"] = {
-        mappings: [
-          {
-            resultType: "usage",
-            name: "Used",
-            ...(unit && unitPosition ? { unit, unitPosition } : {}),
-            metric: { type: "value", valueType: "used", value },
-          },
-        ],
-      };
-      await expect(fetchBody({ used }, jsonSource(adapter))).resolves.toEqual({
-        success: true,
-        rows: [expect.objectContaining({ key: "Used", text: expected })],
-      });
-    },
-  );
+  ] as const)("shows a value in %j (%s) without float noise", async (unit, unitPosition, value, used, expected) => {
+    const adapter: JsonV1Source["adapter"] = {
+      mappings: [
+        {
+          resultType: "usage",
+          name: "Used",
+          ...(unit && unitPosition ? { unit, unitPosition } : {}),
+          metric: { type: "value", valueType: "used", value },
+        },
+      ],
+    };
+    await expect(fetchBody({ used }, jsonSource(adapter))).resolves.toEqual({
+      success: true,
+      rows: [expect.objectContaining({ key: "Used", text: expected })],
+    });
+  });
 
   it.each([
     ["95.50", "450", ["$95.50", "4.5"]],

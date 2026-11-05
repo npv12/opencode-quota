@@ -1,10 +1,9 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { parse as parseJsonc } from "jsonc-parser";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it } from "vitest";
 
 import { customRowPrefix } from "../src/core/provider-source.js";
 import { buildQuotaExportFromSnapshot, exportProviderFromCheck } from "../src/lib/quota-export.js";
-import { QUOTA_PROVIDER_MAX_BODY_BYTES } from "../src/lib/quota-providers-remote.js";
 import {
   CUSTOM_RESULT_TYPES,
   JSON_V1_MAX_ITEMS,
@@ -13,6 +12,7 @@ import {
   QUOTA_PROVIDERS_AGGREGATE_ID,
   validateQuotaProviders,
 } from "../src/lib/quota-providers.js";
+import { QUOTA_PROVIDER_MAX_BODY_BYTES } from "../src/lib/quota-providers-remote.js";
 import { percentRow, providerSnapshot, quotaRow } from "./helpers/fake-answers.js";
 import {
   hasMarkdownLinkTo,
@@ -115,7 +115,7 @@ describe("README", () => {
   it("sends custom providers to the agent and the provider guide", () => {
     expect(readMarkdownSection(readme, /^Commands$/)).not.toContain("provider add");
     const customProviders = readMarkdownSection(readme, /^Custom providers$/);
-    expect(customProviders).toContain("Ask your agent to add a custom provider");
+    expect(customProviders).toContain("Add a custom provider in `settings.jsonc`");
     expect(hasMarkdownLinkTo(customProviders, "docs/readme/providers.md#custom-providers")).toBe(
       true,
     );
@@ -151,10 +151,7 @@ describe("user guides", () => {
       ),
     );
     expect(links.map((link) => `${link.page}#${link.anchor ?? ""}`)).toEqual(
-      expect.arrayContaining([
-        "docs/readme/configuration.md#",
-        "docs/readme/providers.md#custom-providers",
-      ]),
+      expect.arrayContaining(["docs/readme/configuration.md#"]),
     );
 
     for (const link of links) {
@@ -205,13 +202,6 @@ describe("provider guide: custom providers", () => {
       .filter((value) => "mappings" in value);
     expect(adapters).toHaveLength(1);
     expect(acceptsJsonV1(adapters[0])).toBe(true);
-  });
-
-  it("names only agent tools the plugin has", () => {
-    const agentTools = read("src/agent-tools.ts");
-    const named = new Set(Array.from(section.matchAll(/\bquota_provider_[a-z]+/g), (m) => m[0]));
-    expect(named.size).toBeGreaterThan(0);
-    for (const tool of named) expect(agentTools, tool).toContain(`"${tool}"`);
   });
 
   it("lists the remote formats and limits the code uses", () => {

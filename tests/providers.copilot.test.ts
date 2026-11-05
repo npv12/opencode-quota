@@ -4,7 +4,7 @@
  * replies through fake HTTP.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { describeError } from "../src/core/errors.js";
 import type { Amount, QuotaRow } from "../src/core/types.js";

@@ -6,7 +6,7 @@
  */
 
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getProviders } from "../src/providers/registry.js";
 import { defaultSettings } from "../src/settings/index.js";

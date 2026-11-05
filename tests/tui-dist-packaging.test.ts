@@ -1,6 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it, vi } from "vite-plus/test";
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("solid-js", () => ({
   Show: (props: { children?: unknown }) => props.children,
@@ -30,7 +30,7 @@ describe("tui dist packaging", () => {
     const [local, source] = await Promise.all([import("../tui.js"), import("../src/tui/index.js")]);
 
     expect(local.default).toBe(source.default);
-    expect(local.default).toMatchObject({ id: "slkiser.opencode-quota" });
+    expect(local.default).toMatchObject({ id: "npv12.opencode-quota" });
     expect(typeof local.default.setup).toBe("function");
   });
 
@@ -50,8 +50,6 @@ describe("tui dist packaging", () => {
     const source = await read("index.js");
     expect(source).toContain("createComponent");
     expect(source).toContain("sidebar.content");
-    expect(source).toContain("prompt.footer");
-    expect(source).toContain("home.footer.status");
     expect(source).toContain("session.composer.top");
     expect(source).toContain('bind: "return"');
     expect(source).not.toContain("jsx-dev-runtime");
@@ -64,7 +62,7 @@ describe("tui dist packaging", () => {
 
   it("can load the packaged TUI module", () => {
     expect(packagedTui.default).toMatchObject({
-      id: "slkiser.opencode-quota",
+      id: "npv12.opencode-quota",
     });
     // OpenCode refuses plugin storage for an id that is not one file-name segment.
     expect(packagedTui.default.id).toMatch(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/);
@@ -75,7 +73,7 @@ describe("tui dist packaging", () => {
     const mod = await import("../dist/index.js");
 
     expect(mod.default).toMatchObject({
-      id: "@slkiser/opencode-quota.server",
+      id: "@npv12/opencode-quota.server",
     });
     expect(typeof mod.default.setup).toBe("function");
   });

@@ -4,17 +4,16 @@
 
 ## First checks
 
-1. Run `/quota_status` inside OpenCode, or `opencode-quota status` in a terminal. Both show which settings, providers, logins, and local files OpenCode Quota found.
+1. Run `/quota` inside OpenCode for your limits, or `opencode-quota show` in a terminal.
 2. Find the provider or feature that fails, and follow the matching fix below.
 3. Restart OpenCode after changing `opencode.json`. Changes to logins and `settings.jsonc` apply without a restart.
 
-Every provider missing? Check that `@slkiser/opencode-quota` is in the `plugin` list of `opencode.jsonc` or `.json`. That one entry also loads the TUI; no `tui.json` entry is needed.
+Every provider missing? Check that `@npv12/opencode-quota` is in the `plugin` list of `opencode.jsonc` or `.json`. That one entry also loads the TUI; no `tui.json` entry is needed.
 
 ## Logins
 
 OpenCode Quota never reads OpenCode's `auth.json`. Inside OpenCode, it asks OpenCode 2 for logins (OpenCode keeps them in `opencode.db`). OpenCode 2 copies `auth.json` only once, the first time it starts. **If a provider is missing, log in to it again in OpenCode 2.** A login OpenCode could not return (for example after a failed token refresh) shows as an error row and under `credential_source` → `failures`; log in to that provider again.
 
-`/quota_status` also shows the `opencode.db` path used for session and token history. `OPENCODE_DB` and `XDG_DATA_HOME` change it. Custom or source builds of OpenCode may use `opencode-<channel>.db`; set `OPENCODE_DB` to that file's path.
 
 ## Service environment
 
@@ -34,34 +33,31 @@ OpenCode Quota reads OpenCode's own config files the way OpenCode does. For a se
 
 A file ranked higher wins. Both kinds may hold comments and trailing commas. With `OPENCODE_DISABLE_PROJECT_CONFIG` (or `OPENCODE_CONFIG_PROJECT_DISABLE`) set to `1` or `true`, only 1 and 2 count. The terminal command uses the folder it runs in as the session's folder.
 
-`/quota_status` (the slash command and the `quota_status` tool; the Plugin tab never writes) adds an empty `provider.<id>` entry for each available provider that none of these files declares, under a `// Detected <id> authentication; …` comment in `opencode.jsonc`. It writes only the global folder's `opencode.jsonc`, else its `opencode.json`, else a new `opencode.jsonc`. It keeps comments, writes through a symlink, writes nothing when the file changed while it ran, and never writes a project file.
 
 ## Terminal commands
 
-`opencode-quota show` and `opencode-quota status` run in your terminal, not in OpenCode:
+`opencode-quota show` runs in your terminal, not in OpenCode:
 
 - They work with OpenCode closed, read logins from `opencode.db` read-only, and read the same global `settings.jsonc` as OpenCode.
 - They never refresh a token, so a sign-in can show as expired (for example `Sign in again`) until you open OpenCode.
 - They use your shell's `PATH` and API-key variables.
 
-`status --json` prints the report as data: `version` (`"6"`), `generatedAt`, `config`, `providers`, `pricing`, and `liveProbes`.
 
 ## Common problems
 
 | Problem                                                     | Try this                                                                                                 |
 | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | Slash commands are missing                                  | Check the plugin entry above, then restart OpenCode.                                                     |
-| `/quota` shows no providers                                 | Run `/quota_status` and check provider detection and [logins](#logins).                                  |
-| Sidebar is missing                                          | Open a session: the `Quota` panel is in its sidebar. A collapsed panel opens when you click its title.   |
-| No Quota GUI in OpenCode Desktop                            | It needs OpenCode `2.2.0+` and its switch on in **Settings → Extensions → Plugins**. Web shows no plugin GUI. |
+| `/quota` shows no providers                                 | Run `/quota` and check provider detection and [logins](#logins).                                  |
+| Sidebar is missing                                          | Open a session: the `Quota` panel is in its sidebar.                                                     |
 | Old `/quota` reports reach the AI after uninstalling        | The plugin filtered them out while installed. Delete those messages or start a new chat.                 |
-| `/quota_usage` is empty                                     | Start OpenCode once so it creates `opencode.db`, then use a model.                                       |
-| Pricing looks old                                           | Press `p` in the TUI's Usage tab (`/quota_usage`).                                                       |
+| `/quota` is empty                                     | Start OpenCode once so it creates `opencode.db`, then use a model.                                       |
+| Pricing looks old                                           | Press `p` in the TUI's Usage tab (`/quota`).                                                       |
 | Terminal shows a sign-in as expired but OpenCode shows data | The terminal never refreshes tokens. Open OpenCode (or use that provider in it) once, then retry.        |
 
 ## Provider fixes
 
-Run `/quota_status` first. Every known provider has a section named after its id (for example `copilot:` or `opencode-go:`) with its `state` (`ok`, `partial`, `error`, `not checked`, `unavailable`, or `disabled`), `checked_at`, its `rows`, and its own details. An `unavailable` provider is not asked for quota; its section shows whether OpenCode lists it and, for an API-key provider or Cursor, where a key was looked for. The report prints only OpenCode Quota's own words (provider ids, row keys, states, setting keys), numbers and times: logins show as `account 1`, custom definitions as `custom 1`, other paths as `(custom path)`, and provider messages, labels, names, URLs and custom ids never appear. Read the report before you paste it into an issue. Setup steps are in [Providers](providers.md).
+Open `/quota` first: the Limits tab lists every provider it found, and a provider that failed keeps its rows with the error beside them. Setup steps are in [Providers](providers.md).
 
 <details>
 <summary><strong>Anthropic (Claude)</strong></summary>
@@ -102,8 +98,8 @@ Run `/quota_status` first. Every known provider has a section named after its id
 
 | Symptom                                   | Fix |
 | ----------------------------------------- | --- |
-| Cursor not detected                       | Put `cursor-opencode-provider/plugin/opencode2` before `@slkiser/opencode-quota` in `opencode.json`. |
-| Unknown Cursor pricing                    | Press `p` in the TUI's Usage tab (`/quota_usage`). If still unknown, `unpriced_30d` in `/quota_status` shows the share of the last 30 days' tokens without a price; [Cursor](providers.md#cursor) lists the requests that have none. |
+| Cursor not detected                       | Put `cursor-opencode-provider/plugin/opencode2` before `@npv12/opencode-quota` in `opencode.json`. |
+| Unknown Cursor pricing                    | Press `p` in the TUI's Usage tab (`/quota`). If still unknown, `unpriced_30d` in `/quota` shows the share of the last 30 days' tokens without a price; [Cursor](providers.md#cursor) lists the requests that have none. |
 
 </details>
 
@@ -138,7 +134,7 @@ Run `/quota_status` first. Every known provider has a section named after its id
 <details>
 <summary><strong>API-key providers (MiniMax, Kimi, Z.ai, Zhipu, DeepSeek, OpenRouter)</strong></summary>
 
-- Check the provider's section in `/quota_status` (for example `kimi-code-plan-global:` or `openrouter:`), which also shows the live check's result, for example `Sign in again (login_expired)` after HTTP 401.
+- Check the provider's section in `/quota` (for example `kimi-code-plan-global:` or `openrouter:`), which also shows the live check's result, for example `Sign in again (login_expired)` after HTTP 401.
 - Put keys in environment variables or the global OpenCode config. A project's `opencode.json` counts too, as it does for OpenCode, but a key there can end up in the repository. Variable names and rules: [API keys](providers.md#api-keys).
 
 </details>
@@ -150,7 +146,7 @@ Gemini CLI works only with Gemini Code Assist Standard or Enterprise (organizati
 
 | Symptom           | Google AGY                                                                | Gemini CLI |
 | ----------------- | ------------------------------------------------------------------------- | --- |
-| Companion missing | Put `@anthonyhaussman/opencode-agy-auth` before `@slkiser/opencode-quota` in `opencode.json`. | Put `opencode-gemini-auth` before `@slkiser/opencode-quota` in `opencode.json`. |
+| Companion missing | Put `@anthonyhaussman/opencode-agy-auth` before `@npv12/opencode-quota` in `opencode.json`. | Put `opencode-gemini-auth` before `@npv12/opencode-quota` in `opencode.json`. |
 | Login missing     | Run `opencode auth login google-agy`.                                     | Run `opencode auth login google`. |
 | Project missing   | Set `OPENCODE_AGY_PROJECT_ID` or `provider.google-agy.options.projectId`. | Set `provider.google.options.projectId`, `OPENCODE_GEMINI_PROJECT_ID`, `GOOGLE_CLOUD_PROJECT`, or `GOOGLE_CLOUD_PROJECT_ID`. |
 
@@ -172,7 +168,7 @@ Gemini CLI works only with Gemini Code Assist Standard or Enterprise (organizati
 | Symptom                           | Fix |
 | --------------------------------- | --- |
 | `auth_state` is `invalid`         | Run `opencode auth login opencode-go`. A broken `opencode-go` login blocks the legacy `opencode` fallback. |
-| API returns 401 or 403            | The usage API rejected the key. Update the source shown by `api_key_source`, wait briefly for the credential cache to expire, and rerun `/quota_status`. |
+| API returns 401 or 403            | The usage API rejected the key. Update the source shown by `api_key_source`, wait briefly for the credential cache to expire, and rerun `/quota`. |
 
 </details>
 

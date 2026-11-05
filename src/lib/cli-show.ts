@@ -1,6 +1,6 @@
 /**
- * `opencode-quota show` and `status`, and the frame every terminal report runs in: the settings (prices
- * included), the logins from OpenCode's database, and the providers OpenCode knows.
+ * `opencode-quota show`, and the frame its report runs in: the settings (prices included), the
+ * logins from OpenCode's database, and the providers OpenCode knows.
  */
 import { resolve } from "node:path";
 import type { ProviderSourceHost } from "../core/provider-source.js";
@@ -8,17 +8,12 @@ import { loadSettings } from "../settings/index.js";
 import { offProviderId, PROVIDER_IDS } from "../settings/schema.js";
 import { hasAnthropicCredentialsConfigured } from "./anthropic.js";
 import { API_KEY_VENDORS, resolveApiKeyLogin } from "./api-key-resolver.js";
-import {
-  buildCliShowJson,
-  buildCliShowText,
-  buildCliStatus,
-  type CliReport,
-} from "./cli-reports.js";
+import { buildCliShowJson, buildCliShowText, type CliReport } from "./cli-reports.js";
 import { findGitWorktreeRoot } from "./config-file-utils.js";
 import type { QuotaProviderContext } from "./entries.js";
 import { usePricingSettings } from "./modelsdev-pricing.js";
-import { createSqliteCredentialSource } from "./opencode-auth-sqlite.js";
 import { bindCredentialSource } from "./opencode-auth.js";
+import { createSqliteCredentialSource } from "./opencode-auth-sqlite.js";
 import { loadConfiguredProviderIds } from "./opencode-config-providers.js";
 import { getCanonicalQuotaProviderId } from "./provider-metadata.js";
 
@@ -31,7 +26,7 @@ interface RunCliCommandOptions {
   providers?: ProviderSourceHost["providers"];
 }
 
-type CliCommand = "show" | "status";
+type CliCommand = "show";
 
 type ParsedArgs =
   | { ok: true; providerId?: string; help: boolean; json: boolean; threshold?: number }
@@ -40,7 +35,7 @@ type ParsedArgs =
 const USAGE: Record<CliCommand, string> = {
   show: [
     "Usage:",
-    "  npx @slkiser/opencode-quota show [--provider <provider-id>] [--json] [--threshold <pct>]",
+    "  npx @npv12/opencode-quota show [--provider <provider-id>] [--json] [--threshold <pct>]",
     "",
     "Options:",
     "  --provider <provider-id>  Show quota for one provider",
@@ -49,30 +44,9 @@ const USAGE: Record<CliCommand, string> = {
     "                            <pct>% remaining (exit 2 if data is incomplete or not comparable)",
     "  --help, -h                Show help",
   ].join("\n"),
-  status: [
-    "Usage:",
-    "  npx @slkiser/opencode-quota status [--provider <provider-id>] [--json]",
-    "",
-    "Print the same Quota Status diagnostics as the /quota_status slash command,",
-    "without launching OpenCode.",
-    "",
-    "Options:",
-    "  --provider <provider-id>  Restrict provider availability and live probes to one provider",
-    "  --json                    Machine-readable JSON output:",
-    "                            { version, generatedAt, config, providers, pricing, liveProbes }",
-    "  --help, -h                Show help",
-    "",
-    "Exit codes:",
-    "  0  success",
-    "  1  error",
-    "  2  no comparable provider data (with --json only)",
-  ].join("\n"),
 };
 
-const THRESHOLD_REDIRECT =
-  "--threshold is not supported by status. For threshold exit codes, use: opencode-quota show --json --threshold <pct>";
-
-function parseArgs(command: CliCommand, argv: string[]): ParsedArgs {
+function parseArgs(argv: string[]): ParsedArgs {
   let providerId: string | undefined;
   let json = false;
   let threshold: number | undefined;
@@ -90,7 +64,6 @@ function parseArgs(command: CliCommand, argv: string[]): ParsedArgs {
     }
 
     if (arg === "--threshold" || arg.startsWith("--threshold=")) {
-      if (command === "status") return { ok: false, error: THRESHOLD_REDIRECT };
       let value: string | undefined;
       if (arg === "--threshold") {
         value = argv[index + 1];
@@ -214,7 +187,6 @@ function writeLine(stream: Pick<NodeJS.WriteStream, "write">, message: string): 
  */
 async function runCliReport(params: {
   cwd: string;
-  failurePrefix: "Failed to show quota" | "Failed to generate quota status";
   build: (host: ProviderSourceHost) => Promise<CliReport>;
   stdout: Pick<NodeJS.WriteStream, "write">;
   stderr: Pick<NodeJS.WriteStream, "write">;
@@ -245,7 +217,7 @@ async function runCliReport(params: {
     return report.exitCode;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    writeLine(params.stderr, `${params.failurePrefix}: ${message}`);
+    writeLine(params.stderr, `Failed to show quota: ${message}`);
     return 1;
   } finally {
     unbind();
@@ -255,7 +227,6 @@ async function runCliReport(params: {
 
 /** Parses the arguments, prints the usage or an argument error, else runs the report. */
 async function runCliCommand(
-  command: CliCommand,
   options: RunCliCommandOptions,
   build: (
     host: ProviderSourceHost,
@@ -265,15 +236,15 @@ async function runCliCommand(
   const stdout = options.stdout ?? process.stdout;
   const stderr = options.stderr ?? process.stderr;
 
-  const parsed = parseArgs(command, options.argv ?? process.argv.slice(3));
+  const parsed = parseArgs(options.argv ?? process.argv.slice(3));
   if (!parsed.ok) {
     writeLine(stderr, parsed.error);
-    writeLine(stderr, USAGE[command]);
+    writeLine(stderr, USAGE.show);
     return 1;
   }
 
   if (parsed.help) {
-    writeLine(stdout, USAGE[command]);
+    writeLine(stdout, USAGE.show);
     return 0;
   }
 
@@ -285,7 +256,6 @@ async function runCliCommand(
 
   return runCliReport({
     cwd: options.cwd ?? process.cwd(),
-    failurePrefix: command === "show" ? "Failed to show quota" : "Failed to generate quota status",
     build: (host) => build(host, { ...parsed, providerId }),
     stdout,
     stderr,
@@ -294,17 +264,10 @@ async function runCliCommand(
 }
 
 export function runCliShowCommand(options: RunCliCommandOptions = {}): Promise<number> {
-  return runCliCommand("show", options, (host, args) => {
+  return runCliCommand(options, (host, args) => {
     const only = withOnlyProvider(host, args.providerId);
     return args.json
       ? buildCliShowJson({ host: only, threshold: args.threshold })
       : buildCliShowText(only);
   });
-}
-
-/** `status`: the same Quota Status diagnostics as /quota_status, without OpenCode. */
-export function runCliStatusCommand(options: RunCliCommandOptions = {}): Promise<number> {
-  return runCliCommand("status", options, (host, args) =>
-    buildCliStatus({ host, providerId: args.providerId, json: args.json }),
-  );
 }

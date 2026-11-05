@@ -1,13 +1,10 @@
 /**
- * OpenCode V2 server plugin: quota slash commands for Web and Desktop, a diagnostics tool, and
- * the quota RPC that serves the quota snapshot, the Home notice line, active notices and reports
- * to the TUI. It reads the server settings (settings.jsonc, converted from v5 once) and follows
- * every change to them.
- * It also writes the export file and the OpenTelemetry gauges from each snapshot. Inside
- * OpenCode, logins are read only here, through OpenCode's integration API.
+ * OpenCode V2 server plugin: the /quota slash command for Web and Desktop, and the quota RPC
+ * that serves the TUI the snapshot, settings and usage. It reads the server settings
+ * (settings.jsonc) and follows every change to them. Inside OpenCode, logins are read only here,
+ * through OpenCode's integration API.
  */
 import { Plugin } from "@opencode/plugin";
-import { quotaAgentTools } from "./agent-tools.js";
 import { snapshotFilePath } from "./core/persist.js";
 import {
   customRowPrefix,
@@ -16,12 +13,9 @@ import {
   type ProviderSourceHost,
 } from "./core/provider-source.js";
 import { safeErrorText } from "./core/redact.js";
-import { createSnapshotPublisher } from "./core/snapshot-publisher.js";
 import { createQuotaStore, withTimeout } from "./core/store.js";
 import type { QuotaSnapshot, SessionModel } from "./core/types.js";
-import { OLD_USAGE_COMMANDS } from "./core/usage-ranges.js";
 import {
-  parseUsageArguments,
   sessionUsage,
   type UsageQuery,
   type UsageReport,
@@ -30,16 +24,12 @@ import {
 } from "./core/usage.js";
 import { findGitWorktreeRoot } from "./lib/config-file-utils.js";
 import { sanitizeDisplayText } from "./lib/display-sanitize.js";
-import { homeNoticeLine, listNotices } from "./lib/maintainer-home-notice.js";
 import { downloadPrices, refreshPricesIfDue } from "./lib/modelsdev-pricing.js";
 import {
   bindCredentialSource,
   createIntegrationCredentialSource,
   notifyCredentialsChanged,
 } from "./lib/opencode-auth.js";
-import { reconcileDetectedProvidersInGlobalConfig } from "./lib/opencode-config-providers.js";
-import { getQuotaProviderRuntimeIds } from "./lib/provider-metadata.js";
-import { statusReport } from "./lib/quota-dialog-commands.js";
 import {
   containsQuotaReport,
   formatQuotaReportMessage,
@@ -49,7 +39,6 @@ import {
   removeQuotaReports,
 } from "./lib/quota-report-message.js";
 import { resolveQuotaResetRetryDelayMs } from "./lib/quota-retry-wait.js";
-import type { StatusOrigin } from "./lib/quota-status.js";
 import { QuotaRpc } from "./rpc.js";
 import {
   clientSettings,
@@ -59,7 +48,6 @@ import {
   settingsPath,
 } from "./settings/index.js";
 import { DEFAULT_QUICK_LOOK_RANGE } from "./view/quick-look.js";
-import { usageText } from "./view/usage.js";
 
 /** How long a usage report waits for OpenCode's provider names. */
 const PROVIDER_NAMES_TIMEOUT_MS = 2_000;
@@ -111,7 +99,7 @@ export function createQuotaServerPlugin(
   options: { providers?: ProviderSourceHost["providers"] } = {},
 ) {
   return Plugin.define({
-    id: "@slkiser/opencode-quota.server",
+    id: "@npv12/opencode-quota.server",
     async setup(ctx) {
       const locationDirectory = ctx.location.directory;
       const projectDir = findGitWorktreeRoot(locationDirectory) ?? locationDirectory;
@@ -128,46 +116,6 @@ export function createQuotaServerPlugin(
 
       // The server holds the settings it read last; every reader takes them from here.
       const liveSettings = await createLiveSettings({ projectDir });
-      // /quota_status reports the providers it detected. The slash commands and
-      // the tool add them to the global OpenCode config; the TUI palette (via RPC) never writes it.
-      const buildStatusOutput = async (
-        sessionID: string | undefined,
-        options: { origin: StatusOrigin; reconcileDetectedProviders: boolean },
-      ): Promise<string> => {
-        const report = await statusReport(sourceHost, {
-          origin: options.origin,
-          opencode: ctx.app ? { version: ctx.app.version, channel: ctx.app.channel } : undefined,
-          sessionModel: sessionID ? await sessionModel(sessionID) : undefined,
-          conversion: liveSettings.conversion,
-          nowMs: Date.now(),
-        });
-        const detected = report.json.providers
-          .filter((provider) => provider.enabled && provider.available)
-          .map((provider) => provider.id);
-        if (options.reconcileDetectedProviders && detected.length > 0) {
-          try {
-            // Only declare a provider through its own OpenCode id. A quota provider can be available
-            // through another provider id (claude-code or claude-agent for anthropic); declaring the
-            // canonical id would add a second, credential-less provider to the catalog.
-            const runtime = new Set(
-              (await ctx.provider.list()).data.map((provider) => provider.id),
-            );
-            await reconcileDetectedProvidersInGlobalConfig({
-              directory: locationDirectory,
-              detectedProviderIds: detected.filter(
-                (id) =>
-                  runtime.has(id) ||
-                  !getQuotaProviderRuntimeIds(id).some(
-                    (runtimeId) => runtimeId !== id && runtime.has(runtimeId),
-                  ),
-              ),
-            });
-          } catch (error) {
-            console.warn("Failed to add detected providers to global OpenCode config", error);
-          }
-        }
-        return report.text;
-      };
 
       // The v6 quota store: last known rows, saved in the state dir, refreshed in the background.
       // Building it reads nothing; the first snapshot or refresh call loads the file.
@@ -252,11 +200,6 @@ export function createQuotaServerPlugin(
         return providers ? withProviderNames(report, providers) : report;
       };
 
-      // A notice can target the users of some providers: the enabled and available ones,
-      // found without asking any provider for quota.
-      const noticeTargets = async () =>
-        (await loadProviderSource(sourceHost)).providers.map(({ id }) => id);
-
       // Awaited so the plugin is active only once the RPC is registered: OpenCode waits for
       // activation before it routes an RPC call, so the first TUI call cannot miss it.
       const registration = await ctx.rpc.register(QuotaRpc, {
@@ -274,22 +217,6 @@ export function createQuotaServerPlugin(
             };
             const snapshot = await store.refresh(options);
             return { snapshot: forClients(await withSessionTokens(snapshot, input.sessionID)) };
-          }),
-        notices: () =>
-          logRpcFailure("notices", async () => ({
-            homeLine: await homeNoticeLine({ providerIds: await noticeTargets() }),
-          })),
-        noticeList: () =>
-          logRpcFailure("noticeList", async () => ({
-            notices: await listNotices({ providerIds: await noticeTargets() }),
-          })),
-        status: (input) =>
-          logRpcFailure("status", async () => {
-            const text = await buildStatusOutput(input.sessionID, {
-              origin: "tui",
-              reconcileDetectedProviders: false,
-            });
-            return { text: sanitizeDisplayText(text) };
           }),
         usage: (input) =>
           logRpcFailure("usage", async () => {
@@ -317,14 +244,7 @@ export function createQuotaServerPlugin(
             path: settingsPath(),
           })),
       });
-      // The export file and the gauges follow the snapshot; neither asks a provider again.
-      const publisher = createSnapshotPublisher({
-        loadSettings: () => loadServerSettings(sourceHost),
-        log: (message, error) =>
-          console.warn(`[opencode-quota] ${message}: ${safeErrorText(error)}`),
-      });
       const announce = (snapshot: QuotaSnapshot) => {
-        publisher.publish(snapshot);
         void (async () => {
           try {
             await registration.events.emit("changed", { snapshot: forClients(snapshot) });
@@ -342,44 +262,10 @@ export function createQuotaServerPlugin(
       // time limit, interval or price list is out of date, so every provider is checked again.
       const settingsWatch = await liveSettings.follow(async (change) => {
         store.settingsChanged({ recheck: change.recheck });
-        if (change.oldCommands) {
-          // The command list is built again from the settings now in use. An open TUI keeps its
-          // "/" list until OpenCode restarts: OpenCode 2 sends this reload without the folder
-          // (location) that the TUI refreshes its list for.
-          await ctx.command.reload().catch((error: unknown) => {
-            console.warn(`[opencode-quota] command reload failed: ${safeErrorText(error)}`);
-          });
-        }
       });
 
-      await ctx.tool.transform((editor) => {
-        // Agent tools: read and change the settings file, add, test and remove custom providers.
-        const host = {
-          openCodeProviderIds: async () => (await ctx.provider.list()).data.map(({ id }) => id),
-          locationDirectory,
-          settings: liveSettings,
-        };
-        for (const tool of quotaAgentTools(host)) editor.add(tool);
-        editor.add({
-          name: "quota_status",
-          description: "Diagnostics for toast, TUI, pricing and local storage.",
-          input: {
-            type: "object",
-            properties: {},
-            additionalProperties: false,
-          },
-          async execute(_input, context) {
-            const text = await buildStatusOutput(context.sessionID, {
-              origin: "tool",
-              reconcileDetectedProviders: true,
-            });
-            return { content: sanitizeDisplayText(text) };
-          },
-        });
-      });
-
-      // Web and Desktop list these in their "/" menu and get the report as a chat message. The
-      // TUI shows /quota, /quota_usage and /quota_status in its quota window instead.
+      // Web and Desktop list this in their "/" menu and get the report as a chat message. The
+      // TUI shows /quota in its quota window instead.
       const postReport = async (sessionID: string, command: string, report: string) => {
         // A message admitted while the AI works is delivered into that turn at its next
         // step, and can make the AI take one more step. Wait until the session is idle.
@@ -397,25 +283,6 @@ export function createQuotaServerPlugin(
           resume: false,
         });
       };
-      /** Posts the usage report `argumentsText` asks for, like "30d" or "between <date> <date>". */
-      const postUsage = async (sessionID: string, command: string, argumentsText: string) => {
-        const parsed = parseUsageArguments(argumentsText);
-        if (!parsed.ok) {
-          await postReport(sessionID, command, parsed.error);
-          return;
-        }
-        const { range, from, to } = parsed;
-        let text: string;
-        try {
-          text = usageText(await loadUsageReport({ range, from, to, sessionID }), {
-            mode: "cost",
-            breakdown: "model",
-          });
-        } catch (error) {
-          text = `Couldn't read the usage: ${error instanceof Error ? error.message : String(error)}`;
-        }
-        await postReport(sessionID, command, text);
-      };
       await ctx.command.transform((editor) => {
         editor.add({
           name: "quota",
@@ -432,42 +299,10 @@ export function createQuotaServerPlugin(
                 return undefined;
               },
             );
-            const notices = await listNotices({ providerIds: await noticeTargets() });
-            const report = quotaMessageText({ snapshot, usage, notices, nowMs: Date.now() });
+            const report = quotaMessageText({ snapshot, usage, nowMs: Date.now() });
             await postReport(invocation.sessionID, "quota", report);
           },
         });
-        editor.add({
-          name: "quota_status",
-          description: "Diagnostics for quota, TUI, pricing, and local storage.",
-          async execute(invocation) {
-            const text = await buildStatusOutput(invocation.sessionID, {
-              origin: "slash_command",
-              reconcileDetectedProviders: true,
-            });
-            await postReport(invocation.sessionID, "quota_status", text);
-          },
-        });
-        editor.add({
-          name: "quota_usage",
-          description:
-            "Tokens and API cost: today (default), 24h, 7d, 30d, 90d, all, session (with its subagents), or between YYYY-MM-DD YYYY-MM-DD.",
-          execute: (invocation) =>
-            postUsage(invocation.sessionID, "quota_usage", invocation.prompt.text),
-        });
-        // Read each time OpenCode builds the list, so `system.oldCommands` adds or removes them.
-        if (!liveSettings.current().settings.system.oldCommands) return;
-        for (const [name, range] of Object.entries(OLD_USAGE_COMMANDS)) {
-          editor.add({
-            name,
-            description:
-              range === "between"
-                ? "Same as /quota_usage between YYYY-MM-DD YYYY-MM-DD."
-                : `Same as /quota_usage ${range}.`,
-            execute: (invocation) =>
-              postUsage(invocation.sessionID, name, `${range} ${invocation.prompt.text}`),
-          });
-        }
       });
 
       // Keep quota reports out of every model request built from session history:
@@ -540,7 +375,6 @@ export function createQuotaServerPlugin(
         credentialEvents.abort();
         settingsWatch.close();
         unsubscribeStore();
-        publisher.dispose();
         await store.dispose();
         unbindCredentialSource();
         liveSettings.dispose();

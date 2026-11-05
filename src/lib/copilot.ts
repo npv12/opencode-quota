@@ -6,8 +6,8 @@
  * for an eligible Copilot Pro or Pro+ annual plan.
  */
 
-import { existsSync, readFileSync } from "fs";
-import { join } from "path";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { ErrorFacts } from "../core/errors.js";
 import { sanitizeDisplaySnippet, sanitizeSingleLineDisplaySnippet } from "./display-sanitize.js";
 import { errorWords, failureFacts, RequestFailedError, requestJson, thrownFacts } from "./http.js";

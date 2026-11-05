@@ -11,8 +11,8 @@ import { WINDOWS } from "../core/windows.js";
 import {
   type DurationStyle,
   formatDuration,
-  largestUnit,
   type Level,
+  largestUnit,
   paceLevel,
   percentText,
   rowValueText,

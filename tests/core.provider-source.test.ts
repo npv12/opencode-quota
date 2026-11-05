@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readSavedState } from "../src/core/persist.js";
 import { keyedLogins, loadProviderSource, providerContext } from "../src/core/provider-source.js";
@@ -109,39 +109,39 @@ describe("provider source logins", () => {
   it.each([
     { runtimeId: "minimax", expected: [] },
     { runtimeId: "minimax-china-coding-plan", expected: ["minimax-china-coding-plan"] },
-  ])(
-    "discovers and matches MiniMax China with default settings for $runtimeId",
-    async ({ runtimeId, expected }) => {
-      vi.stubEnv("MINIMAX_CHINA_CODING_PLAN_API_KEY", "china-key");
-      registry.providers = [minimaxChinaCodingPlanProvider];
-      const loaded = {
-        path: "settings.jsonc",
-        exists: true,
-        settings: defaultSettings(),
-        issues: [],
-        fromFile: [],
-        notRead: [],
-      };
-      const host = {
-        client: {
-          config: { providers: async () => ({ data: { providers: [{ id: runtimeId }] } }) },
-        },
-        workspaceRoot: runtime.root,
-        locationDirectory: runtime.root,
-        settings: () => loaded,
-        providers: () => registry.providers,
-      };
+  ])("discovers and matches MiniMax China with default settings for $runtimeId", async ({
+    runtimeId,
+    expected,
+  }) => {
+    vi.stubEnv("MINIMAX_CHINA_CODING_PLAN_API_KEY", "china-key");
+    registry.providers = [minimaxChinaCodingPlanProvider];
+    const loaded = {
+      path: "settings.jsonc",
+      exists: true,
+      settings: defaultSettings(),
+      issues: [],
+      fromFile: [],
+      notRead: [],
+    };
+    const host = {
+      client: {
+        config: { providers: async () => ({ data: { providers: [{ id: runtimeId }] } }) },
+      },
+      workspaceRoot: runtime.root,
+      locationDirectory: runtime.root,
+      settings: () => loaded,
+      providers: () => registry.providers,
+    };
 
-      const source = await loadProviderSource(host);
+    const source = await loadProviderSource(host);
 
-      expect(loaded.settings.providers.off).toEqual([]);
-      expect(source.providers.map(({ id }) => id)).toEqual(expected);
-      expect(source.providerIdsForModel?.({ id: "MiniMax-M2.7", providerID: runtimeId })).toEqual(
-        expected,
-      );
-      expect(source.providerIdsForModel?.({ id: `${runtimeId}/MiniMax-M2.7` })).toEqual(expected);
-    },
-  );
+    expect(loaded.settings.providers.off).toEqual([]);
+    expect(source.providers.map(({ id }) => id)).toEqual(expected);
+    expect(source.providerIdsForModel?.({ id: "MiniMax-M2.7", providerID: runtimeId })).toEqual(
+      expected,
+    );
+    expect(source.providerIdsForModel?.({ id: `${runtimeId}/MiniMax-M2.7` })).toEqual(expected);
+  });
 
   it.runIf(POSIX_IDENTITY_STORAGE)(
     "keys logins with the install's protected key, so a saved login can't be matched to an email",

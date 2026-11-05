@@ -6,7 +6,7 @@
 
 import { chmodSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { beforeEach, describe, expect, it } from "vite-plus/test";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { clearAnthropicDiagnosticsCacheForTests } from "../src/lib/anthropic.js";
 import {
@@ -335,18 +335,15 @@ describe("anthropic provider", () => {
     [["claude-agent"], true, false],
     [["claude"], true, false],
     [["anthropic"], false, false],
-  ])(
-    "with provider ids %j and a stored login=%s is available=%s",
-    async (providerIds, hasLogin, expected) => {
-      world.storeLogins(hasLogin ? [claudeLogin("work")] : []);
-      const ctx = createProviderAvailabilityContext({
-        providerIds,
-        configOverrides: { anthropicBinaryPath: missingClaude() },
-      });
+  ])("with provider ids %j and a stored login=%s is available=%s", async (providerIds, hasLogin, expected) => {
+    world.storeLogins(hasLogin ? [claudeLogin("work")] : []);
+    const ctx = createProviderAvailabilityContext({
+      providerIds,
+      configOverrides: { anthropicBinaryPath: missingClaude() },
+    });
 
-      await expect(anthropicProvider.isAvailable(ctx)).resolves.toBe(expected);
-    },
-  );
+    await expect(anthropicProvider.isAvailable(ctx)).resolves.toBe(expected);
+  });
 
   it("is not available when provider lookup throws", async () => {
     world.storeLogins([claudeLogin("work")]);

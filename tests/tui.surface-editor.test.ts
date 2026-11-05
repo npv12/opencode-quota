@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it } from "vitest";
 import type { QuotaSnapshot } from "../src/core/types.js";
 import { defaultSettings } from "../src/settings/schema.js";
 import { setIn } from "../src/tui/display.js";

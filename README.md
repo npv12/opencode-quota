@@ -1,104 +1,55 @@
-<p align="center">
-  <a href="https://github.com/slkiser/opencode-quota">
-    <picture>
-      <source srcset="https://shawnkiser.com/opencode-quota/opencode-quota-logo-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="https://shawnkiser.com/opencode-quota/opencode-quota-logo-light.svg" media="(prefers-color-scheme: light)">
-      <img src="https://shawnkiser.com/opencode-quota/opencode-quota-logo-light.svg" alt="OpenCode Quota logo">
-    </picture>
-  </a>
-</p>
-<p align="center">Quota, usage and cost in OpenCode TUI and Desktop.</p>
-<p align="center">
-  <a href="https://www.npmjs.com/package/@slkiser/opencode-quota"><img alt="npm" src="https://img.shields.io/npm/v/%40slkiser%2Fopencode-quota?style=flat-square" /></a>
-  <a href="https://www.npmjs.com/package/@slkiser/opencode-quota"><img alt="npm downloads" src="https://img.shields.io/npm/dm/%40slkiser%2Fopencode-quota?style=flat-square" /></a>
-  <a href="https://github.com/slkiser/opencode-quota/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/slkiser/opencode-quota/ci.yml?style=flat-square&branch=main&label=CI" /></a>
-  <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" /></a>
-</p>
-<p align="center">
-  <a href="README.md">English</a> |
-  <a href="docs/readme/i18n/README.zh.md">简体中文</a> |
-  <a href="docs/readme/i18n/README.zht.md">繁體中文</a> |
-  <a href="docs/readme/i18n/README.fr.md">Français</a> |
-  <a href="docs/readme/i18n/README.de.md">Deutsch</a> |
-  <a href="docs/readme/i18n/README.ja.md">日本語</a> |
-  <a href="docs/readme/i18n/README.es.md">Español</a>
-</p>
+# OpenCode Quota
 
-<p align="center">
-  <a href="https://github.com/slkiser/opencode-quota"><img src="https://shawnkiser.com/opencode-quota/opencode-quota-hero.webp" alt="OpenCode Quota in OpenCode: the sidebar, the quota window's Usage and Limits tabs, and its settings" /></a>
-</p>
+Quota visibility in OpenCode: the `/quota` window, the TUI sidebar panel, and a terminal `show` command.
 
----
-
-## Install
-
-```bash
-opencode plugin add @slkiser/opencode-quota
-```
-
-Restart OpenCode and type `/quota`. A window opens with your limits. Click a tab (Usage, Limits, Plugin, or a Settings tab) or press `tab` to move between them; click or press `esc` to close it.
+This is a maintained fork of [`@slkiser/opencode-quota`](https://github.com/slkiser/opencode-quota), published as `@npv12/opencode-quota` by [Pranav (npv12)](https://github.com/npv12).
 
 > [!IMPORTANT]
-> You need OpenCode `2.0.26+`; the terminal commands also need Node.js `22.13+` or `23.4+`.
+> You need OpenCode `2.0.28+` and Node.js `22.13+` or `23.4+`.
 
-> [!NOTE]
-> Still on OpenCode 1? Run `npx @slkiser/opencode-quota@4 init` instead, and see the [OpenCode 1 README](https://github.com/slkiser/opencode-quota/blob/release/4.x/README.md).
+## Quick start
 
-<details>
-<summary>Edit <code>opencode.json</code> yourself</summary>
-
-Add the plugin to `opencode.jsonc` or `opencode.json`, and keep your other plugins. In `~/.config/opencode` it works in every project; in a project's folder, only there. This one entry loads both the server and the TUI:
+Add OpenCode Quota to `opencode.jsonc` or `opencode.json`, and keep your other plugins. The package also exports `./tui`, which OpenCode loads automatically beside the server plugin:
 
 ```jsonc
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@slkiser/opencode-quota"],
+  "plugin": ["@npv12/opencode-quota"],
 }
 ```
 
-</details>
+Restart OpenCode, then type `/quota`. The window opens on Limits; `tab` moves between Limits, Usage and Settings.
 
 ## What you get
 
-- **TUI:** a `/quota` window, a sidebar panel, a status line and toasts.
-- **Desktop (experimental, OpenCode `2.2.0+`):** a side tab, pills, a bottom strip, toasts, a usage window (**Quota** command) and a settings page. Turn it off in **Settings → Extensions → Plugins**.
-  <details>
-  <summary>Where each setting shows in the TUI and in Desktop</summary>
-  <table>
-  <tr><th>Setting group</th><th>TUI</th><th>Desktop</th></tr>
-  <tr><td><code>sidebar</code></td><td>Quota panel in the sidebar</td><td>Quota side tab</td></tr>
-  <tr><td><code>collapsed</code></td><td>Sidebar panel folded to one line per provider</td><td>Titlebar pill, and the Quota side tab when folded</td></tr>
-  <tr><td><code>statusLine</code></td><td>Line under the message box</td><td>Strip at the bottom of the window, and the pill above the message box</td></tr>
-  <tr><td><code>toast</code></td><td>Toasts with bars</td><td>Toasts with the Quota side tab's rows and bars; a reset notice is a sentence</td></tr>
-  </table>
-  <p><b>Note:</b> in the TUI the status line hides while the sidebar shows quota, unless <b>Next to the sidebar</b> (<code>statusLine.withSidebar</code>) is on. In Desktop the strip also shows next to the Quota side tab by default; <b>Next to the side panel</b> (<code>statusLine.withSidePanel</code>) turns that off. <code>statusLine.composerPill: false</code> (<b>Pill above the message box</b>) hides only the pill in Desktop.</p>
-  </details>
-- **Web:** `/quota`, `/quota_usage` and `/quota_status` post a report in the chat. The AI never sees it.
-- **Terminal:** `npx @slkiser/opencode-quota@latest show`, even with OpenCode closed.
-- **Scripts and status bars:** JSON, an export file and metrics ([how](docs/readme/external-integration.md)).
-- **Live settings** in every open OpenCode.
+- **`/quota` window:** your limits, token usage and settings. It covers the chat above the message box and closes with `esc`.
+- **Sidebar panel:** an always-visible, headerless list of the limiting window for each provider. Provider names, compact windows (`1h`, `5h`, `7d`, `30d`), one-decimal resets (`2.9h`, `2.9d`) and bare percentages. Percentages keep the theme's level color.
+- **Terminal:** `npx @npv12/opencode-quota@latest show` collects live quota and works even with OpenCode closed.
+- **Scripts and status bars:** `show --json` prints cached JSON, with an optional threshold probe for CI. See [External integration](docs/readme/external-integration.md).
 
 ## Commands
 
-| Command                | What it shows                                                                                                                 |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `/quota`               | Limits. Web and Desktop: limits next to the last 7 days of usage                                                              |
-| `/quota_usage [range]` | Tokens and API cost: `today` (default), `24h`, `7d`, `30d`, `90d`, `all`, `session` (with its subagents), `between` two dates |
-| `/quota_status`        | Setup check: logins, providers, pricing, and notices                                                                          |
-| `/quota_settings`      | Settings tabs (TUI only)                                                                                                      |
+### Slash commands
 
-For example `/quota_usage 30d` or `/quota_usage between 2026-09-01 2026-09-25`. In a terminal, with OpenCode open or closed, `npx @slkiser/opencode-quota@latest show` shows your quota and `npx @slkiser/opencode-quota@latest status` checks your setup ([how they differ](docs/readme/troubleshooting.md#terminal-commands)). Add `--help` to see all options.
+| Command  | What it shows |
+| -------- | ------------- |
+| `/quota` | Current quota, usage and settings |
+
+### CLI commands
+
+| Command                                 | What it does |
+| --------------------------------------- | ------------ |
+| `npx @npv12/opencode-quota@latest show` | Show current quota as text or JSON |
+
+`show` collects live quota in your terminal and works with OpenCode closed. Add `--json` for machine output that reads the cache instead, and `--threshold <pct>` (with `--json`) to exit non-zero when comparable cached quota is below the threshold. Add `--help` to see all options.
 
 ## Settings
 
-- Change settings in `/quota_settings` (TUI) or the Quota page in Desktop's settings. Both save to `opencode-quota/settings.jsonc` in OpenCode's config folder and keep your comments.
-- Custom providers, the Claude CLI path and the export path are set only in the file.
-- The `┃` in a bar marks even use until the reset. **Even-use mark** (`layout.evenUse`) turns it off.
-- [Settings and defaults](docs/readme/configuration.md)
+Change settings in the `/quota` window's Settings tabs, or edit `opencode-quota/settings.jsonc` in OpenCode's config folder. The window keeps your comments when it saves.
 
 ## Providers
 
-Log in with `/connect` and the provider shows up. Switch providers on or off in `/quota_settings` → **Providers**.
+Log in with `/connect` and the provider shows up.
 
 <table>
 <tr>
@@ -147,26 +98,7 @@ Log in with `/connect` and the provider shows up. Switch providers on or off in 
 
 ### Custom providers
 
-Track any other provider, from its quota API or from a local estimate. Ask your agent to add a custom provider: it is saved switched off, and you switch it on in `/quota_settings` → **Providers**. [Copy-paste prompt](docs/readme/providers.md#custom-providers).
-
-## Updating
-
-```bash
-opencode plugin update
-```
-
-Restart OpenCode. Coming from 4.x or 5.x? Your settings convert on the first start, and the old `/tokens_*` commands still work. See [Updating](docs/readme/updating.md).
-
-## Troubleshooting
-
-1. Run `/quota_status` in an OpenCode session, or `npx @slkiser/opencode-quota@latest status` in a terminal.
-2. Provider missing? Log in to it again in OpenCode 2.
-3. Using a companion plugin (Cursor, Google)? List it **before** `@slkiser/opencode-quota` in `opencode.json`.
-4. `claude` or `bl` not found? See [Service environment](docs/readme/troubleshooting.md#service-environment).
-5. `/quota_usage` empty? Start OpenCode once, then use a model.
-6. No Quota GUI in Desktop? It needs OpenCode `2.2.0+` and its switch on in **Settings → Extensions → Plugins**. Web shows no plugin GUI.
-
-More fixes: [Troubleshooting](docs/readme/troubleshooting.md).
+Track any other provider, from its quota API or from a local estimate. Add a custom provider in `settings.jsonc` under `providers.custom`; it is saved switched off, and you switch it on in the window's Settings → Providers. [Copy-paste examples](docs/readme/providers.md#custom-providers).
 
 ## Reference
 
@@ -174,14 +106,6 @@ Guides: [Configuration](docs/readme/configuration.md) · [Providers](docs/readme
 
 Outside links: [OpenCode docs](https://opencode.ai/docs/) · [OpenCode config](https://opencode.ai/docs/config/) · [OpenCode plugins](https://opencode.ai/docs/plugins/) · [OpenCode TUI](https://opencode.ai/docs/tui/) · [models.dev pricing data](https://models.dev/) · [Node.js downloads](https://nodejs.org/en/download)
 
-## Contributors
-
-Thanks to everyone who has contributed to OpenCode Quota.
-
-<a href="https://github.com/slkiser/opencode-quota/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=slkiser/opencode-quota" />
-</a>
-
 ## License
 
-MIT. OpenCode Quota is not built by the OpenCode team and is not affiliated with OpenCode or any provider listed above.
+MIT

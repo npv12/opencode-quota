@@ -5,7 +5,6 @@
  */
 import type { QuotaSnapshot } from "../core/types.js";
 import type { UsageReport } from "../core/usage.js";
-import type { Notice } from "../rpc.js";
 import { DEFAULT_WORDS } from "../view/format.js";
 import { quickLookText } from "../view/quick-look.js";
 import type { RowSettings, SurfaceRows } from "../view/select.js";
@@ -50,7 +49,7 @@ const NO_DISPLAY_CHOICES: RowSettings = {
 
 /**
  * The limits of every provider as the /quota report of Web and Desktop writes them, without its
- * usage and notices: what the TUI's Limits tab copies. Like that tab, it ignores
+ * usage: what the TUI's Limits tab copies. Like that tab, it ignores
  * `onlyCurrentModel`.
  */
 export function quotaLimitsText(snapshot: QuotaSnapshot, nowMs: number): string {
@@ -66,19 +65,14 @@ export function quotaLimitsText(snapshot: QuotaSnapshot, nowMs: number): string 
 
 /**
  * The /quota report of Web and Desktop: the short text of `view/quick-look.ts` for every
- * provider, then all active notices.
+ * provider.
  */
 export function quotaMessageText(params: {
   snapshot: QuotaSnapshot;
   usage: UsageReport | undefined;
-  notices: Notice[];
   nowMs: number;
 }): string {
   const { snapshot, usage, nowMs } = params;
   const quickLook = quickLookText({ snapshot, usage, settings: NO_DISPLAY_CHOICES, nowMs });
-  const notices = params.notices.flatMap((notice) => [
-    `- ${notice.message}`,
-    ...(notice.url ? [`  ${notice.url}`] : []),
-  ]);
-  return [quickLook, ...(notices.length > 0 ? ["", "Notices", ...notices] : [])].join("\n");
+  return quickLook;
 }

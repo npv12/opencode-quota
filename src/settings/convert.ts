@@ -56,12 +56,15 @@ const NO_FORMAT_STYLE =
 const DROPPED: ReadonlyMap<string, string> = new Map(
   Object.entries({
     enabled: "v6 has no switch of its own; turn the plugin off in OpenCode's plugin list",
-    tuiCommandDisplay: "the TUI shows /quota, /quota_usage and /quota_status in its quota window",
+    tuiCommandDisplay: "the TUI shows /quota in its quota window",
     formatStyle: NO_FORMAT_STYLE,
     toastStyle: 'toasts use the grouped layout; `toast.layout: "detailed"` is the 5.x look',
     "tuiSidebarPanel.formatStyle": NO_FORMAT_STYLE,
     "tuiCompactStatus.formatStyle": NO_FORMAT_STYLE,
-    debug: "/quota_status shows the diagnostics",
+    debug: "the quota window shows the diagnostics it needs",
+    "export.enabled": "exports are removed in this fork",
+    "export.path": "exports are removed in this fork",
+    "telemetry.enabled": "telemetry is removed in this fork",
     "maintainerAnnouncements.enabled": "notices have no settings in v6",
     "maintainerAnnouncements.home": "notices have no settings in v6",
     "maintainerAnnouncements.homeFrequency": "notices have no settings in v6",
@@ -106,9 +109,6 @@ const V5_KEYS: ReadonlyMap<string, string | ((value: unknown) => boolean)> = new
     sessionTokenScope: "words.sessionTokens",
     "pricingSnapshot.source": "providers.pricing.source",
     "pricingSnapshot.autoRefresh": "providers.pricing.autoRefreshDays",
-    "export.enabled": "system.exportFile",
-    "export.path": "system.exportPath",
-    "telemetry.enabled": "system.telemetry",
     percentDisplayMode: oneOf("remaining", "used"),
     percentLabelStyle: oneOf("full", "bare"),
     quotaProjection: oneOf("runway"),
@@ -270,10 +270,11 @@ function hasQuotaSettings(files: V5Files): boolean {
 
 /** A v5 object as dotted keys; v5's nested groups are opened one level deep. */
 function flattenV5(raw: Record<string, unknown>): Array<[string, unknown]> {
-  return Object.entries(raw).flatMap(([key, value]): Array<[string, unknown]> =>
-    V5_GROUPS.has(key) && isRecord(value)
-      ? Object.entries(value).map(([name, child]): [string, unknown] => [`${key}.${name}`, child])
-      : [[key, value]],
+  return Object.entries(raw).flatMap(
+    ([key, value]): Array<[string, unknown]> =>
+      V5_GROUPS.has(key) && isRecord(value)
+        ? Object.entries(value).map(([name, child]): [string, unknown] => [`${key}.${name}`, child])
+        : [[key, value]],
   );
 }
 

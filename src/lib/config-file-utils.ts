@@ -1,5 +1,5 @@
-import { existsSync } from "fs";
-import { dirname, join } from "path";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 export function dedupeNonEmptyStrings(items: string[]): string[] {
   return [...new Set(items.map((item) => item.trim()).filter(Boolean))];

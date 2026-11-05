@@ -11,18 +11,17 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-
-import { createSqliteCredentialSource } from "../src/lib/opencode-auth-sqlite.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  bindCredentialSource,
-  clearCredentialRowCacheForTests,
-  getCredentialSourceDiagnostics,
   activeCredentialRows,
+  bindCredentialSource,
   type CredentialMethod,
   type CredentialRow,
+  clearCredentialRowCacheForTests,
+  getCredentialSourceDiagnostics,
   readCredentialRows,
 } from "../src/lib/opencode-auth.js";
+import { createSqliteCredentialSource } from "../src/lib/opencode-auth-sqlite.js";
 import {
   type CredentialDatabaseRow,
   writeCredentialDatabase,

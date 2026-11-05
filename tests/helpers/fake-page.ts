@@ -6,7 +6,7 @@
  * and a clock the test advances. `installFakePage` puts them on the globals; `removeFakePage`
  * takes them off.
  */
-import { vi } from "vite-plus/test";
+import { vi } from "vitest";
 
 export type Rect = { left: number; top: number; width: number; height: number };
 

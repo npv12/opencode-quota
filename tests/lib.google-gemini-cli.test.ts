@@ -1,7 +1,7 @@
 // Gemini CLI quota parsing, with the companion plugin installed in a temp package cache and each
 // login's own unexpired token. The OAuth flow it shares with Google AGY is in
 // lib.google-agy.test.ts.
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { geminiCliCompanion } from "../src/lib/google-companion-credentials.js";
 import { GEMINI_CLI_FLAVOR } from "../src/lib/google-gemini-cli.js";

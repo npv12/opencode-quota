@@ -4,8 +4,7 @@
  * Imports from `@opencode/*` and `./core/*` stay type-only, so loading this file loads no
  * OpenCode package and no server code.
  *
- * Methods: `snapshot` (the last known quota, instantly), `refresh`, `notices` (the Home
- * notice line), `noticeList` (the active maintainer notices), `status` (the /quota_status report),
+ * Methods: `snapshot` (the last known quota, instantly), `refresh`,
  * `usage` (tokens and cost from OpenCode's history for one range),
  * `downloadPrices` (a new price list from models.dev), `settings` (the server settings a client
  * may change), `saveSettings` (a patch of the server settings file, and custom provider
@@ -19,7 +18,7 @@ import { parseCalendarDate } from "./lib/calendar-date.js";
 import { isRecord } from "./lib/json-guards.js";
 import type { ClientSettings, CustomSwitch, SettingRule, SettingsIssue } from "./settings/index.js";
 
-export const QUOTA_RPC_ID = "slkiser.opencode-quota";
+export const QUOTA_RPC_ID = "npv12.opencode-quota";
 
 export type QuotaRpcSnapshotInput = { sessionID?: string };
 export type QuotaRpcRefreshReason = "poll" | "turn" | "manual";
@@ -30,16 +29,6 @@ export type QuotaRpcRefreshInput = {
 };
 /** Answer of `snapshot` and `refresh`, and the data of the `changed` event. */
 export type QuotaRpcSnapshotOutput = { snapshot: QuotaSnapshot };
-export type QuotaRpcNoticesInput = Record<string, never>;
-/** The maintainer notice line for the bottom of Home; "" when there is none to show now. */
-export type QuotaRpcNoticesOutput = { homeLine: string };
-/** The /quota_status report as text; with a session, it also checks that session's model. */
-export type QuotaRpcStatusInput = { sessionID?: string };
-export type QuotaRpcStatusOutput = { text: string };
-export type Notice = { id: string; message: string; url?: string };
-export type QuotaRpcNoticeListInput = Record<string, never>;
-/** The active maintainer notices for the providers quota shows. */
-export type QuotaRpcNoticeListOutput = { notices: Notice[] };
 export type QuotaRpcUsageInput = UsageQuery;
 export type QuotaRpcUsageOutput = { report: UsageReport };
 export type QuotaRpcDownloadPricesInput = Record<string, never>;
@@ -197,26 +186,6 @@ export const QuotaRpc = {
         );
       }),
       output: schema<QuotaRpcSnapshotOutput>(checkSnapshotOutput),
-    },
-    notices: {
-      input: schema<QuotaRpcNoticesInput>(checkObjectInput),
-      output: schema<QuotaRpcNoticesOutput>((value) =>
-        isRecord(value) && typeof value.homeLine === "string"
-          ? null
-          : "output must carry a homeLine string",
-      ),
-    },
-    noticeList: {
-      input: schema<QuotaRpcNoticeListInput>(checkObjectInput),
-      output: schema<QuotaRpcNoticeListOutput>((value) =>
-        isRecord(value) && Array.isArray(value.notices) ? null : "output must carry notices",
-      ),
-    },
-    status: {
-      input: schema<QuotaRpcStatusInput>(checkSessionInput),
-      output: schema<QuotaRpcStatusOutput>((value) =>
-        isRecord(value) && typeof value.text === "string" ? null : "output must carry a text",
-      ),
     },
     usage: {
       input: schema<QuotaRpcUsageInput>(checkUsageInput),

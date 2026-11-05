@@ -12,7 +12,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ALIBABA_TOKEN_PLAN_ARGS,
@@ -27,8 +27,8 @@ import {
   parseAlibabaTokenPlanUsageJson,
   queryAlibabaReply,
   queryAlibabaTokenPlanSeats,
-  resolveAlibabaTokenPlanExecutable,
   resolveAlibabaIdentity,
+  resolveAlibabaTokenPlanExecutable,
   runAlibabaTokenPlanProcess,
   USAGE_SPAWN_KINDS,
 } from "../src/lib/alibaba.js";
@@ -573,24 +573,28 @@ describe("alibaba token plan executable resolution", () => {
       cwd: "/home/user/project",
       kind: "workspace_path_rejected",
     },
-  ])(
-    "resolves $name",
-    async ({ file, target, cwd = "/workspace", pathEnv = "/trusted/bin", kind, resolved }) => {
-      await mockExecutable(file, target);
-      expect(
-        await resolveAlibabaTokenPlanExecutable({
-          platform: "linux",
-          cwd,
-          homedir: "/home/user",
-          pathEnv,
-        }),
-      ).toEqual(
-        resolved
-          ? { ok: true, file: resolved }
-          : { ok: false, error: { kind, message: expect.any(String) } },
-      );
-    },
-  );
+  ])("resolves $name", async ({
+    file,
+    target,
+    cwd = "/workspace",
+    pathEnv = "/trusted/bin",
+    kind,
+    resolved,
+  }) => {
+    await mockExecutable(file, target);
+    expect(
+      await resolveAlibabaTokenPlanExecutable({
+        platform: "linux",
+        cwd,
+        homedir: "/home/user",
+        pathEnv,
+      }),
+    ).toEqual(
+      resolved
+        ? { ok: true, file: resolved }
+        : { ok: false, error: { kind, message: expect.any(String) } },
+    );
+  });
 
   it.runIf(process.platform !== "win32")(
     "rejects a real bl symlink to a .cmd launcher",
@@ -1655,25 +1659,22 @@ describe("alibaba token plan seat parser", () => {
     ["a string", "1792742400000"],
     ["a value past 2100", 5_000_000_000_000],
     ["zero", 0],
-  ])(
-    "leaves out resetsAt for a %s CycleEndTime, keeping the rest of the seat",
-    (_name, endTime) => {
-      const payload = seatEnvelope(
-        [
-          seatItem("bad-end", {
-            CycleTotalValue: 100,
-            CycleSurplusValue: 50,
-            CycleEndTime: endTime,
-          }),
-        ],
-        1,
-      );
-      expect(parseAlibabaTokenPlanSeatsJson(payload)).toEqual({
-        ok: true,
-        seats: [{ name: "bad-end", total: 100, surplus: 50, percentRemaining: 50, used: 50 }],
-      });
-    },
-  );
+  ])("leaves out resetsAt for a %s CycleEndTime, keeping the rest of the seat", (_name, endTime) => {
+    const payload = seatEnvelope(
+      [
+        seatItem("bad-end", {
+          CycleTotalValue: 100,
+          CycleSurplusValue: 50,
+          CycleEndTime: endTime,
+        }),
+      ],
+      1,
+    );
+    expect(parseAlibabaTokenPlanSeatsJson(payload)).toEqual({
+      ok: true,
+      seats: [{ name: "bad-end", total: 100, surplus: 50, percentRemaining: 50, used: 50 }],
+    });
+  });
 
   it("keeps a NORMAL seat whose CycleSurplusValue is missing, without a percentage", () => {
     const payload = seatEnvelope(
@@ -1862,23 +1863,23 @@ describe("alibaba token plan seat process boundary", () => {
         facts: { code: "login_expired" },
       },
     },
-  ])(
-    "maps $name, keeping a stderr that is not the CLI's envelope out of the report",
-    async ({ run, error }) => {
-      await mockExecutable();
-      const result = await queryAlibabaTokenPlanSeats({
-        runtime: linuxRuntime(async () => ({
-          stdout: Buffer.from("secret-stdout token=abc"),
-          stderr: Buffer.from("secret-stderr no console access token found"),
-          timedOut: false,
-          truncated: false,
-          ...run,
-        })),
-      });
-      expect(result).toEqual({ ok: false, error });
-      expect(JSON.stringify(result)).not.toContain("secret-");
-    },
-  );
+  ])("maps $name, keeping a stderr that is not the CLI's envelope out of the report", async ({
+    run,
+    error,
+  }) => {
+    await mockExecutable();
+    const result = await queryAlibabaTokenPlanSeats({
+      runtime: linuxRuntime(async () => ({
+        stdout: Buffer.from("secret-stdout token=abc"),
+        stderr: Buffer.from("secret-stderr no console access token found"),
+        timedOut: false,
+        truncated: false,
+        ...run,
+      })),
+    });
+    expect(result).toEqual({ ok: false, error });
+    expect(JSON.stringify(result)).not.toContain("secret-");
+  });
 
   it("keeps a stderr that is not the CLI's own envelope out of the report", async () => {
     await mockExecutable();
@@ -2143,14 +2144,11 @@ describe("alibaba token plan credential markers", () => {
       { authenticated: true, api_key: { masked: API_KEY_MASKED } },
       { consoleMasked: null, apiKeyMasked: API_KEY_MASKED, openapiAccessKeyId: null },
     ],
-  ])(
-    "derives an identity from whichever markers %s has, requiring no one of them",
-    async (_name, payload, expected) => {
-      await mockExecutable();
-      const { spawn } = statusSpawn(JSON.stringify(payload));
-      await expect(resolveAlibabaIdentity({ runtime: runtime(spawn) })).resolves.toEqual(expected);
-    },
-  );
+  ])("derives an identity from whichever markers %s has, requiring no one of them", async (_name, payload, expected) => {
+    await mockExecutable();
+    const { spawn } = statusSpawn(JSON.stringify(payload));
+    await expect(resolveAlibabaIdentity({ runtime: runtime(spawn) })).resolves.toEqual(expected);
+  });
 
   it.each([
     [

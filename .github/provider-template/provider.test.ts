@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it } from "vitest";
 import { exampleProviderProvider } from "../src/providers/example-provider.js";
 import {
   fakeHttp,
@@ -41,7 +41,7 @@ describe("example provider", () => {
     expect(requestHeader(http.mock.calls[0]?.[1], "Authorization")).toBe("Bearer test-key");
   });
 
-  it("shows a failed check as the provider's error and keeps the message for /quota_status", async () => {
+  it("shows a failed check as the provider's error and keeps the message for the quota window", async () => {
     process.env.EXAMPLE_PROVIDER_API_KEY = "test-key";
     fakeHttp(() => new Response("Unauthorized", { status: 401 }));
 

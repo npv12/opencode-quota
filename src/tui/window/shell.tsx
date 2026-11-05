@@ -1,9 +1,8 @@
 /** @jsxImportSource @opentui/solid */
 /**
- * The quota window. `/quota`, `/quota_usage`, `/quota_status` and `/quota_settings` open it
- * above the message box of a session, where it covers the chat
- * with the same size on every tab: Usage, Limits, Plugin and the Settings tabs Layout, Colors
- * and Providers (`settings.tsx`); Layout has pages, All places and one per place. The tab bar is
+ * The quota window. `/quota` opens it above the message box of a session, where it covers the
+ * chat with the same size on every tab: Usage, Limits and the Settings tabs Layout, Colors and
+ * Providers (`settings.tsx`); Layout has pages, All places and one per place. The tab bar is
  * one line: the window's title and the plugin's version, the tabs, and "esc" at its right end to
  * close the window. When its tabs don't fit, it drops the "Settings" label, then shows the tabs
  * around the current one between ‹ and ›. Usage keeps its range list and Layout its page list
@@ -13,8 +12,7 @@
  * it to give it the keyboard again) its keys work: ↑↓ select or scroll,
  * space/enter use a line, ←/→ change it, c on Limits copies its limits as text, tab switches
  * tabs, esc closes (the line rules are `option-line.ts`'s). Closing gives the keyboard back to
- * whatever had it before. Plugin shows the maintainer notices, the switches for other tools and
- * the status report (`plugin-tab.tsx`).
+ * whatever had it before.
  */
 import type { Plugin } from "@opencode/plugin/tui";
 import type { BoxRenderable, Renderable, RGBA, ScrollBoxRenderable } from "@opentui/core";
@@ -29,7 +27,6 @@ import type { SettingsTab } from "../display.js";
 import { KEY_LAYERS } from "../key-layers.js";
 import type { SurfaceHost } from "../sidebar.js";
 import type { Theme } from "../theme.js";
-import { type CopyWithToast, createPluginTab } from "./plugin-tab.js";
 import { isSettingsTab, pagesRoom, SETTINGS_GROUPS, type SettingsEditor } from "./settings.js";
 import { Choice, createUsageTab, USAGE_RAIL_WIDTH, type UsageChoice } from "./usage.js";
 import { LimitsView } from "./views.js";
@@ -37,7 +34,7 @@ import { LimitsView } from "./views.js";
 /** Columns inside the window until it knows its real width. */
 const DEFAULT_WIDTH = 120;
 
-export type WindowTab = "limits" | "usage" | "system" | SettingsTab;
+export type WindowTab = "limits" | "usage" | SettingsTab;
 
 /** A tab whose lines the window's own keys use (`option-line.ts` rules). */
 type TabLines = {
@@ -56,7 +53,6 @@ type BarTab = { title: string; pages: readonly WindowTab[] };
 const TABS: ReadonlyArray<BarTab> = [
   { title: "Usage", pages: ["usage"] },
   { title: "Limits", pages: ["limits"] },
-  { title: "Plugin", pages: ["system"] },
 ];
 /** Every tab in the order the tab bar shows them and tab and shift+tab go through them. */
 const BAR_TABS: ReadonlyArray<BarTab> = [...TABS, ...SETTINGS_GROUPS];
@@ -153,7 +149,7 @@ export function tabStrip(
     room;
   let first = active;
   let last = active;
-  for (let grew = true; grew;) {
+  for (let grew = true; grew; ) {
     grew = false;
     if (last < end && fits(first, last + 1)) {
       last += 1;
@@ -236,7 +232,6 @@ export function createQuotaWindow(
     }, 0);
   };
   const usage = createUsageTab(api, () => scroll);
-  const plugin = createPluginTab(api, settings, copyWithToast);
   /** The installed plugin's version from its package.json, like "v5.0.2", after the title. */
   const [version, setVersion] = createSignal("");
   void getPackageVersion().then((found) => {
@@ -266,14 +261,17 @@ export function createQuotaWindow(
     windowBox?.focus();
     const sessionID = routeSessionID(api);
     if (next === "limits") void host.quota.refresh("manual", sessionID);
-    if (next === "system") plugin.show(sessionID);
     if (next === "usage") usage.choose(choice);
     if (next === "usage" && sessionID) usage.show(sessionID);
     scroll?.scrollTo(0);
   }
 
   /** Copies `text` and says in a toast titled `title` whether the terminal let it. */
-  function copyWithToast(...[text, title, messages]: Parameters<CopyWithToast>): void {
+  function copyWithToast(
+    text: string,
+    title: string,
+    messages: { copied: string; failed: string },
+  ): void {
     const copied = api.renderer.copyToClipboardOSC52(text);
     api.ui.toast.show({
       variant: copied ? "success" : "warning",
@@ -337,7 +335,7 @@ export function createQuotaWindow(
    * The lines the window's own ↑↓, space, enter and ←/→ use: Plugin's. Usage and the Settings
    * tabs take those keys in their own layer; Limits has no lines.
    */
-  const tabLines = (): TabLines | undefined => (tab() === "system" ? plugin : undefined);
+  const tabLines = (): TabLines | undefined => undefined;
 
   /** ↑↓ select the tab's next line; past the first or last one (or without lines) they scroll. */
   function select(delta: number): void {
@@ -615,9 +613,6 @@ export function createQuotaWindow(
               flexBasis={0}
               minHeight={0}
             >
-              <Show when={tab() === "system"}>
-                <plugin.View width={bodyWidth()} />
-              </Show>
               <Show when={tab() === "limits"}>
                 <LimitsView
                   host={host}

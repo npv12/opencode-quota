@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /** Whether a Claude install folder holds `claude`; every other path is the real file system. */
 const fsMocks = vi.hoisted(() => ({ existsSync: vi.fn((_path: string) => false) }));
@@ -6,7 +6,7 @@ const fsMocks = vi.hoisted(() => ({ existsSync: vi.fn((_path: string) => false) 
 /** Reads of Claude's credentials file; every other file is read for real. */
 const readCredentialsFile = vi.hoisted(() => vi.fn());
 
-import { execFile } from "child_process";
+import { execFile } from "node:child_process";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { loadProviderSource } from "../src/core/provider-source.js";
@@ -327,35 +327,36 @@ describe("usage response parsing", () => {
     { utilization: 37.8, percentRemaining: 62 },
     { utilization: 0, percentRemaining: 100 },
     { utilization: 100, percentRemaining: 0 },
-  ])(
-    "parses enabled extra usage at $utilization% as remaining quota",
-    ({ utilization, percentRemaining }) => {
-      const result = parseOAuthUsageResponse({
-        five_hour: { utilization: 57 },
-        seven_day: { utilization: 12 },
-        extra_usage: { is_enabled: true, utilization },
-      });
+  ])("parses enabled extra usage at $utilization% as remaining quota", ({
+    utilization,
+    percentRemaining,
+  }) => {
+    const result = parseOAuthUsageResponse({
+      five_hour: { utilization: 57 },
+      seven_day: { utilization: 12 },
+      extra_usage: { is_enabled: true, utilization },
+    });
 
-      expect(result?.extra_usage).toEqual({ percentRemaining });
-    },
-  );
+    expect(result?.extra_usage).toEqual({ percentRemaining });
+  });
 
   it.each([
     { used_credits: 50_000, monthly_limit: 200_000, percentRemaining: 75 },
     { used_credits: 0, monthly_limit: 200_000, percentRemaining: 100 },
     { used_credits: 200_000, monthly_limit: 200_000, percentRemaining: 0 },
-  ])(
-    "parses extra usage without utilization from $used_credits of $monthly_limit credits",
-    ({ used_credits, monthly_limit, percentRemaining }) => {
-      const result = parseOAuthUsageResponse({
-        five_hour: { utilization: 57 },
-        seven_day: null,
-        extra_usage: { is_enabled: true, utilization: null, used_credits, monthly_limit },
-      });
+  ])("parses extra usage without utilization from $used_credits of $monthly_limit credits", ({
+    used_credits,
+    monthly_limit,
+    percentRemaining,
+  }) => {
+    const result = parseOAuthUsageResponse({
+      five_hour: { utilization: 57 },
+      seven_day: null,
+      extra_usage: { is_enabled: true, utilization: null, used_credits, monthly_limit },
+    });
 
-      expect(result?.extra_usage).toEqual({ percentRemaining });
-    },
-  );
+    expect(result?.extra_usage).toEqual({ percentRemaining });
+  });
 
   it("prefers utilization over the used credits", () => {
     const result = parseOAuthUsageResponse({
@@ -575,21 +576,18 @@ describe("Claude CLI probe", () => {
     ["a .cmd shim", "C:\\Users\\alice\\AppData\\Roaming\\npm\\claude.cmd", true],
     ["the default claude from PATH", undefined, true],
     ["a .exe run directly", "C:/Users/alice/.local/bin/claude.exe", false],
-  ])(
-    "passes the command line of %s to execFile verbatim only when cmd.exe runs it",
-    async (_label, binaryPath, verbatim) => {
-      setProcessPlatform("win32");
-      mockExecSequence([{ stdout: "2.1.123 (Claude Code)\n" }, cliQuotaStatus(10, 20)]);
+  ])("passes the command line of %s to execFile verbatim only when cmd.exe runs it", async (_label, binaryPath, verbatim) => {
+    setProcessPlatform("win32");
+    mockExecSequence([{ stdout: "2.1.123 (Claude Code)\n" }, cliQuotaStatus(10, 20)]);
 
-      await getAnthropicDiagnostics(binaryPath === undefined ? undefined : { binaryPath });
+    await getAnthropicDiagnostics(binaryPath === undefined ? undefined : { binaryPath });
 
-      expect(execFileMock).toHaveBeenCalledTimes(2);
-      for (const [, , options] of execFileMock.mock.calls) {
-        if (verbatim) expect(options).toMatchObject({ windowsVerbatimArguments: true });
-        else expect(options).not.toHaveProperty("windowsVerbatimArguments");
-      }
-    },
-  );
+    expect(execFileMock).toHaveBeenCalledTimes(2);
+    for (const [, , options] of execFileMock.mock.calls) {
+      if (verbatim) expect(options).toMatchObject({ windowsVerbatimArguments: true });
+      else expect(options).not.toHaveProperty("windowsVerbatimArguments");
+    }
+  });
 
   it("uses the first install folder that has claude when it is not on PATH", async () => {
     setProcessPlatform("linux");
@@ -642,28 +640,25 @@ describe("Claude CLI probe", () => {
       [],
       "Claude CLI (`/Applications/Claude Code.app/Contents/MacOS/claude`) is not installed or not on PATH.",
     ],
-  ] as const)(
-    "reports a missing Claude CLI for %s",
-    async (_label, platform, binaryPath, checkedCommand, installFoldersChecked, message) => {
-      setProcessPlatform(platform);
-      mockExecSequence([CLI_MISSING]);
+  ] as const)("reports a missing Claude CLI for %s", async (_label, platform, binaryPath, checkedCommand, installFoldersChecked, message) => {
+    setProcessPlatform(platform);
+    mockExecSequence([CLI_MISSING]);
 
-      const diagnostics = await getAnthropicDiagnostics({ binaryPath });
+    const diagnostics = await getAnthropicDiagnostics({ binaryPath });
 
-      expect(fsMocks.existsSync.mock.calls.map(([path]) => path)).toEqual(installFoldersChecked);
-      expect(diagnostics).toEqual({
-        installed: false,
-        version: null,
-        authStatus: "unknown",
-        quotaSupported: false,
-        quotaSource: "none",
-        binaryPath: null,
-        checkedCommands: [checkedCommand],
-        message,
-      });
-      await expect(hasAnthropicCredentialsConfigured({ binaryPath })).resolves.toBe(false);
-    },
-  );
+    expect(fsMocks.existsSync.mock.calls.map(([path]) => path)).toEqual(installFoldersChecked);
+    expect(diagnostics).toEqual({
+      installed: false,
+      version: null,
+      authStatus: "unknown",
+      quotaSupported: false,
+      quotaSource: "none",
+      binaryPath: null,
+      checkedCommands: [checkedCommand],
+      message,
+    });
+    await expect(hasAnthropicCredentialsConfigured({ binaryPath })).resolves.toBe(false);
+  });
 
   it("reports unauthenticated Claude CLI status without reading OAuth credentials", async () => {
     mockExecSequence([
@@ -872,24 +867,21 @@ describe("OAuth credential sources", () => {
       JSON.stringify({ claudeAiOauth: { accessToken: 123 } }),
       ["Claude OAuth access token missing"],
     ],
-  ] as const)(
-    "explains missing quota when Claude CLI is signed in but there is %s",
-    async (_label, platform, keychainSteps, credentialsFile, expectedDetails) => {
-      setProcessPlatform(platform);
-      mockExecSequence([CLI_VERSION, CLI_AUTHENTICATED, ...keychainSteps]);
-      if (credentialsFile instanceof Error) readFileMock.mockRejectedValue(credentialsFile);
-      else readFileMock.mockResolvedValue(credentialsFile);
+  ] as const)("explains missing quota when Claude CLI is signed in but there is %s", async (_label, platform, keychainSteps, credentialsFile, expectedDetails) => {
+    setProcessPlatform(platform);
+    mockExecSequence([CLI_VERSION, CLI_AUTHENTICATED, ...keychainSteps]);
+    if (credentialsFile instanceof Error) readFileMock.mockRejectedValue(credentialsFile);
+    else readFileMock.mockResolvedValue(credentialsFile);
 
-      const diagnostics = await getAnthropicDiagnostics();
-      expect(diagnostics.installed).toBe(true);
-      expect(diagnostics.authStatus).toBe("authenticated");
-      expect(diagnostics.quotaSupported).toBe(false);
-      expect(diagnostics.quotaSource).toBe("none");
-      expect(diagnostics.message).toContain(NO_QUOTA_MESSAGE);
-      for (const detail of expectedDetails) expect(diagnostics.message).toContain(detail);
-      expect(fetchMock).not.toHaveBeenCalled();
-    },
-  );
+    const diagnostics = await getAnthropicDiagnostics();
+    expect(diagnostics.installed).toBe(true);
+    expect(diagnostics.authStatus).toBe("authenticated");
+    expect(diagnostics.quotaSupported).toBe(false);
+    expect(diagnostics.quotaSource).toBe("none");
+    expect(diagnostics.message).toContain(NO_QUOTA_MESSAGE);
+    for (const detail of expectedDetails) expect(diagnostics.message).toContain(detail);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("OAuth usage request", () => {
@@ -987,24 +979,21 @@ describe("OAuth usage request", () => {
       "Anthropic API returned 429 Anthropic OAuth usage probe paused after HTTP 429; retry in 45s.",
       "retry in 40s.",
     ],
-  ])(
-    "establishes a cooldown when the 429 response body %s",
-    async (_label, stall, retryAfter, stallMs, firstMessage, suppressedMessage) => {
-      useFakeNow();
-      setUpCredentialsFileFallback(2);
-      fetchMock.mockImplementationOnce(unreadableResponse(429, { retryAfter, stall }));
+  ])("establishes a cooldown when the 429 response body %s", async (_label, stall, retryAfter, stallMs, firstMessage, suppressedMessage) => {
+    useFakeNow();
+    setUpCredentialsFileFallback(2);
+    fetchMock.mockImplementationOnce(unreadableResponse(429, { retryAfter, stall }));
 
-      const pending = getAnthropicDiagnostics();
-      await vi.advanceTimersByTimeAsync(stallMs);
-      const first = await pending;
-      expect(first.message).toContain(firstMessage);
+    const pending = getAnthropicDiagnostics();
+    await vi.advanceTimersByTimeAsync(stallMs);
+    const first = await pending;
+    expect(first.message).toContain(firstMessage);
 
-      await vi.advanceTimersByTimeAsync(5_001);
-      const suppressed = await getAnthropicDiagnostics();
-      expect(suppressed.message).toContain(suppressedMessage);
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-    },
-  );
+    await vi.advanceTimersByTimeAsync(5_001);
+    const suppressed = await getAnthropicDiagnostics();
+    expect(suppressed.message).toContain(suppressedMessage);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 
   it("increases fallback backoff for consecutive 429 responses", async () => {
     useFakeNow();
@@ -1437,35 +1426,30 @@ describe("Anthropic runtime credentials", () => {
         ["weekly_fable", "Fable", 100],
       ],
     ],
-  ])(
-    "asks the usage endpoint for Usage Credits and Fable when the Claude CLI shows a plan with %s",
-    async (_label, usage, expectedRows) => {
-      setProcessPlatform("linux");
-      mockExecSequence([
-        CLI_VERSION,
-        { stdout: JSON.stringify({ authenticated: true, quota: usage }) },
-      ]);
-      readFileMock.mockResolvedValue(
-        JSON.stringify({ claudeAiOauth: { accessToken: "account-b" } }),
-      );
-      fetchResponseMock.mockResolvedValue(mockResponse(200, usage));
+  ])("asks the usage endpoint for Usage Credits and Fable when the Claude CLI shows a plan with %s", async (_label, usage, expectedRows) => {
+    setProcessPlatform("linux");
+    mockExecSequence([
+      CLI_VERSION,
+      { stdout: JSON.stringify({ authenticated: true, quota: usage }) },
+    ]);
+    readFileMock.mockResolvedValue(JSON.stringify({ claudeAiOauth: { accessToken: "account-b" } }));
+    fetchResponseMock.mockResolvedValue(mockResponse(200, usage));
 
-      for (const config of [{}, { currentProviderID: "claude-code" }]) {
-        const result = await anthropicProvider.fetch(context(config, ["anthropic"]));
+    for (const config of [{}, { currentProviderID: "claude-code" }]) {
+      const result = await anthropicProvider.fetch(context(config, ["anthropic"]));
 
-        expect(
-          result.accounts[0]?.rows.map((row) => [row.key, row.label, row.percentRemaining]),
-        ).toEqual(expectedRows);
-        expect(result.debug).toContainEqual({
-          key: "quota_source",
-          value: "claude-credentials-oauth-api",
-        });
-      }
-      // The second fetch reuses the cached Claude CLI probe and usage reply.
-      expect(execFileMock).toHaveBeenCalledTimes(2);
-      expect(bearerTokensSent()).toEqual(["Bearer account-b"]);
-    },
-  );
+      expect(
+        result.accounts[0]?.rows.map((row) => [row.key, row.label, row.percentRemaining]),
+      ).toEqual(expectedRows);
+      expect(result.debug).toContainEqual({
+        key: "quota_source",
+        value: "claude-credentials-oauth-api",
+      });
+    }
+    // The second fetch reuses the cached Claude CLI probe and usage reply.
+    expect(execFileMock).toHaveBeenCalledTimes(2);
+    expect(bearerTokensSent()).toEqual(["Bearer account-b"]);
+  });
 
   it("shows the Claude CLI's own 5h and Weekly rows without asking the usage endpoint", async () => {
     mockExecSequence([CLI_VERSION, cliQuotaStatus(57, 12)]);
@@ -1481,20 +1465,21 @@ describe("Anthropic runtime credentials", () => {
     expect(readFileMock).not.toHaveBeenCalled();
   });
 
-  it.each([undefined, "", "   "])(
-    "keeps the Anthropic fallback for a placeholder or tombstone with access=%j",
-    async (access) => {
-      mockOpenCodeLogin(access, 0);
-      setUpCredentialsFileFallback(1, "account-b");
-      fetchResponseMock.mockResolvedValue(mockResponse(200, USAGE_10_20));
-      const ctx = context({ currentProviderID: "anthropic" });
+  it.each([
+    undefined,
+    "",
+    "   ",
+  ])("keeps the Anthropic fallback for a placeholder or tombstone with access=%j", async (access) => {
+    mockOpenCodeLogin(access, 0);
+    setUpCredentialsFileFallback(1, "account-b");
+    fetchResponseMock.mockResolvedValue(mockResponse(200, USAGE_10_20));
+    const ctx = context({ currentProviderID: "anthropic" });
 
-      await expect(anthropicProvider.isAvailable(ctx)).resolves.toBe(true);
-      const result = await anthropicProvider.fetch(ctx);
-      expect(result.accounts[0]?.rows.map((row) => row.percentRemaining)).toEqual([90, 80]);
-      expect(bearerTokensSent()).toEqual(["Bearer account-b"]);
-    },
-  );
+    await expect(anthropicProvider.isAvailable(ctx)).resolves.toBe(true);
+    const result = await anthropicProvider.fetch(ctx);
+    expect(result.accounts[0]?.rows.map((row) => row.percentRemaining)).toEqual([90, 80]);
+    expect(bearerTokensSent()).toEqual(["Bearer account-b"]);
+  });
 
   it.each([
     ["claude-code", { currentProviderID: "claude-code" }],

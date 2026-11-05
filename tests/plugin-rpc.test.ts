@@ -9,7 +9,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parse as parseJsonc } from "jsonc-parser";
-import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { QuotaSnapshot } from "../src/core/types.js";
 import type { UsageReport } from "../src/core/usage.js";
 import { answer, NOT_SET_UP, percentRow } from "./helpers/fake-answers.js";
@@ -68,7 +68,7 @@ function provider(id: string, fetch: unknown, extra: object = {}) {
 const ACCOUNT_NEUTRAL = { cachePolicy: { kind: "account-neutral" } };
 
 /** Gemini CLI as the one enabled provider: the bundled notice for its users is active. */
-function useGeminiCli(): void {
+function _useGeminiCli(): void {
   useSettings({
     providers: { off: CONFIG_PROVIDER_IDS.filter((id) => id !== "google-gemini-cli") },
   });
@@ -145,18 +145,15 @@ describe("server quota RPC", () => {
     await rm(TEST_RUNTIME_ROOT, { recursive: true, force: true, maxRetries: 3 });
   });
 
-  it("registers the quota RPC with its ten methods during setup", async () => {
+  it("registers the quota RPC with its seven methods during setup", async () => {
     const { QuotaRpc } = await import("../src/rpc.js");
     const { definition, handlers } = await setupServer();
 
     expect(definition).toBe(QuotaRpc);
-    expect(definition.id).toBe("slkiser.opencode-quota");
+    expect(definition.id).toBe("npv12.opencode-quota");
     expect(Object.keys(definition.methods)).toEqual([
       "snapshot",
       "refresh",
-      "notices",
-      "noticeList",
-      "status",
       "usage",
       "downloadPrices",
       "settings",
@@ -282,7 +279,7 @@ describe("server quota RPC", () => {
         },
       ],
     });
-    const { call, runCommand, ctx } = await setupServer({
+    const { call, ctx } = await setupServer({
       openCodeProviders: [
         { id: "moonshotai", name: "Moonshot AI" },
         { id: "openai", name: "OpenAI" },
@@ -291,11 +288,6 @@ describe("server quota RPC", () => {
 
     const named = (await call("usage", { range: "today" })) as { report: UsageReport };
     expect(named.report.providerNames).toEqual({ moonshotai: "Moonshot AI" });
-    // /quota_usage posts the report with the same names.
-    await runCommand("quota_usage");
-    const [posted] = ctx.session.prompt.mock.calls.at(-1) ?? [];
-    expect(posted?.text).toMatch(/^● Moonshot AI +<\$0\.01 +100\.0%/m);
-
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     ctx.provider.list.mockRejectedValueOnce(new Error("provider list offline"));
     const unnamed = (await call("usage", { range: "today" })) as { report: UsageReport };
@@ -485,11 +477,7 @@ describe("server quota RPC", () => {
     expect(settings.values).toMatchObject({
       "providers.off": CONFIG_PROVIDER_IDS.filter((id) => id !== "copilot"),
     });
-    for (const fileOnly of [
-      "providers.custom",
-      "providers.anthropic.binaryPath",
-      "system.exportPath",
-    ]) {
+    for (const fileOnly of ["providers.custom", "providers.anthropic.binaryPath"]) {
       expect(settings.values).not.toHaveProperty([fileOnly]);
     }
     expect(settings.providers).toContainEqual({ id: "custom", label: "Custom providers" });
@@ -532,7 +520,7 @@ describe("server quota RPC", () => {
     const before = await readFile(SETTINGS_FILE, "utf8");
 
     const result = (await call("saveSettings", {
-      patch: { system: { exportPath: `${TEST_RUNTIME_ROOT}/elsewhere.json` } },
+      patch: { providers: { anthropic: { binaryPath: `${TEST_RUNTIME_ROOT}/claude` } } },
     })) as { ok: boolean; issues: unknown[] };
 
     expect(result.ok).toBe(false);
@@ -718,107 +706,6 @@ describe("server quota RPC", () => {
     expect(global.snapshot).not.toHaveProperty("sessionTokens");
   });
 
-  it("serves the daily Home notice line without settings", async () => {
-    useGeminiCli();
-    const nowMs = new Date(2026, 9, 10, 9, 0).getTime();
-    const clock = vi.spyOn(Date, "now").mockReturnValue(nowMs);
-    const { call } = await setupServer();
-    await expect(call("notices", {})).resolves.toEqual({
-      homeLine: "Notice: 1 maintainer notice, see /quota_status.",
-    });
-    clock.mockReturnValue(nowMs + 10 * 60_000);
-    await expect(call("notices", {})).resolves.toEqual({ homeLine: "" });
-  });
-
-  it("lists the active notices without read state or settings", async () => {
-    useGeminiCli();
-    const nowMs = Date.parse("2026-10-10T12:00:00.000Z");
-    vi.spyOn(Date, "now").mockReturnValue(nowMs);
-    const { getMaintainerAnnouncementsSummary } =
-      await import("../src/lib/maintainer-announcements.js");
-    const expected = getMaintainerAnnouncementsSummary({
-      enabledProviders: ["google-gemini-cli"],
-      nowMs,
-    }).activeAnnouncements.map(({ announcement }) => ({
-      id: announcement.id,
-      message: announcement.message,
-      ...(announcement.url ? { url: announcement.url } : {}),
-    }));
-    expect(expected).toHaveLength(1);
-    const { call } = await setupServer();
-    await expect(call("noticeList", {})).resolves.toEqual({ notices: expected });
-  });
-
-  it("serves the /quota_status report as text, and never writes the global config", async () => {
-    useSettings({ providers: { off: [] } });
-    const { call, runCommand } = await setupServer();
-
-    const { text } = (await call("status", { sessionID: "session-1" })) as { text: string };
-    expect(text).toMatch(/^# Quota Status /u);
-    expect(text).toContain("\n- origin: TUI Plugin tab\n");
-    expect(text).toContain("\ncopilot:\n- state: ok\n");
-    expect(mocks.reconcileDetectedProvidersInGlobalConfig).not.toHaveBeenCalled();
-
-    // The slash command of Web and Desktop adds the detected providers.
-    await runCommand("quota_status");
-    expect(mocks.reconcileDetectedProvidersInGlobalConfig).toHaveBeenCalledWith({
-      directory: process.env.HOME,
-      detectedProviderIds: ["copilot"],
-    });
-  });
-
-  it.each(["claude-code", "claude-agent"])(
-    "declares only providers OpenCode lists, never the canonical id of the %s alias",
-    async (alias) => {
-      useSettings({ providers: { off: [] } });
-      mocks.getProviders.mockReturnValue([
-        provider("copilot", vi.fn().mockResolvedValue(copilotAnswer(81))),
-        provider("anthropic", vi.fn().mockResolvedValue(answer())),
-      ]);
-      const { runCommand } = await setupServer({
-        openCodeProviders: [alias, "copilot"],
-      });
-
-      await runCommand("quota_status");
-
-      expect(mocks.reconcileDetectedProvidersInGlobalConfig).toHaveBeenCalledWith({
-        directory: process.env.HOME,
-        detectedProviderIds: ["copilot"],
-      });
-    },
-  );
-
-  it("writes the export file from each new snapshot only when the export is enabled", async () => {
-    const exportPath = `${TEST_RUNTIME_ROOT}/quota-export.json`;
-    useSettings({ system: { exportFile: false, exportPath: exportPath } });
-    const disabled = await setupServer();
-    await disabled.call("refresh", { reason: "manual" });
-    await vi.waitFor(() => expect(disabled.emit).toHaveBeenCalled());
-    expect(existsSync(exportPath)).toBe(false);
-
-    useSettings({ system: { exportFile: true, exportPath: exportPath } });
-    const enabled = await setupServer();
-    await enabled.call("refresh", { reason: "manual" });
-    // The snapshot before the check is written first; the check's own part follows.
-    await vi.waitFor(async () => {
-      expect(JSON.parse(await readFile(exportPath, "utf8"))).toMatchObject({
-        version: 3,
-        fromCache: true,
-        providers: {
-          copilot: {
-            status: "ok",
-            entries: [
-              { id: "copilot.allowance", name: "Copilot Premium requests", percentRemaining: 81 },
-            ],
-          },
-        },
-      });
-    });
-    // The parts stay on the server: no client gets them.
-    expect(JSON.stringify(await enabled.call("snapshot", {}))).not.toContain("exportPart");
-    expect(JSON.stringify(enabled.emit.mock.calls)).not.toContain("exportPart");
-  });
-
   it("downloads new prices whatever their age, and says when the settings keep the built-in ones", async () => {
     useSettings({ providers: { pricing: { source: "bundled", autoRefreshDays: 3 } } });
     // models.dev's reply, saved in the plugin's cache folder: gone after this test.
@@ -878,20 +765,6 @@ describe("server quota RPC", () => {
     expect(commands.map((command) => command.name)).not.toContain("quota_announcements");
   });
 
-  it("ends the /quota report of Web and Desktop with the active notices", async () => {
-    useGeminiCli();
-    vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-10T12:00:00.000Z"));
-    const { BUNDLED_MAINTAINER_ANNOUNCEMENTS } =
-      await import("../src/lib/maintainer-announcements.js");
-    const notice = BUNDLED_MAINTAINER_ANNOUNCEMENTS.find(
-      (announcement) => announcement.id === "google-gemini-cli-org-only",
-    );
-    const { quota } = await setupServer();
-
-    const report = await quota();
-    expect(report.split("\n").slice(-3)).toEqual(["", "Notices", `- ${notice?.message}`]);
-  });
-
   it("treats a session the server cannot find as a session without a model", async () => {
     const sessionGet = vi.fn().mockRejectedValue(new Error("Session not found"));
     const { call } = await setupServer({ sessionGet });
@@ -903,37 +776,7 @@ describe("server quota RPC", () => {
     expect(sessionGet).toHaveBeenCalledWith({ sessionID: "missing" });
   });
 
-  it("computes quota for the location's project folder, not the service's working folder", async () => {
-    useSettings({ providers: { off: [] } });
-    const workspaceRoots: string[] = [];
-    const locationDirectories: string[] = [];
-    const fetch = vi.fn(async (ctx: { workspaceRoot: string; locationDirectory: string }) => {
-      workspaceRoots.push(ctx.workspaceRoot);
-      locationDirectories.push(ctx.locationDirectory);
-      return copilotAnswer(81);
-    });
-    mocks.getProviders.mockReturnValue([provider("copilot", fetch)]);
-    const project = `${TEST_RUNTIME_ROOT}/project`;
-    const { call } = await setupServer({ directory: project });
-
-    // The store's refresh, then /quota_status, which checks every provider itself.
-    await call("refresh", { reason: "manual" });
-    const status = (await call("status", { sessionID: "session-1" })) as { text: string };
-    expect(status.text).toContain("- providers.off: (none)");
-    // The test settings check providers again after 1 ms.
-    expect(status.text).toContain(
-      "- changed_from_defaults: 1 setting\n  - providers.checking.minIntervalMs: 1\n",
-    );
-    expect(status.text).not.toContain("- enabledProviders:");
-
-    expect(workspaceRoots).toHaveLength(2);
-    expect(new Set(workspaceRoots)).toEqual(new Set([project]));
-    // OpenCode's config files that count are found from the location's folder upward.
-    expect(new Set(locationDirectories)).toEqual(new Set([project]));
-    expect(project).not.toBe(process.cwd());
-  });
-
-  it("logs why a snapshot or notices RPC failed, without tokens, and still fails it", async () => {
+  it("logs why a snapshot RPC failed, without tokens, and still fails it", async () => {
     const token = `eyJ${"a".repeat(24)}.${"b".repeat(24)}.${"c".repeat(24)}`;
     mocks.getProviders.mockImplementation(() => {
       throw new Error(`registry broke ${token}`);
@@ -941,10 +784,7 @@ describe("server quota RPC", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const { handlers } = await setupServer();
 
-    for (const [method, input] of [
-      ["snapshot", { sessionID: "session-1" }],
-      ["notices", {}],
-    ] as const) {
+    for (const [method, input] of [["snapshot", { sessionID: "session-1" }]] as const) {
       await expect(handlers[method](input, callContext)).rejects.toThrow("registry broke");
       expect(warn).toHaveBeenLastCalledWith(
         `[opencode-quota] ${method} RPC failed: registry broke [redacted]`,
@@ -953,7 +793,7 @@ describe("server quota RPC", () => {
     expect(JSON.stringify(warn.mock.calls)).not.toContain(token);
   });
 
-  describe("/quota and the quota_status tool", () => {
+  describe("/quota", () => {
     /** settings.jsonc for /quota: every provider, checked once a minute; `overrides` per group. */
     const useQuotaSettings = (overrides: Record<string, unknown> = {}) =>
       useSettings({
@@ -968,45 +808,6 @@ describe("server quota RPC", () => {
     beforeEach(() => {
       useQuotaSettings();
     });
-
-    it.each([
-      { name: "a working repair", repair: () => Promise.resolve({ changed: true }), warns: false },
-      {
-        name: "a failed repair",
-        repair: () => Promise.reject(new Error("disk full")),
-        warns: true,
-      },
-    ])(
-      "adds the detected providers of the quota_status tool to the project with $name",
-      async ({ repair, warns }) => {
-        mocks.reconcileDetectedProvidersInGlobalConfig.mockImplementationOnce(repair);
-        const openaiAnswer = answer({ name: "OpenAI", rows: [percentRow("five_hour", "5h", 69)] });
-        mocks.getProviders.mockReturnValue([
-          provider("openai", vi.fn().mockResolvedValue(openaiAnswer)),
-        ]);
-        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-        const projectDirectory = `${TEST_RUNTIME_ROOT}/project`;
-        const { tools } = await setupServer({ directory: projectDirectory });
-        const tool = tools.find((item) => item.name === "quota_status");
-
-        const output = await tool?.execute({}, { sessionID: "session-auto-provider" });
-        const content = (output as { content: string }).content;
-        expect(content).toMatch(/^# Quota Status /u);
-        expect(content).toContain("\n- origin: quota_status tool\n");
-        expect(mocks.reconcileDetectedProvidersInGlobalConfig).toHaveBeenCalledWith({
-          directory: projectDirectory,
-          detectedProviderIds: ["openai"],
-        });
-        if (warns) {
-          expect(warn).toHaveBeenCalledWith(
-            "Failed to add detected providers to global OpenCode config",
-            expect.any(Error),
-          );
-        } else {
-          expect(warn).not.toHaveBeenCalled();
-        }
-      },
-    );
 
     it("waits before asking a failed provider again; a manual refresh asks at once", async () => {
       useQuotaSettings({
@@ -1055,25 +856,26 @@ describe("server quota RPC", () => {
     it.each([
       { words: { percent: "used" }, shows: "5h 19% used", hides: "left" },
       { words: { percent: "bare" }, shows: "5h 81%", hides: "left" },
-    ])(
-      "shows /quota in the percent words the settings choose: $words",
-      async ({ words, shows, hides }) => {
-        useQuotaSettings({
-          words,
-          providers: { off: CONFIG_PROVIDER_IDS.filter((id) => !["openai"].includes(id)) },
-        });
-        const fetch = vi
-          .fn()
-          .mockResolvedValue(answer({ name: "OpenAI", rows: [percentRow("five_hour", "5h", 81)] }));
-        mocks.getProviders.mockReturnValue([provider("openai", fetch)]);
-        const { quota } = await setupServer();
+    ])("shows /quota in the percent words the settings choose: $words", async ({
+      words,
+      shows,
+      hides,
+    }) => {
+      useQuotaSettings({
+        words,
+        providers: { off: CONFIG_PROVIDER_IDS.filter((id) => !["openai"].includes(id)) },
+      });
+      const fetch = vi
+        .fn()
+        .mockResolvedValue(answer({ name: "OpenAI", rows: [percentRow("five_hour", "5h", 81)] }));
+      mocks.getProviders.mockReturnValue([provider("openai", fetch)]);
+      const { quota } = await setupServer();
 
-        const output = await quota();
+      const output = await quota();
 
-        expect(output).toContain(shows);
-        expect(output).not.toContain(hides);
-      },
-    );
+      expect(output).toContain(shows);
+      expect(output).not.toContain(hides);
+    });
 
     it.each([
       {

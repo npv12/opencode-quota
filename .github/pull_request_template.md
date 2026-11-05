@@ -16,7 +16,7 @@ If no issue exists, include a short rationale/scope summary.
 
 Does this change affect visible UI or human-readable output? If yes, attach matching before-and-after screenshots for each affected surface, using the same configuration, model/provider, theme, and window size.
 
-Report the result for each surface the change can reach: TUI sidebar (open and collapsed), status line below the message input, toasts, `/quota` window tabs (Usage, Limits, Plugin, and the Settings tabs), Web and Desktop text commands, and CLI `show`/`status`. For export, telemetry, or agent tools, include the output before and after. Identify unchanged or untested surfaces explicitly.
+Report the result for each surface the change can reach: the TUI sidebar, the `/quota` window tabs (Usage, Limits, and the Settings tabs), and CLI `show`. Identify unchanged or untested surfaces explicitly.
 
 Redact credentials, account identifiers, private paths, and other sensitive information. For text-formatting changes, include the relevant text output as well as screenshots.
 
@@ -32,7 +32,7 @@ Surface checks:
 
 ## Quality Checklist
 
-- [ ] I ran `pnpm verify`
+- [ ] I ran `bun run check`, `bun run typecheck`, `bun run build` and `bun run test`
 - [ ] This change is focused and avoids unrelated behavior changes
 - [ ] I updated or added tests when behavior changed
 - [ ] I updated docs when user-facing workflow, command, or config behavior changed

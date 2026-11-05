@@ -26,10 +26,10 @@ import {
 import {
   type FetchError,
   fetchEachLogin,
+  fetchError,
   type ProviderFetchResult,
   type ProviderRow,
   quotaRow,
-  fetchError,
 } from "./contract.js";
 
 const CREDITS_URL = "https://cli-chat-proxy.grok.com/v1/billing?format=credits";

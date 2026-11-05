@@ -22,7 +22,7 @@ body:
     id: opencode_version
     attributes:
       label: Your OpenCode version
-      description: "`/quota_status` shows it under `environment:`, in the `opencode:` line. Example `2.0.20`"
+      description: "Open `/quota` and read the version in the window title. Example `2.0.20`"
       placeholder: 2.0.20
     validations:
       required: true
@@ -31,7 +31,7 @@ body:
     id: plugin_version
     attributes:
       label: Your plugin version
-      description: Run `/quota_status` in OpenCode. The version is in the first line. If it has `beta` in it, update first, because it may already be fixed.
+      description: Open `/quota` in OpenCode. The version is in the window title. If it has `beta` in it, update first, because it may already be fixed.
       placeholder: 6.0.0
     validations:
       required: true
@@ -59,6 +59,6 @@ body:
   - type: textarea
     id: logs
     attributes:
-      label: Paste what `/quota_status` shows (optional)
+      label: Paste what the `/quota` window shows (optional)
       description: It never shows your keys, passwords, account names or your own folder names. Read it before you paste it.
       render: shell

@@ -1,11 +1,11 @@
 /** One fake `bl` shared by the Alibaba provider tests: a case declares what each command prints. */
 
-import { type ChildProcess, type SpawnOptions } from "node:child_process";
+import type { ChildProcess, SpawnOptions } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
-import { beforeEach, vi } from "vite-plus/test";
+import { beforeEach, vi } from "vitest";
 
 import { useProviderWorld } from "./provider-fetch.js";
 

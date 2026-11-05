@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vite-plus/test";
+import { describe, expect, it, vi } from "vitest";
 import type {
   ProviderSnapshot,
   QuotaRow,
@@ -182,12 +182,13 @@ describe("view format", () => {
     { kind: "fast", early: true, evenLeft: 95, left: 50, expected: undefined },
     { kind: "fast", early: true, evenLeft: 95, left: 0, expected: undefined },
     { kind: "fast", evenLeft: 90, left: 50, expected: "low" },
-  ] as const)(
-    "$kind with $left% left and $evenLeft% of the window to come is $expected",
-    ({ left, expected, ...pace }) => {
-      expect(paceLevel(pace, left)).toBe(expected);
-    },
-  );
+  ] as const)("$kind with $left% left and $evenLeft% of the window to come is $expected", ({
+    left,
+    expected,
+    ...pace
+  }) => {
+    expect(paceLevel(pace, left)).toBe(expected);
+  });
 
   it.each([
     {
@@ -506,12 +507,12 @@ describe("view text", () => {
     { percent: "remaining", title: "▼ Quota remaining" },
     { percent: "used", title: "▼ Quota used" },
     { percent: "bare", title: "▼ Quota" },
-  ] as const)(
-    "titles the expanded panel $title, so its rows show only the number",
-    ({ percent, title }) => {
-      expect(sidebarTitle({ ...DEFAULT_WORDS, percent })).toBe(title);
-    },
-  );
+  ] as const)("titles the expanded panel $title, so its rows show only the number", ({
+    percent,
+    title,
+  }) => {
+    expect(sidebarTitle({ ...DEFAULT_WORDS, percent })).toBe(title);
+  });
 
   it.each([
     { providers: [CLAUDE], expected: "▶ Quota (1 provider)" },
@@ -710,19 +711,22 @@ describe("view text", () => {
       });
     });
 
-    it.each(["blocks", "shades", "line", "squares", "dots"] as const)(
-      "draws the mark in a %s bar, which keeps its width",
-      (shape) => {
-        const [full] = barParts(shape, 100, 1);
-        const [, empty] = barParts(shape, 0, 1);
-        expect(barSegments(shape, 70, 20, 50, DEFAULT_WORDS)).toEqual([
-          { text: full.repeat(10), role: "bar", percent: 70 },
-          { text: "┃", role: "label" },
-          { text: full.repeat(3), role: "bar", percent: 70 },
-          { text: empty.repeat(6), role: "empty", percent: 70 },
-        ]);
-      },
-    );
+    it.each([
+      "blocks",
+      "shades",
+      "line",
+      "squares",
+      "dots",
+    ] as const)("draws the mark in a %s bar, which keeps its width", (shape) => {
+      const [full] = barParts(shape, 100, 1);
+      const [, empty] = barParts(shape, 0, 1);
+      expect(barSegments(shape, 70, 20, 50, DEFAULT_WORDS)).toEqual([
+        { text: full.repeat(10), role: "bar", percent: 70 },
+        { text: "┃", role: "label" },
+        { text: full.repeat(3), role: "bar", percent: 70 },
+        { text: empty.repeat(6), role: "empty", percent: 70 },
+      ]);
+    });
 
     it("fills the bar with the share the words show, and keeps the percent left for its colors", () => {
       const used = words({ percent: "used" });
@@ -897,16 +901,18 @@ describe("view text", () => {
     { room: 75, level: "bar", first: "Claude █░░░░ 12%", shown: 3 },
     { room: 70, level: "numbers", first: "Claude 12%", shown: 3 },
     { room: 40, level: "numbers", first: "Claude 12%", shown: 1 },
-  ])(
-    "fits the status line in $room columns at the $level level",
-    ({ room, level, first, shown }) => {
-      const layout = statusLayout(statusInput(), room, 0, "auto");
-      expect(layout.level).toBe(level);
-      expect(layout.shown.map(lineText)[0]).toBe(first);
-      // Every provider shows its least-left row; the rest wait behind "+N ›".
-      expect([layout.shown.length, layout.hiddenAfter]).toEqual([shown, 3 - shown]);
-    },
-  );
+  ])("fits the status line in $room columns at the $level level", ({
+    room,
+    level,
+    first,
+    shown,
+  }) => {
+    const layout = statusLayout(statusInput(), room, 0, "auto");
+    expect(layout.level).toBe(level);
+    expect(layout.shown.map(lineText)[0]).toBe(first);
+    // Every provider shows its least-left row; the rest wait behind "+N ›".
+    expect([layout.shown.length, layout.hiddenAfter]).toEqual([shown, 3 - shown]);
+  });
 
   it("keeps the +N marker when no provider fits in the room", () => {
     // Seven providers in two columns: too narrow for even a cut name next to "+7 ›".

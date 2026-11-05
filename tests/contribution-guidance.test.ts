@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it } from "vitest";
 import { readMarkdownSection } from "./helpers/markdown-document.js";
 
 function read(path: string): string {
@@ -7,20 +7,16 @@ function read(path: string): string {
 }
 
 function headingIndex(document: string, heading: string): number {
-  const index = document.split("\n").findIndex((line) => line === `## ${heading}`);
+  const index = document.split("\n").indexOf(`## ${heading}`);
   expect(index).toBeGreaterThanOrEqual(0);
   return index;
 }
 
 /** Every place v6 shows quota; PRs report each one the change can reach. */
 const V6_SURFACES = [
-  "TUI sidebar (open and collapsed)",
-  "status line below the message input",
-  "toasts",
-  "`/quota` window tabs (Usage, Limits, Plugin, and the Settings tabs)",
-  "Web and Desktop text commands",
-  "CLI `show`/`status`",
-  "export, telemetry, or agent tools",
+  "TUI sidebar",
+  "`/quota` window tabs (Usage, Limits, and the Settings tabs)",
+  "CLI `show`",
 ];
 /** v5 surfaces that v6 no longer has. */
 const V5_SURFACES = [
@@ -86,14 +82,16 @@ describe("contribution guidance", () => {
     }
   });
 
-  it("uses canonical pnpm verify and keeps production-version and focused-change requirements", () => {
-    expect(prTemplate).toContain("I ran `pnpm verify`");
-    expect(prTemplate).not.toContain("I ran `pnpm run typecheck`");
-    expect(prTemplate).not.toContain("I ran `pnpm run build`");
-    expect(prTemplate).not.toContain("I ran `pnpm test`");
+  it("uses canonical Bun checks and keeps production-version and focused-change requirements", () => {
+    expect(prTemplate).toContain(
+      "I ran `bun run check`, `bun run typecheck`, `bun run build` and `bun run test`",
+    );
+    expect(prTemplate).not.toContain("pnpm");
     expect(prTemplate).toContain("Current production released OpenCode version tested:");
     expect(prTemplate).toContain("This change is focused and avoids unrelated behavior changes");
-    expect(contributing).toContain("`pnpm verify` passes");
+    expect(contributing).toContain(
+      "`bun run check`, `bun run typecheck`, `bun run build` and `bun run test`",
+    );
     expect(contributing).toContain("Tested on the current released OpenCode");
     expect(contributing).toContain("smallest safe fix");
   });

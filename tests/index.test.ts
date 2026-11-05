@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vite-plus/test";
+import { describe, expect, it, vi } from "vitest";
 
 const pluginMocks = vi.hoisted(() => ({
   tui: {

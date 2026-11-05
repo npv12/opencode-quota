@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it } from "vitest";
 
 import type { QuotaRow } from "../src/core/types.js";
 import {
@@ -75,44 +75,29 @@ describe("quota report messages", () => {
         rowNames: "short",
       },
     } as const;
-    const notices = [
-      {
-        id: "a",
-        message: "Copilot moves to AI Credits.",
-        url: "https://example.com/a",
-      },
-      { id: "b", message: "Another active notice." },
-    ];
-
-    expect(quotaMessageText({ snapshot, usage: undefined, notices, nowMs }).split("\n")).toEqual([
+    expect(quotaMessageText({ snapshot, usage: undefined, nowMs }).split("\n")).toEqual([
       "Quota",
       "● Claude  5h 58% left · fable 90% left",
-      "",
-      "Notices",
-      "- Copilot moves to AI Credits.",
-      "  https://example.com/a",
-      "- Another active notice.",
     ]);
     expect(
       quotaMessageText({
         snapshot: { ...snapshot, providers: [] },
         usage: undefined,
-        notices: [],
         nowMs,
       }),
-    ).toBe("Quota\nNo quota providers found. Run /quota_status to see why.");
+    ).toBe("Quota\nNo quota providers found.");
     const otherModel = {
       ...snapshot,
       words: { ...snapshot.words, onlyCurrentModel: true },
       currentModelProviderIds: [],
     };
-    expect(quotaMessageText({ snapshot: otherModel, usage: undefined, notices: [], nowMs })).toBe(
-      "Quota\nNo quota provider serves the session's current model. Run /quota_status to see why.",
+    expect(quotaMessageText({ snapshot: otherModel, usage: undefined, nowMs })).toBe(
+      "Quota\nNo quota provider serves the session's current model.",
     );
 
     // The TUI's Limits tab copies the same limits, without the notices and terminal escapes.
     expect(quotaLimitsText(snapshot, nowMs)).toBe(
-      quotaMessageText({ snapshot, usage: undefined, notices: [], nowMs }),
+      quotaMessageText({ snapshot, usage: undefined, nowMs }),
     );
     const escaped = {
       ...snapshot,
