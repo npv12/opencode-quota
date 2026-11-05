@@ -4,7 +4,7 @@
 // per test, and fake HTTP.
 import { rmSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AGY_FLAVOR } from "../src/lib/google-agy.js";
 import { agyCompanion, geminiCliCompanion } from "../src/lib/google-companion-credentials.js";
@@ -454,22 +454,19 @@ describe.each(FLAVORS)("$name OAuth quota flow", (flavor) => {
     ["non-JSON error", notJsonResponse(500), "HTTP 500", { code: "provider_error", status: 500 }],
     ["timeout", NO_REPLY, "Token refresh timeout", { code: "timeout" }],
     ["network error", new Error("socket hang up"), "Token refresh failed", undefined],
-  ])(
-    "reports a failed token refresh (%s) as an account error",
-    async (_case, outcome, error, facts) => {
-      const auth = {
-        [firstKey]: authAccount("refresh", "project"),
-      };
-      if (outcome instanceof Error) fetchResponse.mockRejectedValueOnce(outcome);
-      else fetchResponse.mockResolvedValueOnce(outcome);
+  ])("reports a failed token refresh (%s) as an account error", async (_case, outcome, error, facts) => {
+    const auth = {
+      [firstKey]: authAccount("refresh", "project"),
+    };
+    if (outcome instanceof Error) fetchResponse.mockRejectedValueOnce(outcome);
+    else fetchResponse.mockResolvedValueOnce(outcome);
 
-      await expect(flavor.query(auth, { requestTimeoutMs: 20 })).resolves.toEqual({
-        success: false,
-        error,
-        ...(facts ? { facts } : {}),
-      });
-    },
-  );
+    await expect(flavor.query(auth, { requestTimeoutMs: 20 })).resolves.toEqual({
+      success: false,
+      error,
+      ...(facts ? { facts } : {}),
+    });
+  });
 
   it.each([
     [
@@ -489,23 +486,20 @@ describe.each(FLAVORS)("$name OAuth quota flow", (flavor) => {
       { code: "login_expired", status: 403 },
     ],
     ["timeout", [NO_REPLY], "API timeout", { code: "timeout" }],
-  ])(
-    "reports a failed quota request (%s) as an account error",
-    async (_case, outcomes, error, facts) => {
-      const auth = {
-        [firstKey]: signedInAccount("refresh", "project"),
-      };
-      for (const outcome of outcomes) {
-        fetchResponse.mockResolvedValueOnce(outcome);
-      }
+  ])("reports a failed quota request (%s) as an account error", async (_case, outcomes, error, facts) => {
+    const auth = {
+      [firstKey]: signedInAccount("refresh", "project"),
+    };
+    for (const outcome of outcomes) {
+      fetchResponse.mockResolvedValueOnce(outcome);
+    }
 
-      await expect(flavor.query(auth, { requestTimeoutMs: 20 })).resolves.toEqual({
-        success: false,
-        error,
-        facts,
-      });
-    },
-  );
+    await expect(flavor.query(auth, { requestTimeoutMs: 20 })).resolves.toEqual({
+      success: false,
+      error,
+      facts,
+    });
+  });
 });
 
 const AGY_AUTH_KEYS = ["google-agy", "opencode-agy-auth", "google-agy-auth"] as const;

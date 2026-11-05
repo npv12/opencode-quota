@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vite-plus/test";
+import { describe, expect, it, vi } from "vitest";
 import type { QuotaSnapshot } from "../src/core/types.js";
 import type { QuotaRpcSettingsOutput } from "../src/rpc.js";
 import { createFileDisplay, type SettingsTab } from "../src/tui/display.js";
@@ -9,7 +9,7 @@ import {
   stepLine,
   stepSelection,
 } from "../src/tui/window/option-line.js";
-import { resetPage, settingsPage, SWITCH_ID } from "../src/tui/window/settings-page.js";
+import { resetPage, SWITCH_ID, settingsPage } from "../src/tui/window/settings-page.js";
 import { providerSnapshot, quotaRow } from "./helpers/fake-answers.js";
 import { THEME } from "./helpers/jsx-tree.js";
 

@@ -1,17 +1,9 @@
-import {
-  chmodSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { parse } from "jsonc-parser";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getOpencodeRuntimeDirs } from "../src/lib/opencode-runtime-paths.js";
 import { oldSettingsFolders } from "../src/settings/convert.js";
 import {
@@ -209,9 +201,9 @@ const ROWS: Array<{
   },
   {
     v5: { export: { enabled: true, path: "~/quota.json" } },
-    server: { "system.exportFile": true, "system.exportPath": "~/quota.json" },
+    dropped: ["export.enabled", "export.path"],
   },
-  { v5: { telemetry: { enabled: true } }, server: { "system.telemetry": true } },
+  { v5: { telemetry: { enabled: true } }, dropped: ["telemetry.enabled"] },
   { v5: { alibabaCodingPlanTier: "pro" }, dropped: ["alibabaCodingPlanTier"] },
   { v5: { customSources: [], someTypo: 1 }, dropped: ["customSources", "someTypo"] },
   { v5: { tuiCompactStatus: { suppressWhenNativeProviderQuota: true } } },
@@ -324,28 +316,13 @@ describe("convertV5, which v5 files", () => {
     ]);
   });
 
-  it("leaves the /tokens_* commands on, as for everyone, and writes nothing without old settings", async () => {
-    writeV5({ showOnIdle: false });
-    await convertV5();
-    expect((await loadSettings()).settings.system.oldCommands).toBe(true);
-    expect(readFileSync(settingsPath(), "utf8")).not.toContain("oldCommands is on");
-
-    rmSync(settingsPath());
-    rmSync(join(configDir, "opencode-quota", "quota-toast.jsonc"));
-    const cacheDir = join(root, "cache");
-    vi.stubEnv("XDG_CACHE_HOME", cacheDir);
-    mkdirSync(join(cacheDir, "opencode", "quota-provider-state"), { recursive: true });
-    expect(await convertV5()).toBeUndefined();
-    expect(existsSync(settingsPath())).toBe(false);
+  it.each([
+    undefined,
+    "auto",
+  ])("converts a missing or auto v5 provider choice to no exclusions: %s", async (enabledProviders) => {
+    writeV5(enabledProviders === undefined ? {} : { enabledProviders });
+    expect((await convertV5())?.settings.providers.off).toEqual([]);
   });
-
-  it.each([undefined, "auto"])(
-    "converts a missing or auto v5 provider choice to no exclusions: %s",
-    async (enabledProviders) => {
-      writeV5(enabledProviders === undefined ? {} : { enabledProviders });
-      expect((await convertV5())?.settings.providers.off).toEqual([]);
-    },
-  );
 
   it("switches off every provider for a v5 list with only unknown ids", async () => {
     writeV5({ enabledProviders: ["unknown-provider"] });

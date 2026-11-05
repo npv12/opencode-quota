@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { parse } from "jsonc-parser";
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { writeTextAtomic } from "../src/lib/atomic-json.js";
 import { extractProviderIdsFromParsedConfig } from "../src/lib/config-file-utils.js";

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vite-plus/test";
+import { describe, expect, it, vi } from "vitest";
 import { listProvidersForModelId } from "../src/lib/modelsdev-pricing.js";
 import {
   cloneQuotaProviders,
@@ -165,12 +165,12 @@ describe("quotaProviders schema", () => {
   it.each([
     [
       "id",
-      "a" + "b".repeat(63),
-      ["Uppercase", "bad_id", "1leading", "a" + "b".repeat(64), "quota-providers", "openai"],
+      `a${"b".repeat(63)}`,
+      ["Uppercase", "bad_id", "1leading", `a${"b".repeat(64)}`, "quota-providers", "openai"],
     ],
     ["providerId", "provider.one_two-3", ["Provider", "provider id", "p".repeat(65)]],
     ["label", "x".repeat(80), ["x".repeat(81), "line\nbreak"]],
-    ["apiKeyEnv", "A" + "B".repeat(127), ["lowercase_key", "A" + "B".repeat(128)]],
+    ["apiKeyEnv", `A${"B".repeat(127)}`, ["lowercase_key", `A${"B".repeat(128)}`]],
   ])("enforces the %s grammar, length limit and reserved values", (field, valid, invalid) => {
     expect(validateQuotaProviders([quotaProvider({ [field]: valid })]).issues).toEqual([]);
     for (const value of invalid) {
@@ -180,43 +180,46 @@ describe("quotaProviders schema", () => {
     }
   });
 
-  it.each([quotaProvider, localQuotaProvider])(
-    "validates a definition's minimum check interval",
-    (definition) => {
-      for (const minIntervalMs of [1, 600_000]) {
-        expect(validateQuotaProviders([definition({ minIntervalMs })]).value?.[0]).toMatchObject({
-          minIntervalMs,
-        });
-      }
-      for (const minIntervalMs of [
-        0,
-        -1,
-        1.5,
-        "600000",
-        null,
-        true,
-        Infinity,
-        NaN,
-        Number.MAX_VALUE,
-      ]) {
-        expect(validateQuotaProviders([definition({ minIntervalMs })]).issues).toContainEqual({
-          key: "quotaProviders[0].minIntervalMs",
-          message: "expected positive whole milliseconds (a safe integer)",
-        });
-      }
-    },
-  );
+  it.each([
+    quotaProvider,
+    localQuotaProvider,
+  ])("validates a definition's minimum check interval", (definition) => {
+    for (const minIntervalMs of [1, 600_000]) {
+      expect(validateQuotaProviders([definition({ minIntervalMs })]).value?.[0]).toMatchObject({
+        minIntervalMs,
+      });
+    }
+    for (const minIntervalMs of [
+      0,
+      -1,
+      1.5,
+      "600000",
+      null,
+      true,
+      Infinity,
+      NaN,
+      Number.MAX_VALUE,
+    ]) {
+      expect(validateQuotaProviders([definition({ minIntervalMs })]).issues).toContainEqual({
+        key: "quotaProviders[0].minIntervalMs",
+        message: "expected positive whole milliseconds (a safe integer)",
+      });
+    }
+  });
 
   // Built-in providers of 4.x and 5.x that this version does not have.
-  it.each(["chutes", "kilo", "nanogpt", "nano-gpt", "synthetic"])(
-    "accepts a custom provider with the id %s",
-    (id) => {
-      const accepted = validateQuotaProviders([quotaProvider({ id })]);
+  it.each([
+    "chutes",
+    "kilo",
+    "nanogpt",
+    "nano-gpt",
+    "synthetic",
+  ])("accepts a custom provider with the id %s", (id) => {
+    const accepted = validateQuotaProviders([quotaProvider({ id })]);
 
-      expect(accepted.issues).toEqual([]);
-      expect(accepted.value?.[0]).toMatchObject({ id, providerId: id });
-    },
-  );
+    expect(accepted.issues).toEqual([]);
+    expect(accepted.value?.[0]).toMatchObject({ id, providerId: id });
+  });
 
   // v6 retired this id's maintained estimate; a leftover tuning must not void other definitions.
   it("ignores a leftover tuning of the retired maintained estimate", () => {
@@ -453,7 +456,7 @@ describe("quotaProviders schema", () => {
       localQuotaProvider({
         providerId: "private-gateway",
         pricingModelMap: {
-          [sourceModel]: pricedTargetProvider + "/" + pricedTargetModel,
+          [sourceModel]: `${pricedTargetProvider}/${pricedTargetModel}`,
         },
       }),
     ]);
@@ -671,30 +674,27 @@ describe("quotaProviders schema", () => {
     ["Cf", "‮"],
     ["Zl", " "],
     ["Zp", " "],
-  ])(
-    "rejects Unicode %s characters in every json-v1 static display field",
-    (_category, character) => {
-      const cases = [
-        [usage({ name: `Us${character}age` }), `${M0}.name`],
-        [usage({ label: `Us${character}ed:` }), `${M0}.label`],
-        [usage({ unit: `to${character}kens`, unitPosition: "suffix" }), `${M0}.unit`],
-        [
-          {
-            resultType: "status",
-            name: "Status",
-            metric: { type: "status", value: { literal: `Re${character}ady` } },
-          },
-          `${M0}.metric.value.literal`,
-        ],
-      ] as const;
+  ])("rejects Unicode %s characters in every json-v1 static display field", (_category, character) => {
+    const cases = [
+      [usage({ name: `Us${character}age` }), `${M0}.name`],
+      [usage({ label: `Us${character}ed:` }), `${M0}.label`],
+      [usage({ unit: `to${character}kens`, unitPosition: "suffix" }), `${M0}.unit`],
+      [
+        {
+          resultType: "status",
+          name: "Status",
+          metric: { type: "status", value: { literal: `Re${character}ady` } },
+        },
+        `${M0}.metric.value.literal`,
+      ],
+    ] as const;
 
-      for (const [mapping, key] of cases) {
-        const result = validateQuotaProviders([jsonV1(mapping)]);
-        expect(result.value).toBeUndefined();
-        expect(result.issues).toContainEqual(expect.objectContaining({ key }));
-      }
-    },
-  );
+    for (const [mapping, key] of cases) {
+      const result = validateQuotaProviders([jsonV1(mapping)]);
+      expect(result.value).toBeUndefined();
+      expect(result.issues).toContainEqual(expect.objectContaining({ key }));
+    }
+  });
 
   it("allows json-v1 names and labels of up to 80 code points", () => {
     const result = validateQuotaProviders([

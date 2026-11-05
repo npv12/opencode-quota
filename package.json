@@ -1,8 +1,7 @@
 {
-  "name": "@slkiser/opencode-quota",
-  "version": "6.3.0",
-  "packageManager": "pnpm@11.28.9",
-  "description": "OpenCode quota & tokens usage with zero context window pollution. Supports GitHub Copilot, OpenAI (Plus/Pro), Google AGY, Z.ai coding plan and more.",
+  "name": "@npv12/opencode-quota",
+  "version": "2.2.0",
+  "description": "OpenCode quota visibility for the /quota command and TUI sidebar. Maintained fork of @slkiser/opencode-quota by Pranav (npv12).",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -21,8 +20,7 @@
     "./tui": {
       "types": "./dist/tui.d.ts",
       "default": "./dist/tui.js"
-    },
-    "./gui-experimental": "./dist/gui-experimental.cjs"
+    }
   },
   "files": [
     "dist",
@@ -30,71 +28,54 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "node .github/scripts/clean-dist.mjs && tsc && tsc -p src/gui && node .github/scripts/copy-data.mjs && node .github/scripts/prepare-tui-dist.mjs && node .github/scripts/build-gui.mjs",
-    "check": "vp check",
-    "format": "vp fmt",
-    "lint": "vp lint",
-    "pack:release-package": "node .github/scripts/pack-release-package.mjs",
+    "build": "node .github/scripts/clean-dist.mjs && tsc && node .github/scripts/copy-data.mjs && node .github/scripts/prepare-tui-dist.mjs",
+    "check": "biome check .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
     "pricing:refresh": "node .github/scripts/refresh-modelsdev-pricing.mjs",
     "pricing:refresh:if-stale": "node .github/scripts/refresh-modelsdev-pricing-if-stale.mjs",
-    "upstream:check": "node .github/scripts/check-upstream-plugin-updates.mjs",
-    "upstream:prepare-review": "node .github/scripts/prepare-upstream-plugin-review.mjs",
-    "upstream:sync": "node .github/scripts/sync-upstream-plugin-references.mjs",
-    "release:check": "pnpm verify && pnpm run verify:release-version",
-    "smoke:package": "node .github/scripts/smoke-packed-package.mjs",
-    "verify:package-contents": "node .github/scripts/verify-package-contents.mjs",
-    "verify:platform": "pnpm run build && pnpm test && pnpm run verify:package-contents",
-    "verify:release-package": "node .github/scripts/verify-release-package.mjs",
-    "verify:release-version": "node .github/scripts/verify-release-version.mjs",
-    "verify:typescript-version": "node .github/scripts/verify-typescript-version.mjs",
-    "verify:v4-history": "node .github/scripts/verify-v4-history.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "test": "vp test run",
-    "test:docs": "vp test run tests/contribution-guidance.test.ts tests/google-gemini-cli-org-only-docs.test.ts tests/quota-providers-docs-consistency.test.ts tests/readme-provider-ledger.test.ts",
-    "test:watch": "vp test watch",
-    "verify": "pnpm run check && pnpm run verify:typescript-version && pnpm run verify:v4-history && pnpm run verify:platform",
-    "prepublishOnly": "pnpm run build",
-    "prepare": "vp config --no-agent --hooks-dir .github/hooks"
+    "verify:release-version": "node .github/scripts/verify-release-version.mjs"
   },
   "keywords": [
     "opencode",
     "plugin",
     "quota",
-    "toast",
+    "sidebar",
     "github",
     "copilot",
-    "google",
-    "gemini",
-    "claude"
+    "openai",
+    "anthropic",
+    "google"
   ],
-  "author": "",
+  "author": "Pranav <pranav10121@gmail.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/slkiser/opencode-quota.git"
+    "url": "git+https://github.com/npv12/opencode-quota.git"
   },
   "bugs": {
-    "url": "https://github.com/slkiser/opencode-quota/issues"
+    "url": "https://github.com/npv12/opencode-quota/issues"
   },
-  "homepage": "https://github.com/slkiser/opencode-quota#readme",
+  "homepage": "https://github.com/npv12/opencode-quota#readme",
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@babel/preset-typescript": "^7.29.7",
+    "@biomejs/biome": "2.3.11",
     "@opencode/plugin": "2.2.5",
-    "@opentelemetry/sdk-metrics": "2.10.0",
     "@opentui/core": "^0.8.1",
     "@opentui/solid": "^0.8.1",
     "@types/node": "^22.20.5",
     "babel-preset-solid": "^1.9.12",
     "solid-js": "^1.9.12",
     "typescript": "7.0.2",
-    "vite": "npm:@voidzero-dev/vite-plus-core@1.4.0",
-    "vite-plugin-solid": "2.11.14",
-    "vite-plus": "1.4.0",
+    "vitest": "^4.0.17",
     "yaml": "^2.9.1"
   },
   "dependencies": {
-    "@opentelemetry/api": "~1.9.1",
     "jsonc-parser": "^3.3.1"
   },
   "peerDependencies": {

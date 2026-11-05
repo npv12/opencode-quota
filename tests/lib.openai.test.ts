@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import businessIndividualLimitUsage from "./fixtures/openai/business-individual-limit.sanitized.json";
 import businessTeamMonthlyUsage from "./fixtures/openai/business-team-monthly.sanitized.json";
 
@@ -26,8 +26,8 @@ import {
 } from "../src/lib/openai.js";
 import {
   bindCredentialSource,
-  clearCredentialRowCacheForTests,
   type CredentialRow,
+  clearCredentialRowCacheForTests,
 } from "../src/lib/opencode-auth.js";
 
 const POSIX_IDENTITY_STORAGE = process.platform !== "win32" && typeof process.getuid === "function";

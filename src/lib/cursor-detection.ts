@@ -1,7 +1,7 @@
-import { existsSync } from "fs";
-import { readFile } from "fs/promises";
-import { homedir, platform } from "os";
-import { join } from "path";
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { homedir, platform } from "node:os";
+import { join } from "node:path";
 import { getPluginSpecFromEntry } from "./config-file-utils.js";
 import { asRecord, isRecord } from "./json-guards.js";
 import { getCredentialDatabasePaths, readCredentialRows } from "./opencode-auth.js";

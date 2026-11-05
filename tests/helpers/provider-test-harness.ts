@@ -1,4 +1,4 @@
-import { vi } from "vite-plus/test";
+import { vi } from "vitest";
 
 import type { QuotaProviderContext } from "../../src/lib/entries.js";
 import { createRuntimeProviderIdResolver } from "../../src/lib/runtime-provider-ids.js";

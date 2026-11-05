@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { QuotaSnapshot } from "../src/core/types.js";
 import type { AnthropicQuotaResult } from "../src/lib/anthropic.js";
 import { anthropicProvider } from "../src/providers/anthropic.js";
@@ -137,27 +137,27 @@ describe("Anthropic runtime delivery", () => {
     vi.restoreAllMocks();
   });
 
-  it.each(["one TUI", "two TUIs"])(
-    "keeps two sessions on their selected logins through RPC answers and broadcasts in %s",
-    async (surfaces) => {
-      const server = await setup();
-      const a = server.client();
-      const b = surfaces === "one TUI" ? a : server.client();
-      await b.refresh("manual", "claude-code");
-      expect(remaining(b.snapshot("claude-code"))).toBe(40);
-      await a.refresh("manual", "anthropic");
+  it.each([
+    "one TUI",
+    "two TUIs",
+  ])("keeps two sessions on their selected logins through RPC answers and broadcasts in %s", async (surfaces) => {
+    const server = await setup();
+    const a = server.client();
+    const b = surfaces === "one TUI" ? a : server.client();
+    await b.refresh("manual", "claude-code");
+    expect(remaining(b.snapshot("claude-code"))).toBe(40);
+    await a.refresh("manual", "anthropic");
 
-      expect(server.emit).toHaveBeenCalledWith("changed", expect.anything());
-      expect(remaining(a.snapshot("anthropic"))).toBe(90);
-      expect(remaining(b.snapshot("claude-code"))).toBe(40);
+    expect(server.emit).toHaveBeenCalledWith("changed", expect.anything());
+    expect(remaining(a.snapshot("anthropic"))).toBe(90);
+    expect(remaining(b.snapshot("claude-code"))).toBe(40);
 
-      // A third client's refresh reaches B only through the server's broadcast.
-      credentials.cli.mockResolvedValue(cliQuota(35));
-      await server.client().refresh("manual", "claude-code");
-      expect(remaining(b.snapshot("claude-code"))).toBe(35);
-      expect(remaining(a.snapshot("anthropic"))).toBe(90);
-    },
-  );
+    // A third client's refresh reaches B only through the server's broadcast.
+    credentials.cli.mockResolvedValue(cliQuota(35));
+    await server.client().refresh("manual", "claude-code");
+    expect(remaining(b.snapshot("claude-code"))).toBe(35);
+    expect(remaining(a.snapshot("anthropic"))).toBe(90);
+  });
 
   it("keeps an unavailable Claude Code login out of its session after another runtime broadcasts", async () => {
     credentials.available.mockImplementation(
@@ -174,32 +174,33 @@ describe("Anthropic runtime delivery", () => {
     expect(credentials.cli).not.toHaveBeenCalled();
   });
 
-  it.each(["settings recheck", "settings change", "credential event"])(
-    "refreshes the active Claude Code login after a %s",
-    async (change) => {
-      const server = await setup();
-      const b = server.client();
-      await b.refresh("manual", "claude-code");
-      expect(remaining(b.snapshot("claude-code"))).toBe(40);
-      server.emit.mockClear();
-      credentials.cli.mockResolvedValue(cliQuota(35));
-      if (change === "credential event") server.loginChanged();
-      else if (change === "settings recheck") {
-        await server.saveSettings({ providers: { checking: { requestTimeoutMs: 12_000 } } });
-      } else {
-        await server.saveSettings({ words: { percent: "used" } });
-      }
+  it.each([
+    "settings recheck",
+    "settings change",
+    "credential event",
+  ])("refreshes the active Claude Code login after a %s", async (change) => {
+    const server = await setup();
+    const b = server.client();
+    await b.refresh("manual", "claude-code");
+    expect(remaining(b.snapshot("claude-code"))).toBe(40);
+    server.emit.mockClear();
+    credentials.cli.mockResolvedValue(cliQuota(35));
+    if (change === "credential event") server.loginChanged();
+    else if (change === "settings recheck") {
+      await server.saveSettings({ providers: { checking: { requestTimeoutMs: 12_000 } } });
+    } else {
+      await server.saveSettings({ words: { percent: "used" } });
+    }
 
-      // A plain settings change keeps the minimum interval; a recheck or login event fetches.
-      const expected = change === "settings change" ? 40 : 35;
-      await vi.waitFor(() => expect(server.emit).toHaveBeenCalled());
-      await vi.waitFor(() => expect(remaining(b.snapshot("claude-code"))).toBe(expected));
-      if (change !== "settings change") expect(credentials.cli).toHaveBeenCalledTimes(2);
-      expect(credentials.available).toHaveBeenLastCalledWith(
-        expect.objectContaining({ useClaudeCodeCredentials: true }),
-      );
-    },
-  );
+    // A plain settings change keeps the minimum interval; a recheck or login event fetches.
+    const expected = change === "settings change" ? 40 : 35;
+    await vi.waitFor(() => expect(server.emit).toHaveBeenCalled());
+    await vi.waitFor(() => expect(remaining(b.snapshot("claude-code"))).toBe(expected));
+    if (change !== "settings change") expect(credentials.cli).toHaveBeenCalledTimes(2);
+    expect(credentials.available).toHaveBeenLastCalledWith(
+      expect.objectContaining({ useClaudeCodeCredentials: true }),
+    );
+  });
 
   it("fetches B independently while an account-A refresh is in flight", async () => {
     const pendingA = Promise.withResolvers<AnthropicQuotaResult>();
@@ -252,31 +253,32 @@ describe("Anthropic runtime delivery", () => {
     ["claude-code", "anthropic", 90],
     ["anthropic", "claude-code", 40],
   ] as const)("switch from %s to %s", (before, after, expected) => {
-    it.each(["settings recheck", "settings change", "credential event"])(
-      "uses the current session model after a %s before the next session RPC",
-      async (change) => {
-        const server = await setup();
-        server.switchModel("session", before);
-        const client = server.client();
-        await client.refresh("manual", "session");
-        credentials.cli.mockClear();
-        credentials.oauth.mockClear();
+    it.each([
+      "settings recheck",
+      "settings change",
+      "credential event",
+    ])("uses the current session model after a %s before the next session RPC", async (change) => {
+      const server = await setup();
+      server.switchModel("session", before);
+      const client = server.client();
+      await client.refresh("manual", "session");
+      credentials.cli.mockClear();
+      credentials.oauth.mockClear();
 
-        server.switchModel("session", after);
-        if (change === "credential event") server.loginChanged();
-        else if (change === "settings recheck") {
-          await server.saveSettings({ providers: { checking: { requestTimeoutMs: 12_000 } } });
-        } else {
-          await server.saveSettings({ words: { percent: "used" } });
-        }
+      server.switchModel("session", after);
+      if (change === "credential event") server.loginChanged();
+      else if (change === "settings recheck") {
+        await server.saveSettings({ providers: { checking: { requestTimeoutMs: 12_000 } } });
+      } else {
+        await server.saveSettings({ words: { percent: "used" } });
+      }
 
-        await vi.waitFor(() => expect(remaining(client.snapshot("session"))).toBe(expected));
-        const selected = after === "claude-code" ? credentials.cli : credentials.oauth;
-        const other = after === "claude-code" ? credentials.oauth : credentials.cli;
-        expect(selected).toHaveBeenCalledOnce();
-        expect(other).not.toHaveBeenCalled();
-      },
-    );
+      await vi.waitFor(() => expect(remaining(client.snapshot("session"))).toBe(expected));
+      const selected = after === "claude-code" ? credentials.cli : credentials.oauth;
+      const other = after === "claude-code" ? credentials.oauth : credentials.cli;
+      expect(selected).toHaveBeenCalledOnce();
+      expect(other).not.toHaveBeenCalled();
+    });
 
     it("follows the model-selected event when two sessions started in the same scope", async () => {
       const server = await setup();
@@ -292,36 +294,4 @@ describe("Anthropic runtime delivery", () => {
       expect(remaining(client.snapshot("staying"))).toBe(before === "claude-code" ? 40 : 90);
     });
   });
-
-  it.each(["startup watch", "closed session"])(
-    "keeps account-A reset notices out of a B-only TUI after a %s",
-    async (inactive) => {
-      let now = Date.now();
-      vi.spyOn(Date, "now").mockImplementation(() => now);
-      const reset = now + 60_000;
-      credentials.oauth.mockResolvedValue(quota(5, new Date(reset).toISOString()));
-      const server = await setup();
-      const received: QuotaSnapshot[] = [];
-      const b = server.client((snapshot) => received.push(snapshot));
-      if (inactive === "startup watch") b.watch()();
-      else {
-        const stop = b.watch("anthropic");
-        await vi.waitFor(() => expect(remaining(b.snapshot("anthropic"))).toBe(5));
-        stop();
-      }
-      await vi.waitFor(() => expect(remaining(b.snapshot())).toBe(5));
-      cleanups.push(b.watch("claude-code"));
-      await vi.waitFor(() => expect(remaining(b.snapshot("claude-code"))).toBe(40));
-      received.length = 0;
-
-      now = reset + 1;
-      credentials.oauth.mockResolvedValue(quota(90, new Date(now + 5 * 60 * 60_000).toISOString()));
-      const a = await server.client().refresh("manual", "anthropic");
-
-      expect(a?.resetNotices).toHaveLength(1);
-      expect(received.length).toBeGreaterThan(0);
-      expect(received.flatMap((snapshot) => snapshot.resetNotices)).toEqual([]);
-      expect(remaining(b.snapshot("claude-code"))).toBe(40);
-    },
-  );
 });

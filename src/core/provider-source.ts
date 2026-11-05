@@ -50,10 +50,6 @@ export type ProviderSourceHost = {
 /** The settings the server reads besides the providers themselves. */
 export type ServerSettings = {
   waitForQuotaReset: boolean;
-  /** The export file, written after each snapshot change when on. */
-  export: { enabled: boolean; path: string };
-  /** Quota gauges through the host's OpenTelemetry MeterProvider. */
-  telemetry: boolean;
 };
 
 export function customRowPrefix(definitionId: string): string {
@@ -368,7 +364,5 @@ export async function loadServerSettings(host: ProviderSourceHost): Promise<Serv
   const { settings } = host.settings();
   return {
     waitForQuotaReset: settings.providers.checking.waitForQuotaReset,
-    export: { enabled: settings.system.exportFile, path: settings.system.exportPath },
-    telemetry: settings.system.telemetry,
   };
 }

@@ -83,7 +83,7 @@ export const exampleProviderProvider: QuotaProvider = {
 
   async fetch(ctx: QuotaProviderContext): Promise<ProviderFetchResult> {
     const keys = await readVendorKeys(SPEC);
-    // Where the key came from, for /quota_status. Never the key itself.
+    // Where the key came from, for the quota window. Never the key itself.
     const debug = vendorKeyDetails(SPEC, keys);
     const query = (apiKey: string) => queryExampleRows(apiKey, ctx.config?.requestTimeoutMs);
 

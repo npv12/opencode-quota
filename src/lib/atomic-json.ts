@@ -1,5 +1,5 @@
-import { chmod, mkdir, rename, rm, writeFile } from "fs/promises";
-import { dirname } from "path";
+import { chmod, mkdir, rename, rm, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 
 type AtomicWritePolicy = "ordinary" | "configuration";
 

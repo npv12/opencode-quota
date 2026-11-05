@@ -199,9 +199,7 @@ export function limitsLines(input: LimitsInput): Line[] {
     return [
       {
         id: "",
-        segments: [
-          { text: `${INDENT}No quota providers found. The Plugin tab says why.`, role: "value" },
-        ],
+        segments: [{ text: `${INDENT}No quota providers found.`, role: "value" }],
       },
     ];
   }

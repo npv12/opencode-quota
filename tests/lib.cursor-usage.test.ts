@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it } from "vitest";
 
 import { computeCursorCycleWindow, getCurrentCursorUsageSummary } from "../src/lib/cursor-usage.js";
 import { useProviderWorld } from "./helpers/provider-fetch.js";

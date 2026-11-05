@@ -37,16 +37,16 @@ import { accountingDecimalFromNumber } from "./accounting-decimal.js";
 import { type ResolvedCredential, resolvedCredentialPolicy } from "./cache-policies.js";
 import {
   type AccountResult,
-  failedAccount,
   FIVE_HOUR,
+  failedAccount,
   keySlug,
   MONTHLY,
   type ProviderFetchResult,
   type ProviderRow,
   type Slot,
   WEEKLY,
-  windowRows,
   type WindowRow,
+  windowRows,
 } from "./contract.js";
 import { statusDetailsFromRecord } from "./result-helpers.js";
 

@@ -10,92 +10,31 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  pnpm-quality:
+  quality:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
-      - name: Use Node.js 24.x
-        uses: actions/setup-node@v6
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 24.x
+          bun-version: 1.3.5
 
-      # Installs Vite+ and the pnpm version in package.json `packageManager`, then
-      # `vp install --frozen-lockfile` with the pnpm store cached by lockfile hash.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
       - name: Install dependencies
-        uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
-        with:
-          node-manager: false
-          cache: true
-          run-install: |
-            args: ["--frozen-lockfile"]
+        run: bun install --frozen-lockfile
 
-      - name: Run canonical verification
-        run: pnpm verify
+      - name: Check
+        run: bun run check
 
-      - name: Pack and audit exact npm artifact once
-        run: pnpm run pack:release-package package-artifacts
+      - name: Typecheck
+        run: bun run typecheck
 
-      - name: Upload exact npm artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: package-tarball
-          path: package-artifacts/*
-          if-no-files-found: error
+      - name: Build
+        run: bun run build
 
-  windows-verify:
-    runs-on: windows-latest
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Use Node.js 24.x
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24.x
-
-      # Installs Vite+ and the pnpm version in package.json `packageManager`, then
-      # `vp install --frozen-lockfile` with the pnpm store cached by lockfile hash.
-      - name: Install dependencies
-        uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
-        with:
-          node-manager: false
-          cache: true
-          run-install: |
-            args: ["--frozen-lockfile"]
-
-      # The checks that do not depend on the operating system (format and lint,
-      # TypeScript lock check, v4 history check) run in `pnpm-quality`.
-      - name: Run OS-dependent verification
-        run: pnpm run verify:platform
-
-  runtime-smoke:
-    runs-on: ubuntu-latest
-    needs: pnpm-quality
-
-    strategy:
-      matrix:
-        node-version: [22.x, 24.x]
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: Download exact npm artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: package-tarball
-          path: package-artifacts
-
-      - name: Smoke exact npm artifact on Node ${{ matrix.node-version }}
-        run: node .github/scripts/smoke-packed-package.mjs package-artifacts
-
-      - name: Install exact npm artifact globally with npm 12 on Node ${{ matrix.node-version }}
-        run: node .github/scripts/smoke-packed-global-install.mjs package-artifacts
+      - name: Test
+        run: bun run test

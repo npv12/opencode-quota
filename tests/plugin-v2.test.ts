@@ -1,12 +1,5 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const buildOutput = vi.hoisted(() => vi.fn());
-vi.mock("../src/lib/quota-dialog-commands.js", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../src/lib/quota-dialog-commands.js")>()),
-  statusReport: buildOutput,
-}));
 const resolveRetryDelay = vi.hoisted(() => vi.fn());
 vi.mock("../src/lib/quota-retry-wait.js", () => ({
   resolveQuotaResetRetryDelayMs: resolveRetryDelay,
@@ -20,7 +13,6 @@ import {
 } from "../src/lib/opencode-auth.js";
 import { formatQuotaReportMessage } from "../src/lib/quota-report-message.js";
 import plugin from "../src/plugin.js";
-import { settingsPath } from "../src/settings/file.js";
 import { createFakeIntegration } from "./helpers/fake-integration.js";
 import { createServerContext, type ServerCommand } from "./helpers/plugin-test-harness.js";
 
@@ -45,7 +37,7 @@ function createContext() {
   });
 }
 
-function runCommand(commands: ServerCommand[], name: string, text = "") {
+function _runCommand(commands: ServerCommand[], name: string, text = "") {
   const found = commands.find((item) => item.name === name);
   if (!found) throw new Error(`Command not registered: ${name}`);
   return found.execute({ sessionID: "session-web", prompt: { text }, delivery: "queue" });
@@ -65,136 +57,26 @@ const user = (text: string, metadata?: Record<string, unknown>): Message => ({
 
 describe("V2 server plugin", () => {
   beforeEach(() => {
-    buildOutput.mockReset();
     resolveRetryDelay.mockReset();
   });
 
-  it("registers the quota diagnostics tool without a server toast dependency or V1 command hooks", async () => {
+  it("registers no agent tools and no V1 command hooks", async () => {
     const { ctx, tools } = createContext();
-    buildOutput.mockResolvedValue({ text: "Quota ready", json: { providers: [] } });
 
     await plugin.setup(ctx as never);
-    expect(tools.map((tool) => tool.name)).toEqual([
-      "quota_settings_get",
-      "quota_settings_set",
-      "quota_provider_add",
-      "quota_provider_test",
-      "quota_provider_remove",
-      "quota_status",
-    ]);
-    const quotaStatus = tools.find((tool) => tool.name === "quota_status");
-    const output = await quotaStatus?.execute({}, { sessionID: "session-test" });
-    expect(output).toEqual({ content: "Quota ready" });
-    expect(ctx.provider.list).toHaveBeenCalledTimes(0);
-    // The report gets the session's model from OpenCode and no agent settings.
-    expect(ctx.session.get).toHaveBeenCalledWith({ sessionID: "session-test" });
-    const [, options] = buildOutput.mock.calls[0];
-    expect(options).toMatchObject({
-      origin: "tool",
-      sessionModel: { id: "gpt-5", providerID: "openai" },
-    });
-    expect(options).not.toHaveProperty("agent");
-    expect(options).not.toHaveProperty("default_agent");
-    expect(ctx.tool.transform).toHaveBeenCalledOnce();
+    expect(tools).toEqual([]);
+    expect(ctx.tool.transform).not.toHaveBeenCalled();
     expect(ctx.command.transform).toHaveBeenCalledOnce();
     expect((plugin as Record<string, unknown>)["command.execute.before"]).toBeUndefined();
     expect((plugin as Record<string, unknown>).config).toBeUndefined();
   });
 
-  it("registers /quota, /quota_status, /quota_usage and the /tokens_* names for Web and Desktop", async () => {
+  it("registers /quota for Web and Desktop", async () => {
     const { ctx, commands } = createContext();
 
     await plugin.setup(ctx as never);
-    expect(commands.map((item) => item.name).slice(0, 4)).toEqual([
-      "quota",
-      "quota_status",
-      "quota_usage",
-      "tokens_today",
-    ]);
+    expect(commands.map((item) => item.name)).toEqual(["quota"]);
     expect(commands.every((item) => item.description)).toBe(true);
-  });
-
-  it("lists the 4.x and 5.x /tokens_* commands until system.oldCommands is off", async () => {
-    const path = settingsPath();
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, JSON.stringify({}));
-    const { ctx, commands } = createContext();
-    const dispose = await plugin.setup(ctx as never);
-    try {
-      expect(commands.map((item) => item.name)).toEqual([
-        "quota",
-        "quota_status",
-        "quota_usage",
-        "tokens_today",
-        "tokens_daily",
-        "tokens_weekly",
-        "tokens_monthly",
-        "tokens_all",
-        "tokens_session",
-        "tokens_session_all",
-        "tokens_between",
-      ]);
-      // Each is /quota_usage on its range, so the range's rules apply.
-      await runCommand(commands, "tokens_between", "2026-10-02 2026-10-01");
-      expect(ctx.session.prompt.mock.calls[0][0]).toMatchObject({
-        text: expect.stringContaining("2026-10-01 is before 2026-10-02."),
-        metadata: { opencodeQuota: { command: "tokens_between" } },
-      });
-
-      writeFileSync(path, JSON.stringify({ system: { oldCommands: false } }));
-      await vi.waitFor(() => expect(ctx.command.reload).toHaveBeenCalledOnce(), {
-        timeout: 10_000,
-      });
-      expect(commands.map((item) => item.name)).toEqual(["quota", "quota_status", "quota_usage"]);
-    } finally {
-      await dispose?.();
-      rmSync(path, { force: true });
-    }
-  });
-
-  it("posts the report as a user message that never starts a model turn", async () => {
-    const { ctx, commands } = createContext();
-    buildOutput.mockResolvedValue({
-      text: "# Quota\nopenai 42%\u001b[31m",
-      json: { providers: [] },
-    });
-    vi.spyOn(Date, "now").mockReturnValue(1_790_000_000_000);
-
-    await plugin.setup(ctx as never);
-    await runCommand(commands, "quota_status");
-
-    expect(ctx.session.get).toHaveBeenCalledWith({ sessionID: "session-web" });
-    expect(buildOutput).toHaveBeenCalledOnce();
-    expect(ctx.session.wait).toHaveBeenCalledExactlyOnceWith({ sessionID: "session-web" });
-    expect(ctx.session.wait).toHaveBeenCalledBefore(ctx.session.prompt);
-    expect(ctx.session.prompt).toHaveBeenCalledTimes(1);
-    expect(ctx.session.prompt.mock.calls[0][0]).toEqual({
-      sessionID: "session-web",
-      text: formatQuotaReportMessage("# Quota\nopenai 42%"),
-      metadata: { opencodeQuota: { command: "quota_status", at: 1_790_000_000_000 } },
-      delivery: "steer",
-      resume: false,
-    });
-    vi.mocked(Date.now).mockRestore();
-  });
-
-  it.each([
-    ["session_tree", 'Unknown range "session_tree".'],
-    ["between 2026-09-01", "between needs two dates."],
-    ["between 2026-09-31 2026-10-01", '"2026-09-31" is not a date like 2026-01-31.'],
-    ["between 2026-10-02 2026-10-01", "2026-10-01 is before 2026-10-02."],
-    ["today please", "The range today takes no dates."],
-  ])("answers /quota_usage %s with a clear error and how to use it", async (text, problem) => {
-    const { ctx, commands } = createContext();
-
-    await plugin.setup(ctx as never);
-    await runCommand(commands, "quota_usage", text);
-
-    expect(ctx.session.prompt.mock.calls[0][0].text).toBe(
-      formatQuotaReportMessage(
-        `${problem}\nUsage: /quota_usage [today | 24h | 7d | 30d | 90d | all | session | between YYYY-MM-DD YYYY-MM-DD]`,
-      ),
-    );
   });
 
   it("removes only tagged quota reports from model requests", async () => {
@@ -368,56 +250,55 @@ describe("V2 server plugin", () => {
     expect(integration.connection.active).toHaveBeenCalledOnce();
   });
 
-  it.each(["credential.updated", "credential.switched"])(
-    "drops cached logins when OpenCode reports %s",
-    async (type) => {
-      clearCredentialRowCacheForTests();
-      // The event makes the store check DeepSeek again; it gets a fake answer, not the real API.
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async () => new Response(JSON.stringify({ error: "fake" }), { status: 401 })),
-      );
-      const { ctx } = createContext();
-      const deepseek = {
-        integrationId: "deepseek",
-        id: "cred_deepseek",
-        label: "default",
-        registered: true,
-        method: "key" as const,
-        value: { type: "key", key: "old-key" } as Record<string, unknown>,
-      };
-      const integration = createFakeIntegration([deepseek]);
-      let emit!: (event: { type: string; data: Record<string, unknown> }) => void;
-      const nextEvent = new Promise<{ type: string; data: Record<string, unknown> }>((resolve) => {
-        emit = resolve;
-      });
-      const subscribe = vi.fn(() => ({
-        async *[Symbol.asyncIterator]() {
-          yield { type: "session.idle", data: {} };
-          yield await nextEvent;
-        },
-      }));
-      const cleanup = await plugin.setup({ ...ctx, integration, event: { subscribe } } as never);
-      const readKey = async () =>
-        (
-          await readActiveCredentialRowsCached({ maxAgeMs: 60_000, integrationIds: ["deepseek"] })
-        )[0]?.value.key;
+  it.each([
+    "credential.updated",
+    "credential.switched",
+  ])("drops cached logins when OpenCode reports %s", async (type) => {
+    clearCredentialRowCacheForTests();
+    // The event makes the store check DeepSeek again; it gets a fake answer, not the real API.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ error: "fake" }), { status: 401 })),
+    );
+    const { ctx } = createContext();
+    const deepseek = {
+      integrationId: "deepseek",
+      id: "cred_deepseek",
+      label: "default",
+      registered: true,
+      method: "key" as const,
+      value: { type: "key", key: "old-key" } as Record<string, unknown>,
+    };
+    const integration = createFakeIntegration([deepseek]);
+    let emit!: (event: { type: string; data: Record<string, unknown> }) => void;
+    const nextEvent = new Promise<{ type: string; data: Record<string, unknown> }>((resolve) => {
+      emit = resolve;
+    });
+    const subscribe = vi.fn(() => ({
+      async *[Symbol.asyncIterator]() {
+        yield { type: "session.idle", data: {} };
+        yield await nextEvent;
+      },
+    }));
+    const cleanup = await plugin.setup({ ...ctx, integration, event: { subscribe } } as never);
+    const readKey = async () =>
+      (await readActiveCredentialRowsCached({ maxAgeMs: 60_000, integrationIds: ["deepseek"] }))[0]
+        ?.value.key;
 
-      await expect(readKey()).resolves.toBe("old-key");
-      deepseek.value = { type: "key", key: "new-key" };
-      await expect(readKey()).resolves.toBe("old-key");
+    await expect(readKey()).resolves.toBe("old-key");
+    deepseek.value = { type: "key", key: "new-key" };
+    await expect(readKey()).resolves.toBe("old-key");
 
-      emit({ type, data: { integrationID: "deepseek", credentialID: "cred_deepseek" } });
-      await vi.waitFor(async () => expect(await readKey()).toBe("new-key"));
-      await cleanup?.();
-    },
-  );
+    emit({ type, data: { integrationID: "deepseek", credentialID: "cred_deepseek" } });
+    await vi.waitFor(async () => expect(await readKey()).toBe("new-key"));
+    await cleanup?.();
+  });
 
   it("logs why the credential event subscription stopped, without tokens", async () => {
     const { ctx } = createContext();
     const token = `eyJ${"a".repeat(24)}.${"b".repeat(24)}.${"c".repeat(24)}`;
     const subscribe = vi.fn(() => ({
-      // oxlint-disable-next-line require-yield -- the stream fails before its first event
+      // biome-ignore lint/correctness/useYield: the stream fails before its first event
       async *[Symbol.asyncIterator]() {
         throw new Error(`event stream closed ${token}`);
       },

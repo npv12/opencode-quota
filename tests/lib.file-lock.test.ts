@@ -9,7 +9,7 @@ import {
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * Pauses the file system at the steps of Sol's interleaving: a waiter that just read an
@@ -139,50 +139,49 @@ const writers: Writer[] = [
 ];
 
 describe("the file lock's takeover", () => {
-  it.each(writers)(
-    "$name: a waiter that saw an abandoned lock never removes the lock taken since",
-    async (writer) => {
-      const file = writer.file();
-      const lock = `${file}.lock`;
-      mkdirSync(dirname(file), { recursive: true });
-      writer.start();
-      steps.targetName = basename(file);
-      steps.lockName = basename(lock);
-      // An abandoned lock: no owner named, and old.
-      writeFileSync(lock, "");
-      utimesSync(lock, 0, 0);
+  it.each(
+    writers,
+  )("$name: a waiter that saw an abandoned lock never removes the lock taken since", async (writer) => {
+    const file = writer.file();
+    const lock = `${file}.lock`;
+    mkdirSync(dirname(file), { recursive: true });
+    writer.start();
+    steps.targetName = basename(file);
+    steps.lockName = basename(lock);
+    // An abandoned lock: no owner named, and old.
+    writeFileSync(lock, "");
+    utimesSync(lock, 0, 0);
 
-      // B reads the abandoned lock and stalls right after.
-      const bStalls = steps.pause();
-      steps.afterLockRead = bStalls;
-      const b = writer.write("b");
-      await bStalls.reached;
+    // B reads the abandoned lock and stalls right after.
+    const bStalls = steps.pause();
+    steps.afterLockRead = bStalls;
+    const b = writer.write("b");
+    await bStalls.reached;
 
-      // A takes the abandoned lock over, enters, passes its fence and stalls before its commit.
-      const aStalls = steps.pause();
-      steps.beforeCommit = aStalls;
-      const a = writer.write("a");
-      await aStalls.reached;
-      const aLock = readFileSync(lock, "utf8");
-      expect(aLock).toContain(String(process.pid));
+    // A takes the abandoned lock over, enters, passes its fence and stalls before its commit.
+    const aStalls = steps.pause();
+    steps.beforeCommit = aStalls;
+    const a = writer.write("a");
+    await aStalls.reached;
+    const aLock = readFileSync(lock, "utf8");
+    expect(aLock).toContain(String(process.pid));
 
-      // B goes on from what it read: it leaves A's live lock alone and waits for it.
-      const bFindsItTaken = new Promise<void>((resolve) => {
-        steps.onLockTaken = resolve;
-      });
-      bStalls.go();
-      await Promise.race([b, bFindsItTaken]);
-      expect(existsSync(lock) && readFileSync(lock, "utf8")).toBe(aLock);
+    // B goes on from what it read: it leaves A's live lock alone and waits for it.
+    const bFindsItTaken = new Promise<void>((resolve) => {
+      steps.onLockTaken = resolve;
+    });
+    bStalls.go();
+    await Promise.race([b, bFindsItTaken]);
+    expect(existsSync(lock) && readFileSync(lock, "utf8")).toBe(aLock);
 
-      aStalls.go();
-      await Promise.all([a, b]);
-      await expect(writer.written()).resolves.toMatchObject(writer.expected as object);
-      expect(steps.commits).toBe(2);
-      expect(existsSync(lock)).toBe(false);
-      const leftovers = readdirSync(dirname(file)).filter((name) =>
-        /\.(claim|stale-|tmp-)/.test(name),
-      );
-      expect(leftovers).toEqual([]);
-    },
-  );
+    aStalls.go();
+    await Promise.all([a, b]);
+    await expect(writer.written()).resolves.toMatchObject(writer.expected as object);
+    expect(steps.commits).toBe(2);
+    expect(existsSync(lock)).toBe(false);
+    const leftovers = readdirSync(dirname(file)).filter((name) =>
+      /\.(claim|stale-|tmp-)/.test(name),
+    );
+    expect(leftovers).toEqual([]);
+  });
 });

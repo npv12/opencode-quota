@@ -1,15 +1,13 @@
 /** @jsxImportSource @opentui/solid */
 /**
- * The Quota panel in the session sidebar (§4.1) and its collapsed form (§4.2). Click the
- * title to collapse or expand it; OpenCode's plugin storage remembers the choice. The lines
- * come from `view/text.ts`; this file only colors them, and marks the line the quota window's
- * Settings tabs have selected.
+ * The Quota panel in the session sidebar: the fork's minimal lines from
+ * `view/minimal-sidebar.ts`, each segment in its color. Clicking "Quota" forces a refresh.
  */
-import type { BoxRenderable } from "@opentui/core";
 import type { JSX } from "@opentui/solid";
 import { createMemo, createSignal, onCleanup, Show } from "solid-js";
+import { minimalSidebarLines } from "../view/minimal-sidebar.js";
 import type { Surface } from "../view/select.js";
-import { type ColorRole, type Line, type Segment, sidebarPanel } from "../view/text.js";
+import type { Line, Segment } from "../view/text.js";
 import type { QuotaClient } from "./client.js";
 import type { DisplaySettings } from "./display.js";
 import { roleColor, segmentColor, type Theme } from "./theme.js";
@@ -18,7 +16,7 @@ import { roleColor, segmentColor, type Theme } from "./theme.js";
 export type SurfaceEditing = {
   /** The provider or row id selected on the tab that edits `surface`; that surface marks it. */
   marked(surface: Surface): string | undefined;
-  /** The Sidebar tab shows the panel expanded, the Collapsed tab collapsed. */
+  /** The Sidebar tab shows the panel expanded. */
   panelOpen(): boolean | undefined;
   /** A sidebar panel is on screen until the returned function runs. */
   sidebarShown(): () => void;
@@ -39,15 +37,8 @@ export type SurfaceHost = {
   editing: SurfaceEditing;
 };
 
-/** Columns the panel uses until it knows its real width. */
-const DEFAULT_SIDEBAR_WIDTH = 36;
-
 /** The names of a marked line take the accent color; bars and numbers keep theirs. */
-const MARKED_ROLES: ReadonlySet<Segment["role"]> = new Set<ColorRole>([
-  "provider",
-  "label",
-  "statusName",
-]);
+const MARKED_ROLES: ReadonlySet<Segment["role"]> = new Set(["provider", "label", "statusName"]);
 
 /** One line of a surface, each segment in its color. A marked line has a soft background. */
 export function LineText(props: { line: Line; host: SurfaceHost; marked?: boolean }): JSX.Element {
@@ -78,18 +69,11 @@ export function LineText(props: { line: Line; host: SurfaceHost; marked?: boolea
   );
 }
 
-export function SidebarPanel(props: {
-  host: SurfaceHost;
-  sessionID: string;
-  open: () => boolean;
-  setOpen: (open: boolean) => void;
-}): JSX.Element {
+export function SidebarPanel(props: { host: SurfaceHost; sessionID: string }): JSX.Element {
   const host = props.host;
   const stop = host.quota.watch(props.sessionID);
   onCleanup(stop);
   onCleanup(host.editing.sidebarShown());
-  const open = () => host.editing.panelOpen() ?? props.open();
-  const [width, setWidth] = createSignal(DEFAULT_SIDEBAR_WIDTH);
   const [nowMs, setNowMs] = createSignal(Date.now());
   // Reset times count down between snapshots.
   const clock = setInterval(() => setNowMs(Date.now()), 60_000);
@@ -97,30 +81,27 @@ export function SidebarPanel(props: {
 
   const display = () => host.display();
   const snapshot = () => host.quota.snapshot(props.sessionID);
-  const panel = createMemo(() =>
-    sidebarPanel(snapshot(), display(), { nowMs: nowMs(), width: width(), open: open() }),
+  const lines = createMemo(() =>
+    minimalSidebarLines({
+      snapshot: snapshot(),
+      settings: display(),
+      nowMs: nowMs(),
+    }),
   );
-  const marked = () => host.editing.marked(open() ? "sidebar" : "collapsed");
+  const marked = () => host.editing.marked("sidebar");
 
   return (
     <Show when={display().sidebar.show}>
-      <box
-        flexDirection="column"
-        onSizeChange={function (this: BoxRenderable) {
-          const measured = this.width;
-          if (measured > 0) queueMicrotask(() => setWidth(measured));
-        }}
-      >
+      <box flexDirection="column">
         <text
           fg={roleColor(host.theme(), display(), "title")}
-          wrapMode="none"
+          onMouseDown={() => void host.quota.refresh("manual", props.sessionID)}
           selectable={false}
-          onMouseDown={() => props.setOpen(!open())}
         >
-          <b>{panel().title}</b>
+          <b>Quota</b>
         </text>
         <Show when={snapshot()} fallback={<text fg={host.theme().text.muted}>Loading quota…</text>}>
-          {panel().lines.map((line) => (
+          {lines().map((line) => (
             <LineText line={line} host={host} marked={line.id !== "" && line.id === marked()} />
           ))}
         </Show>

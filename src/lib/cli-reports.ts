@@ -1,14 +1,14 @@
 /**
- * The reports behind `opencode-quota show` and `status`. The terminal command builds them
- * in its own process (`cli-show.ts`) and prints them.
+ * The reports behind `opencode-quota show`. The terminal command builds them in its own
+ * process (`cli-show.ts`) and prints them.
  */
 
 import { snapshotFilePath } from "../core/persist.js";
 import { loadProviderSource, type ProviderSourceHost } from "../core/provider-source.js";
 import { createQuotaStore } from "../core/store.js";
-import { checkProviders, quotaReportLines, statusReport } from "./quota-dialog-commands.js";
-import type { QuotaExport } from "./quota-export-types.js";
+import { checkProviders, quotaReportLines } from "./quota-dialog-commands.js";
 import { buildQuotaExportFromSnapshot } from "./quota-export.js";
+import type { QuotaExport } from "./quota-export-types.js";
 
 export type CliReport = { exitCode: number; stdout: string; stderr: string };
 
@@ -92,30 +92,4 @@ export async function buildCliShowJson(params: {
   }
 
   return report(0);
-}
-
-/**
- * `status`: the Quota Status report as text, or its payload as JSON. With JSON, exit 2 when
- * no provider produced comparable data.
- */
-export async function buildCliStatus(params: {
-  host: ProviderSourceHost;
-  providerId?: string;
-  json: boolean;
-}): Promise<CliReport> {
-  const report = await statusReport(params.host, {
-    origin: "cli",
-    onlyProviderId: params.providerId,
-    nowMs: Date.now(),
-  });
-
-  if (params.json) {
-    return {
-      exitCode: report.hasComparableProviderData ? 0 : 2,
-      stdout: line(JSON.stringify(report.json, null, 2)),
-      stderr: "",
-    };
-  }
-
-  return { exitCode: 0, stdout: line(report.text), stderr: "" };
 }

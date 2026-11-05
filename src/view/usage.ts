@@ -1,4 +1,3 @@
-import { usageRangeLabel } from "../core/usage-ranges.js";
 /**
  * The usage view: a `UsageReport` laid out like a billing dashboard, adapted to a terminal, as
  * lines of text spans. A span has a role ("title", "muted", "provider:0", ...) and no color, so
@@ -14,6 +13,7 @@ import { usageRangeLabel } from "../core/usage-ranges.js";
  * fits in `width` terminal columns.
  */
 import type { UsageByType, UsageModelRow, UsageReport, UsageRow } from "../core/usage.js";
+import { usageRangeLabel } from "../core/usage-ranges.js";
 import { getQuotaProviderDisplayLabel } from "../lib/provider-metadata.js";
 import {
   columnsOf,

@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { loadProviderSource, type ProviderSourceHost } from "../src/core/provider-source.js";
 import { createQuotaStore } from "../src/core/store.js";
@@ -16,7 +16,6 @@ import {
   readOpenCodeConfigs,
   withOpenCodeConfigReadScope,
 } from "../src/lib/opencode-config-files.js";
-import { statusReport } from "../src/lib/quota-dialog-commands.js";
 import { defaultSettings } from "../src/settings/index.js";
 import { answer, percentRow } from "./helpers/fake-answers.js";
 import { useOpencodeFolders } from "./helpers/opencode-folders.js";
@@ -199,11 +198,6 @@ describe("config reads within one pass", () => {
     } finally {
       await store.dispose();
     }
-  });
-
-  it("shares the status report's discovery with its store check", async () => {
-    await statusReport(hostFor([providerFor()]), { origin: "cli", nowMs: Date.now() });
-    expect(configReadAttempts()).toBe(configPaths.size * 2);
   });
 
   it("rereads config when a generation change restarts a pass still reading providers", async () => {

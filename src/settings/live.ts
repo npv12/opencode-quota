@@ -21,10 +21,9 @@ import {
 
 /**
  * What a change of the held settings asks of the server. `recheck`: a checking or pricing setting
- * changed, or which of them the file sets, so every provider is checked again. `oldCommands`:
- * `system.oldCommands` changed, so the slash command list is built again.
+ * changed, or which of them the file sets, so every provider is checked again.
  */
-type LiveSettingsChange = { recheck: boolean; oldCommands: boolean };
+type LiveSettingsChange = { recheck: boolean };
 
 export type LiveSettings = {
   /** What converting the v5 settings at the start did; undefined when it had nothing to do. */
@@ -94,7 +93,6 @@ export async function createLiveSettings({
       settingsWithSources(next, part) !== settingsWithSources(previous, part);
     await onChange?.({
       recheck: changed("checking") || changed("pricing"),
-      oldCommands: next.settings.system.oldCommands !== previous.settings.system.oldCommands,
     });
   }
 

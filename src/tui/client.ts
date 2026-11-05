@@ -127,12 +127,8 @@ type FolderState = {
 export type QuotaClient = {
   /** The current folder's latest snapshot with what is known about `sessionID`; undefined before its first answer. */
   snapshot(sessionID?: string): QuotaSnapshot | undefined;
-  /** The Home notice line ("" when there is none). */
-  homeLine(): string;
   /** A surface shows `sessionID`: load its part now and on every poll until the returned stop. */
   watch(sessionID?: string): () => void;
-  /** Loads the Home notice line now and on every poll until the returned stop. */
-  watchHome(): () => void;
   /** Asks the server to refresh; answers the new snapshot, or undefined when the call failed. */
   refresh(reason: QuotaRpcRefreshReason, sessionID?: string): Promise<QuotaSnapshot | undefined>;
   /**
@@ -171,7 +167,7 @@ export function reportFailure(error: unknown): void {
 
 /**
  * @param onSnapshot called with every snapshot the client takes (from any call or event), so
- *   toasts can announce new reset notices.
+ *   the settings can follow the server's.
  * @param onFailure called when a `snapshot` or `refresh` call made since the last `start()`
  *   fails, so a GUI window can say why it shows nothing or an older snapshot. A call made
  *   through an earlier `host.client` (a server since restarted) reports nothing here.
@@ -183,12 +179,10 @@ export function createQuotaClient(
 ): QuotaClient {
   const [folders, setFolders] = createSignal<Record<string, FolderState>>({});
   const [sessions, setSessions] = createSignal<Record<string, SessionPart>>({});
-  const [homeLine, setHomeLine] = createSignal("");
   /** Sessions on screen, with how many surfaces show each. */
   const watched = new Map<string, number>();
-  /** Surfaces on screen without a session (the status line on Home). */
+  /** Surfaces on screen without a session. */
   let globalWatchers = 0;
-  let homeWatchers = 0;
   let running = false;
   /** Numbers every call; session token totals come only from a later call than the last one. */
   let calls = 0;
@@ -240,7 +234,7 @@ export function createQuotaClient(
   function apply(
     snapshot: QuotaSnapshot,
     directory: string,
-    session?: { id?: string; call: number; notices?: boolean; read?: SessionRead },
+    session?: { id?: string; call: number; read?: SessionRead },
   ): void {
     forgetInactiveSessions();
     const {
@@ -300,19 +294,7 @@ export function createQuotaClient(
         },
       }));
     }
-    // Settings are shared; reset notices, like rows, belong only to sources this TUI uses.
-    const active = [...watched.keys()].some(
-      (id) => sessions()[id] && (sessions()[id].sourceScope ?? "") === scope,
-    );
-    const requested =
-      session?.notices && (!session.id || (sessions()[session.id]?.sourceScope ?? "") === scope);
-    onSnapshot(
-      requested ||
-        active ||
-        (globalWatchers > 0 && scope === (folders()[directory]?.defaultScope ?? ""))
-        ? snapshot
-        : { ...snapshot, resetNotices: [] },
-    );
+    onSnapshot(snapshot);
   }
 
   function subscribe(): void {
@@ -371,16 +353,6 @@ export function createQuotaClient(
       });
   }
 
-  function loadHomeLine(): void {
-    const at = mount;
-    rpc()
-      .notices({}, quotaCallOptions(host))
-      .then((output) => {
-        if (at === mount) setHomeLine(output.homeLine);
-      })
-      .catch(reportFailure);
-  }
-
   function snapshot(
     sessionID?: string,
     directory = hostLocation(host)?.directory ?? "",
@@ -415,12 +387,10 @@ export function createQuotaClient(
     forgetInactiveSessions();
     if (globalWatchers > 0) load();
     for (const sessionID of watched.keys()) load(sessionID);
-    if (homeWatchers > 0) loadHomeLine();
   }
 
   return {
     snapshot,
-    homeLine,
 
     watch(sessionID) {
       if (!sessionID) {
@@ -439,14 +409,6 @@ export function createQuotaClient(
       };
     },
 
-    watchHome() {
-      homeWatchers += 1;
-      loadHomeLine();
-      return () => {
-        homeWatchers -= 1;
-      };
-    },
-
     async refresh(reason, sessionID) {
       const read = readSession(sessionID);
       const call = ++calls;
@@ -461,7 +423,6 @@ export function createQuotaClient(
         apply(output.snapshot, options.location?.directory ?? "", {
           id: sessionID,
           call,
-          notices: true,
           read,
         });
         return snapshot(sessionID, options.location?.directory ?? "");

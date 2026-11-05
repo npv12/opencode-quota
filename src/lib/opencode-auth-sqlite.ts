@@ -8,7 +8,7 @@
  * (`tests/tui-dist-import-graph.test.ts`).
  */
 
-import { existsSync } from "fs";
+import { existsSync } from "node:fs";
 
 import { isRecord } from "./json-guards.js";
 import {

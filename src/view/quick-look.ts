@@ -5,8 +5,8 @@
  * `quotaProviderIdsOfUsage` matches the two.
  */
 import type { QuotaSnapshot, Words } from "../core/types.js";
-import { type UsageRange, usageRangeLabel } from "../core/usage-ranges.js";
 import type { UsageProviderRow, UsageReport } from "../core/usage.js";
+import { type UsageRange, usageRangeLabel } from "../core/usage-ranges.js";
 import { getQuotaProviderIdsForRuntimeId } from "../lib/provider-metadata.js";
 import { columnsOf } from "./columns.js";
 import { DEFAULT_WORDS, fit, formatTokens, formatUsd } from "./format.js";
@@ -176,8 +176,8 @@ export function quickLookText(input: QuickLookTextInput): string {
   if (lines.length === 0 && input.snapshot) {
     lines.push(
       servesNoCurrentModel(input.snapshot)
-        ? "No quota provider serves the session's current model. Run /quota_status to see why."
-        : "No quota providers found. Run /quota_status to see why.",
+        ? "No quota provider serves the session's current model."
+        : "No quota providers found.",
     );
   }
   return [...flowPieces(header, width), ...lines].join("\n");

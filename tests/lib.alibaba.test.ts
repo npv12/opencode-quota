@@ -12,7 +12,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ALIBABA_TOKEN_PLAN_ARGS,
@@ -27,8 +27,8 @@ import {
   parseAlibabaTokenPlanUsageJson,
   queryAlibabaReply,
   queryAlibabaTokenPlanSeats,
-  resolveAlibabaTokenPlanExecutable,
   resolveAlibabaIdentity,
+  resolveAlibabaTokenPlanExecutable,
   runAlibabaTokenPlanProcess,
   USAGE_SPAWN_KINDS,
 } from "../src/lib/alibaba.js";
@@ -579,24 +579,28 @@ describe("alibaba token plan executable resolution", () => {
       cwd: "/home/user/project",
       kind: "workspace_path_rejected",
     },
-  ])(
-    "resolves $name",
-    async ({ file, target, cwd = "/workspace", pathEnv = "/trusted/bin", kind, resolved }) => {
-      await mockExecutable(file, target);
-      expect(
-        await resolveAlibabaTokenPlanExecutable({
-          platform: "linux",
-          cwd,
-          homedir: "/home/user",
-          pathEnv,
-        }),
-      ).toEqual(
-        resolved
-          ? { ok: true, file: resolved }
-          : { ok: false, error: { kind, message: expect.any(String) } },
-      );
-    },
-  );
+  ])("resolves $name", async ({
+    file,
+    target,
+    cwd = "/workspace",
+    pathEnv = "/trusted/bin",
+    kind,
+    resolved,
+  }) => {
+    await mockExecutable(file, target);
+    expect(
+      await resolveAlibabaTokenPlanExecutable({
+        platform: "linux",
+        cwd,
+        homedir: "/home/user",
+        pathEnv,
+      }),
+    ).toEqual(
+      resolved
+        ? { ok: true, file: resolved }
+        : { ok: false, error: { kind, message: expect.any(String) } },
+    );
+  });
 
   it.runIf(process.platform !== "win32")(
     "rejects a real bl symlink to a .cmd launcher",
@@ -625,27 +629,27 @@ describe("alibaba token plan executable resolution", () => {
     ).toEqual({ ok: true, file });
   });
 
-  it.each(["linux", "darwin"] as const)(
-    "runs bl directly on %s even with a stray bl.bunx marker",
-    async (platform) => {
-      const file = "/trusted/bin/bl";
-      const marker = "/trusted/bin/bl.bunx";
-      await mockExecutable(file);
-      const stats = await stat(file);
-      vi.mocked(stat).mockImplementation(async (candidate) => {
-        if (candidate === file || candidate === marker) return stats;
-        throw new Error("File does not exist");
-      });
-      expect(
-        await resolveAlibabaTokenPlanExecutable({
-          platform,
-          cwd: "/workspace",
-          pathEnv: "/trusted/bin",
-        }),
-      ).toEqual({ ok: true, file });
-      expect(readFile).not.toHaveBeenCalled();
-    },
-  );
+  it.each([
+    "linux",
+    "darwin",
+  ] as const)("runs bl directly on %s even with a stray bl.bunx marker", async (platform) => {
+    const file = "/trusted/bin/bl";
+    const marker = "/trusted/bin/bl.bunx";
+    await mockExecutable(file);
+    const stats = await stat(file);
+    vi.mocked(stat).mockImplementation(async (candidate) => {
+      if (candidate === file || candidate === marker) return stats;
+      throw new Error("File does not exist");
+    });
+    expect(
+      await resolveAlibabaTokenPlanExecutable({
+        platform,
+        cwd: "/workspace",
+        pathEnv: "/trusted/bin",
+      }),
+    ).toEqual({ ok: true, file });
+    expect(readFile).not.toHaveBeenCalled();
+  });
 
   it.each(["aix", "freebsd"] as const)("rejects %s instead of probing PATH", async (platform) => {
     const expected = { ok: false, error: { kind: "unsupported_platform" } };
@@ -970,30 +974,31 @@ describe("alibaba token plan Windows resolution", () => {
   it.each([
     { name: "npm", shim: SHIM, packageManifest: MANIFEST, entry: ENTRY },
     { name: "bun", shim: BUN_EXE, packageManifest: BUN_MANIFEST, entry: BUN_ENTRY },
-  ])(
-    "resolves the $name shim with case-insensitive Windows filenames",
-    async ({ shim, packageManifest, entry }) => {
-      const uppercaseShim = shim.toUpperCase();
-      await mockWin32Files(
-        {
-          [uppercaseShim]: "shim",
-          [W.join(TRUSTED_BIN, "BL.bunx")]: "bunx",
-          [NODE.toUpperCase()]: "node",
-          [packageManifest.toUpperCase()]: manifest({ bl: "dist/bailian.mjs" }),
-          [entry.toUpperCase()]: "cli",
-        },
-        { [shim]: uppercaseShim },
-      );
-      expect(
-        await resolveAlibabaTokenPlanExecutable({
-          platform: "win32",
-          cwd: WORKSPACE,
-          homedir: HOME,
-          pathEnv: TRUSTED_BIN,
-        }),
-      ).toEqual({ ok: true, file: NODE, args: [entry] });
-    },
-  );
+  ])("resolves the $name shim with case-insensitive Windows filenames", async ({
+    shim,
+    packageManifest,
+    entry,
+  }) => {
+    const uppercaseShim = shim.toUpperCase();
+    await mockWin32Files(
+      {
+        [uppercaseShim]: "shim",
+        [W.join(TRUSTED_BIN, "BL.bunx")]: "bunx",
+        [NODE.toUpperCase()]: "node",
+        [packageManifest.toUpperCase()]: manifest({ bl: "dist/bailian.mjs" }),
+        [entry.toUpperCase()]: "cli",
+      },
+      { [shim]: uppercaseShim },
+    );
+    expect(
+      await resolveAlibabaTokenPlanExecutable({
+        platform: "win32",
+        cwd: WORKSPACE,
+        homedir: HOME,
+        pathEnv: TRUSTED_BIN,
+      }),
+    ).toEqual({ ok: true, file: NODE, args: [entry] });
+  });
 
   it.each([
     {
@@ -1898,25 +1903,22 @@ describe("alibaba token plan seat parser", () => {
     ["a string", "1792742400000"],
     ["a value past 2100", 5_000_000_000_000],
     ["zero", 0],
-  ])(
-    "leaves out resetsAt for a %s CycleEndTime, keeping the rest of the seat",
-    (_name, endTime) => {
-      const payload = seatEnvelope(
-        [
-          seatItem("bad-end", {
-            CycleTotalValue: 100,
-            CycleSurplusValue: 50,
-            CycleEndTime: endTime,
-          }),
-        ],
-        1,
-      );
-      expect(parseAlibabaTokenPlanSeatsJson(payload)).toEqual({
-        ok: true,
-        seats: [{ name: "bad-end", total: 100, surplus: 50, percentRemaining: 50, used: 50 }],
-      });
-    },
-  );
+  ])("leaves out resetsAt for a %s CycleEndTime, keeping the rest of the seat", (_name, endTime) => {
+    const payload = seatEnvelope(
+      [
+        seatItem("bad-end", {
+          CycleTotalValue: 100,
+          CycleSurplusValue: 50,
+          CycleEndTime: endTime,
+        }),
+      ],
+      1,
+    );
+    expect(parseAlibabaTokenPlanSeatsJson(payload)).toEqual({
+      ok: true,
+      seats: [{ name: "bad-end", total: 100, surplus: 50, percentRemaining: 50, used: 50 }],
+    });
+  });
 
   it("keeps a NORMAL seat whose CycleSurplusValue is missing, without a percentage", () => {
     const payload = seatEnvelope(
@@ -2119,23 +2121,23 @@ describe("alibaba token plan seat process boundary", () => {
         facts: { code: "login_expired" },
       },
     },
-  ])(
-    "maps $name, keeping a stderr that is not the CLI's envelope out of the report",
-    async ({ run, error }) => {
-      await mockExecutable();
-      const result = await queryAlibabaTokenPlanSeats({
-        runtime: linuxRuntime(async () => ({
-          stdout: Buffer.from("secret-stdout token=abc"),
-          stderr: Buffer.from("secret-stderr no console access token found"),
-          timedOut: false,
-          truncated: false,
-          ...run,
-        })),
-      });
-      expect(result).toEqual({ ok: false, error });
-      expect(JSON.stringify(result)).not.toContain("secret-");
-    },
-  );
+  ])("maps $name, keeping a stderr that is not the CLI's envelope out of the report", async ({
+    run,
+    error,
+  }) => {
+    await mockExecutable();
+    const result = await queryAlibabaTokenPlanSeats({
+      runtime: linuxRuntime(async () => ({
+        stdout: Buffer.from("secret-stdout token=abc"),
+        stderr: Buffer.from("secret-stderr no console access token found"),
+        timedOut: false,
+        truncated: false,
+        ...run,
+      })),
+    });
+    expect(result).toEqual({ ok: false, error });
+    expect(JSON.stringify(result)).not.toContain("secret-");
+  });
 
   it("finds the envelope after the JSONL warnings 2.8 writes on stderr", async () => {
     await mockExecutable();
@@ -2424,14 +2426,11 @@ describe("alibaba token plan credential markers", () => {
       { authenticated: true, api_key: { masked: API_KEY_MASKED } },
       { consoleMasked: null, apiKeyMasked: API_KEY_MASKED, openapiAccessKeyId: null },
     ],
-  ])(
-    "derives an identity from whichever markers %s has, requiring no one of them",
-    async (_name, payload, expected) => {
-      await mockExecutable();
-      const { spawn } = statusSpawn(JSON.stringify(payload));
-      await expect(resolveAlibabaIdentity({ runtime: runtime(spawn) })).resolves.toEqual(expected);
-    },
-  );
+  ])("derives an identity from whichever markers %s has, requiring no one of them", async (_name, payload, expected) => {
+    await mockExecutable();
+    const { spawn } = statusSpawn(JSON.stringify(payload));
+    await expect(resolveAlibabaIdentity({ runtime: runtime(spawn) })).resolves.toEqual(expected);
+  });
 
   it.each([
     [

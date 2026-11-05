@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it } from "vitest";
 import type { OpenCodeMessage } from "../src/lib/opencode-storage.js";
+import type { LocalEstimateQuotaProviderDefinition } from "../src/lib/quota-providers.js";
 import {
   collectLocalQuotaProviderEstimate,
   countRequestWindows,
 } from "../src/lib/quota-providers-local.js";
-import type { LocalEstimateQuotaProviderDefinition } from "../src/lib/quota-providers.js";
 
 const NOW = Date.UTC(2026, 6, 16, 12, 0, 0);
 

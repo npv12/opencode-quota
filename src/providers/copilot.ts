@@ -27,8 +27,8 @@ import type {
 import {
   type AccountResult,
   failedAccount,
-  fetchError,
   fetchEachLogin,
+  fetchError,
   type ProviderFetchResult,
   type ProviderRow,
 } from "./contract.js";

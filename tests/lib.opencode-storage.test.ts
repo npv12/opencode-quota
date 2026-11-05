@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const fsMocks = vi.hoisted(() => ({
   existsSync: vi.fn(() => true),
@@ -216,8 +216,9 @@ describe("opencode storage forked session copies", () => {
   it("counts a forked session's copied message once in all-history reads", async () => {
     mockConnection(() => [originalRow, forkCopyRow, forkNewRow]);
 
-    const { iterAssistantMessages, iterCompletedAssistantMessages } =
-      await import("../src/lib/opencode-storage.js");
+    const { iterAssistantMessages, iterCompletedAssistantMessages } = await import(
+      "../src/lib/opencode-storage.js"
+    );
 
     const messages = await iterAssistantMessages({});
     expect(messages.map((message) => message.id)).toEqual(["msg_01original", "msg_06forknew"]);
@@ -257,8 +258,9 @@ describe("opencode storage forked session copies", () => {
     const sameSessionTwinRow = { ...originalRow, id: "msg_02sametwin" };
     mockConnection(() => [originalRow, sameSessionTwinRow]);
 
-    const { iterAssistantMessages, iterCompletedAssistantMessages } =
-      await import("../src/lib/opencode-storage.js");
+    const { iterAssistantMessages, iterCompletedAssistantMessages } = await import(
+      "../src/lib/opencode-storage.js"
+    );
 
     const messages = await iterAssistantMessages({});
     expect(messages.map((message) => message.id)).toEqual(["msg_01original", "msg_02sametwin"]);

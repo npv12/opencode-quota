@@ -7,15 +7,15 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRoot } from "solid-js";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { QuotaSnapshot } from "../src/core/types.js";
+import { type UsageQuery, usageReport } from "../src/core/usage.js";
 import {
   DEFAULT_USAGE_RANGE,
   parseUsageArguments,
   USAGE_RANGES,
   usageRangeLabel,
 } from "../src/core/usage-ranges.js";
-import { type UsageQuery, usageReport } from "../src/core/usage.js";
 import { quotaLimitsText } from "../src/lib/quota-report-message.js";
 import type {
   QuotaRpcNoticeListInput,
@@ -62,7 +62,7 @@ function click(tree: unknown, text: string): void {
 }
 
 /** Clicks the › of the option line titled `title`, as a click on its value does. */
-function clickLine(tree: unknown, title: string): void {
+function _clickLine(tree: unknown, title: string): void {
   const line = findAll(
     tree,
     (node) =>
@@ -201,161 +201,42 @@ describe("quota window shell", () => {
     stubJsx();
   });
 
-  it("saves a Plugin switch straight away and shows the saved value", async () => {
-    const host = fakeHost();
-    host.quotaWindow.open("system");
-    await flush();
-
-    // Two quick clicks send one save; the line shows what the server saved.
-    let view = draw(host.quotaWindow);
-    expect(textLines(view.tree)).toEqual(
-      expect.arrayContaining([
-        " Commands",
-        expect.stringContaining("Old command names"),
-        " For other tools",
-        expect.stringContaining("Quota file (JSON)"),
-        "off",
-        expect.stringContaining("OpenTelemetry metrics"),
-      ]),
-    );
-    clickLine(view.tree, "Quota file (JSON)");
-    clickLine(view.tree, "Quota file (JSON)");
-    view.dispose();
-    await flush();
-    expect(host.saveCalls).toEqual([{ patch: { system: { exportFile: true } } }]);
-    view = draw(host.quotaWindow);
-    const fileLine = findAll(
-      view.tree,
-      (node) =>
-        node.type === "box" &&
-        typeof node.props?.onMouseDown === "function" &&
-        textLines(node).some((text) => text.includes("Quota file (JSON)")),
-    ).at(-1);
-    expect(textLines(fileLine).map((text) => text.trim())).toContain("on");
-
-    // The next click turns it off again; telemetry and the old command names save their own key.
-    clickLine(view.tree, "Quota file (JSON)");
-    clickLine(view.tree, "OpenTelemetry metrics");
-    clickLine(view.tree, "Old command names");
-    view.dispose();
-    await flush();
-    expect(host.saveCalls.slice(1)).toEqual([
-      { patch: { system: { exportFile: false } } },
-      { patch: { system: { telemetry: true } } },
-      { patch: { system: { oldCommands: false } } },
-    ]);
-  });
-
-  it("shows and copies the newest status report after closing and opening again", async () => {
-    const host = fakeHost();
-    host.quotaWindow.open("system");
-    const first = draw(host.quotaWindow);
-    host.press("window", "escape");
-    first.dispose();
-    host.quotaWindow.open("system");
-    host.statusCalls[1]?.answer("# Quota Status (new)");
-    host.statusCalls[0]?.answer("# Quota Status (old)");
-    await flush();
-
-    const lines = textLines(draw(host.quotaWindow).tree);
-    expect(lines).toContain("# Quota Status (new)");
-    expect(lines).not.toContain("# Quota Status (old)");
-    host.press("window", "return");
-    expect(host.copied).toEqual(["# Quota Status (new)"]);
-  });
-
-  it("shows Plugin's notices, switches and status report under their own titles", async () => {
-    const host = fakeHost();
-    host.quotaWindow.open("system");
-    host.noticeCalls[0]?.answer();
-    host.statusCalls[0]?.answer("# Quota Status");
-    await flush();
-
-    const lines = textLines(draw(host.quotaWindow).tree);
-    const at = (text: string) => lines.findIndex((line) => line.includes(text));
-    expect(lines).toEqual(
-      expect.arrayContaining([" Notices", "   • ", "Copilot moves to AI Credits."]),
-    );
-    expect(at(" Notices")).toBeLessThan(at("Copilot moves to AI Credits."));
-    expect(at("v6 is out.")).toBeLessThan(at(" Commands"));
-    expect(at(" Commands")).toBeLessThan(at(" For other tools"));
-    expect(at(" For other tools")).toBeLessThan(at(" Status report"));
-    expect(at(" Status report")).toBeLessThan(at("Copy the report"));
-    expect(at("Copy the report")).toBeLessThan(at("# Quota Status"));
-  });
-
-  it("asks for the notices each time Plugin shows, and shows the newest answer", async () => {
-    const host = fakeHost();
-    host.quotaWindow.open("system");
-    await vi.advanceTimersByTimeAsync(60_000);
-    expect(host.noticeCalls).toHaveLength(1);
-
-    // A notice starts; Plugin shows again and its answer comes before the older one.
-    host.server.notices.push({ id: "c", message: "A new notice." });
-    host.quotaWindow.open("limits");
-    host.quotaWindow.open("system");
-    expect(host.noticeCalls).toHaveLength(2);
-    host.noticeCalls[1]?.answer();
-    host.noticeCalls[0]?.answer();
-    await flush();
-    expect(textLines(draw(host.quotaWindow).tree)).toContain("A new notice.");
-  });
-
-  it("says why the notices could not load, and asks again the next time Plugin shows", async () => {
-    const host = fakeHost();
-    host.quotaWindow.open("system");
-    host.noticeCalls[0]?.fail("the server is gone");
-    await flush();
-    expect(textLines(draw(host.quotaWindow).tree)).toContain(
-      "   Couldn't load the notices: the server is gone",
-    );
-
-    host.quotaWindow.open("limits");
-    host.quotaWindow.open("system");
-    host.noticeCalls[1]?.answer();
-    await flush();
-    const lines = textLines(draw(host.quotaWindow).tree);
-    expect(lines).toContain("Copilot moves to AI Credits.");
-    expect(lines.join("\n")).not.toContain("Couldn't load the notices");
-  });
-
   it.each([
     { order: "OpenCode's listener first", windowListenerFirst: false },
     { order: "the window's listener first", windowListenerFirst: true },
-  ])(
-    "takes the keyboard back when a resize gives it to the message box ($order)",
-    async ({ windowListenerFirst }) => {
-      const host = fakeHost();
-      const messageBox = host.box();
-      messageBox.focus();
-      // Across the sidebar's breakpoint, OpenCode gives the keyboard to its message box.
-      const openCodeListener = () => messageBox.focus();
-      if (!windowListenerFirst) host.resizeListeners.push(openCodeListener);
-      host.quotaWindow.open("limits");
-      const view = draw(host.quotaWindow);
-      const windowBox = host.box();
-      mount(view.tree, windowBox);
-      if (windowListenerFirst) host.resizeListeners.push(openCodeListener);
-      await vi.advanceTimersByTimeAsync(50);
-      expect(host.keyboard.current).toBe(windowBox);
+  ])("takes the keyboard back when a resize gives it to the message box ($order)", async ({
+    windowListenerFirst,
+  }) => {
+    const host = fakeHost();
+    const messageBox = host.box();
+    messageBox.focus();
+    // Across the sidebar's breakpoint, OpenCode gives the keyboard to its message box.
+    const openCodeListener = () => messageBox.focus();
+    if (!windowListenerFirst) host.resizeListeners.push(openCodeListener);
+    host.quotaWindow.open("limits");
+    const view = draw(host.quotaWindow);
+    const windowBox = host.box();
+    mount(view.tree, windowBox);
+    if (windowListenerFirst) host.resizeListeners.push(openCodeListener);
+    await vi.advanceTimersByTimeAsync(50);
+    expect(host.keyboard.current).toBe(windowBox);
 
-      // Narrower, then wider again: Esc and Tab still reach the window.
-      for (const _direction of ["narrower", "wider"]) {
-        host.resize();
-        await vi.advanceTimersByTimeAsync(0);
-        expect(host.keyboard.current).toBe(windowBox);
-      }
-
-      // A click on the message box takes the keyboard on purpose, and a resize leaves it there.
-      messageBox.focus();
-      await vi.advanceTimersByTimeAsync(0);
+    // Narrower, then wider again: Esc and Tab still reach the window.
+    for (const _direction of ["narrower", "wider"]) {
       host.resize();
       await vi.advanceTimersByTimeAsync(0);
-      expect(host.keyboard.current).toBe(messageBox);
-      view.dispose();
-      expect(host.resizeListeners).toEqual([openCodeListener]);
-    },
-  );
+      expect(host.keyboard.current).toBe(windowBox);
+    }
+
+    // A click on the message box takes the keyboard on purpose, and a resize leaves it there.
+    messageBox.focus();
+    await vi.advanceTimersByTimeAsync(0);
+    host.resize();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(host.keyboard.current).toBe(messageBox);
+    view.dispose();
+    expect(host.resizeListeners).toEqual([openCodeListener]);
+  });
 
   it("keeps the keyboard when OpenCode draws the window again, unless something took it", async () => {
     const host = fakeHost();
@@ -402,30 +283,6 @@ describe("quota window shell", () => {
     const view = draw(host.quotaWindow);
     expect(textLines(view.tree)).toContain("   Loading quota…");
     view.dispose();
-  });
-
-  it("edits Collapsed's windows from a click on For all providers and on a provider's ‹ ›", async () => {
-    const snapshot: QuotaSnapshot = {
-      version: 6,
-      generatedAtMs: 0,
-      resetNotices: [],
-      providers: [
-        providerSnapshot("openai", "OpenAI", [
-          quotaRow("openai.five_hour", { label: "5h", window: "five_hour", percentRemaining: 65 }),
-          quotaRow("openai.weekly", { label: "Weekly", window: "week", percentRemaining: 26 }),
-        ]),
-      ],
-    };
-    const host = fakeHost(snapshot);
-    host.quotaWindow.open("collapsed");
-    await flush();
-    let view = draw(host.quotaWindow);
-    clickLine(view.tree, "For all providers");
-    view.dispose();
-    view = draw(host.quotaWindow);
-    click(view.tree, "‹ 5h ");
-    view.dispose();
-    expect(host.display.shown().collapsed.window).toEqual({ "*": "five_hour", openai: "week" });
   });
 
   it("shows a row's newest label or saved name as its rename placeholder while typing", async () => {
@@ -621,36 +478,20 @@ describe("quota window: the Settings tabs on the keyboard", () => {
       heading: " What it shows",
       line: "Session tokens line",
     },
-    {
-      page: "Collapsed",
-      toggle: "   [x] When the panel is collapsed, show one line per provider",
-      heading: " What it shows",
-      line: "Runs out in …",
-    },
-    {
-      page: "Status line",
-      toggle: "   [x] Show the quota line under the message box",
-      heading: " When it shows",
-      line: "Next to the sidebar",
-    },
-    {
-      page: "Toast",
-      toggle: "   [x] Show quota toasts",
-      heading: " Preset",
-      line: "When toasts show",
-    },
-  ])(
-    "puts $page's first lines under a heading, and its switch under Enable/disable",
-    async ({ page, toggle, heading, line }) => {
-      const { windowTree } = await openSettings("Layout", page);
-      await vi.waitFor(() => expect(textLines(windowTree())).toContain(heading));
-      const lines = textLines(windowTree());
-      if (toggle) expect(lines[lines.indexOf(toggle) - 1]).toBe(" Enable/disable");
-      const at = lines.findIndex((text) => text.startsWith(`   ${line}`));
-      expect(at).toBeGreaterThan(0);
-      expect(lines[at - 1]).toBe(heading);
-    },
-  );
+  ])("puts $page's first lines under a heading, and its switch under Enable/disable", async ({
+    page,
+    toggle,
+    heading,
+    line,
+  }) => {
+    const { windowTree } = await openSettings("Layout", page);
+    await vi.waitFor(() => expect(textLines(windowTree())).toContain(heading));
+    const lines = textLines(windowTree());
+    if (toggle) expect(lines[lines.indexOf(toggle) - 1]).toBe(" Enable/disable");
+    const at = lines.findIndex((text) => text.startsWith(`   ${line}`));
+    expect(at).toBeGreaterThan(0);
+    expect(lines[at - 1]).toBe(heading);
+  });
 
   it("closes with unsaved changes only after Save or Discard", async () => {
     const { tui, windowTree } = await openSettings("Layout", "All places");
@@ -695,13 +536,7 @@ describe("quota window: the Settings tabs on the keyboard", () => {
     // Usage's ranges.
     const tree = windowTree();
     const list = pageList(tree);
-    expect(textLines(list).map((line) => line.trim())).toEqual([
-      "› All places",
-      "Sidebar",
-      "Collapsed",
-      "Status line",
-      "Toast",
-    ]);
+    expect(textLines(list).map((line) => line.trim())).toEqual(["› All places", "Sidebar"]);
     // The chosen page's › in the title's column, every label two columns in, as wide as
     // Usage's range list. The page's lines start right after the list's line: they carry their
     // own indent.
@@ -756,10 +591,6 @@ describe("quota window: the Settings tabs on the keyboard", () => {
     // ↓ shows the next page at once, ↑ the one before; above the first page ↑ stays there.
     tui.press("tab", "down");
     expect(activeLabels(windowTree())).toContain("Sidebar");
-    tui.press("tab", "down");
-    expect(activeLabels(windowTree())).toContain("Collapsed");
-    tui.press("tab", "up");
-    expect(activeLabels(windowTree())).toContain("Sidebar");
 
     // → goes to the page's first line, its switch; ↑ there goes back to the list.
     tui.press("tab", "right");
@@ -788,16 +619,13 @@ describe("quota window: the Settings tabs on the keyboard", () => {
     tui.press("tab", "return");
     clickable(windowTree(), "All places").props.onMouseUp();
     expect(litSettingLines(windowTree())).toEqual([]);
-    clickable(windowTree(), "Toast").props.onMouseUp();
-    expect(activeLabels(windowTree())).toContain("Toast");
-    tui.press("tab", "up");
-    expect(activeLabels(windowTree())).toContain("Status line");
-    tui.press("tab", "down");
+    clickable(windowTree(), "Sidebar").props.onMouseUp();
+    expect(activeLabels(windowTree())).toContain("Sidebar");
 
     // Back on Layout from another tab: the page shown last.
     clickable(windowTree(), "Colors").props.onMouseUp();
     clickable(windowTree(), "Layout").props.onMouseUp();
-    expect(activeLabels(windowTree())).toContain("Toast");
+    expect(activeLabels(windowTree())).toContain("Sidebar");
     expect(words(windowTree())).toContain("Reset page");
   });
 

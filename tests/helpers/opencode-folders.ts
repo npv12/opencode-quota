@@ -7,7 +7,7 @@
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, parse } from "node:path";
-import { afterAll, afterEach, beforeEach } from "vite-plus/test";
+import { afterAll, afterEach, beforeEach } from "vitest";
 
 import {
   getOpencodeRuntimeDirs,

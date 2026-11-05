@@ -6,7 +6,7 @@
  */
 
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cursorProvider } from "../src/providers/cursor.js";
 import { fetchRows, rowSummary, useProviderWorld } from "./helpers/provider-fetch.js";

@@ -33,8 +33,8 @@ import {
 import {
   type Group,
   pickRow,
-  statusGroups,
   type Surface,
+  statusGroups,
   visibleGroups,
   type WindowChoice,
   windowFor,

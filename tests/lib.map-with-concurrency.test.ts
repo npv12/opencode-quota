@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vite-plus/test";
+import { describe, expect, it, vi } from "vitest";
 
 import { mapWithConcurrency } from "../src/lib/map-with-concurrency.js";
 

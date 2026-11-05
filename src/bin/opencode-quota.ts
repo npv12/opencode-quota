@@ -6,17 +6,13 @@ import { fileURLToPath } from "node:url";
 
 const USAGE = [
   "Usage:",
-  "  npx @slkiser/opencode-quota show [--provider <provider-id>] [--json] [--threshold <pct>]",
-  "  npx @slkiser/opencode-quota status [--provider <provider-id>] [--json]",
-  "  npx @slkiser/opencode-quota --help",
+  "  npx @npv12/opencode-quota show [--provider <provider-id>] [--json] [--threshold <pct>]",
+  "  npx @npv12/opencode-quota --help",
   "",
   "Commands:",
   "  show    Print a quick quota glance",
   "          --json               Machine-readable JSON output (reads from cache)",
   "          --threshold <pct>    With --json, exit 1 if below <pct>%, 2 if incomplete/not comparable",
-  "          --provider <id>      Filter to one provider",
-  "  status  Print Quota Status diagnostics (same data as /quota_status)",
-  "          --json               Machine-readable JSON output",
   "          --provider <id>      Filter to one provider",
 ].join("\n");
 
@@ -79,11 +75,6 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
   if (command === "show") {
     const { runCliShowCommand } = await import("../lib/cli-show.js");
     return await runCliShowCommand({ argv: rest });
-  }
-
-  if (command === "status") {
-    const { runCliStatusCommand } = await import("../lib/cli-show.js");
-    return await runCliStatusCommand({ argv: rest });
   }
 
   printUsage();

@@ -28,14 +28,12 @@ jobs:
 
             // A PR "changes a default or the UI" when it changes a file under one of these folders
             // or is one of these files:
-            // - src/tui/: the OpenCode TUI plugin (sidebar, status line, toasts, /quota window).
-            // - src/gui/: the experimental Desktop GUI plugin.
-            // - src/view/: text, formatting and layout shared by the TUI and the GUI.
+            // - src/tui/: the OpenCode TUI plugin (sidebar and /quota window).
+            // - src/view/: text, formatting and layout shared by the plugin.
             // - src/settings/schema.ts: the table of every setting with its default value.
             // - src/settings/shared.ts: settings where "unset" is not the same as the default.
             const DEFAULT_OR_UI_PATHS = [
               "src/tui/",
-              "src/gui/",
               "src/view/",
               "src/settings/schema.ts",
               "src/settings/shared.ts",

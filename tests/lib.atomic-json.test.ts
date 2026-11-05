@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("fs/promises", () => ({
   mkdir: vi.fn(),
@@ -14,7 +14,7 @@ describe("atomic-json", () => {
   });
 
   it("writes JSON with a trailing newline when requested", async () => {
-    const fs = await import("fs/promises");
+    const fs = await import("node:fs/promises");
     const { writeJsonAtomic } = await import("../src/lib/atomic-json.js");
 
     await writeJsonAtomic("/tmp/opencode/state.json", { ok: true }, { trailingNewline: true });
@@ -30,7 +30,7 @@ describe("atomic-json", () => {
   });
 
   it("writes raw text without reformatting it", async () => {
-    const fs = await import("fs/promises");
+    const fs = await import("node:fs/promises");
     const { writeTextAtomic } = await import("../src/lib/atomic-json.js");
     const content = '{ // comment\n  "plugin": [],\n}\n';
 
@@ -44,7 +44,7 @@ describe("atomic-json", () => {
   });
 
   it("replaces the destination when rename hits a retryable error", async () => {
-    const fs = await import("fs/promises");
+    const fs = await import("node:fs/promises");
     const { writeJsonAtomic } = await import("../src/lib/atomic-json.js");
     const renameError = Object.assign(new Error("destination exists"), { code: "EPERM" });
 
@@ -59,7 +59,7 @@ describe("atomic-json", () => {
   });
 
   it("supports restrictive directory and file modes", async () => {
-    const fs = await import("fs/promises");
+    const fs = await import("node:fs/promises");
     const { writeTextAtomic } = await import("../src/lib/atomic-json.js");
 
     await writeTextAtomic("/tmp/opencode/state.json", "{}", {
@@ -77,27 +77,27 @@ describe("atomic-json", () => {
     });
   });
 
-  it.each(["EPERM", "EACCES"])(
-    "does not remove the destination when the temp write fails with %s",
-    async (code) => {
-      const fs = await import("fs/promises");
-      const { writeTextAtomic } = await import("../src/lib/atomic-json.js");
-      const writeError = Object.assign(new Error("temp write denied"), { code });
-      (fs.writeFile as any).mockRejectedValueOnce(writeError);
+  it.each([
+    "EPERM",
+    "EACCES",
+  ])("does not remove the destination when the temp write fails with %s", async (code) => {
+    const fs = await import("node:fs/promises");
+    const { writeTextAtomic } = await import("../src/lib/atomic-json.js");
+    const writeError = Object.assign(new Error("temp write denied"), { code });
+    (fs.writeFile as any).mockRejectedValueOnce(writeError);
 
-      await expect(writeTextAtomic("/tmp/opencode/state.json", "{}")).rejects.toThrow(
-        "temp write denied",
-      );
+    await expect(writeTextAtomic("/tmp/opencode/state.json", "{}")).rejects.toThrow(
+      "temp write denied",
+    );
 
-      const [tmpPath] = (fs.writeFile as any).mock.calls[0];
-      expect(fs.rm).toHaveBeenCalledWith(tmpPath, { force: true });
-      expect(fs.rm).not.toHaveBeenCalledWith("/tmp/opencode/state.json", { force: true });
-      expect(fs.rename).not.toHaveBeenCalled();
-    },
-  );
+    const [tmpPath] = (fs.writeFile as any).mock.calls[0];
+    expect(fs.rm).toHaveBeenCalledWith(tmpPath, { force: true });
+    expect(fs.rm).not.toHaveBeenCalledWith("/tmp/opencode/state.json", { force: true });
+    expect(fs.rename).not.toHaveBeenCalled();
+  });
 
   it("cleans up the temp file when writing fails", async () => {
-    const fs = await import("fs/promises");
+    const fs = await import("node:fs/promises");
     const { writeTextAtomic } = await import("../src/lib/atomic-json.js");
     (fs.writeFile as any).mockRejectedValueOnce(new Error("disk full"));
 
@@ -109,7 +109,7 @@ describe("atomic-json", () => {
   });
 
   it("cleans up the temp file when rename fails with a non-retryable error", async () => {
-    const fs = await import("fs/promises");
+    const fs = await import("node:fs/promises");
     const { writeJsonAtomic } = await import("../src/lib/atomic-json.js");
     const renameError = Object.assign(new Error("cross-device link"), { code: "EXDEV" });
 
@@ -124,28 +124,30 @@ describe("atomic-json", () => {
     expect(fs.rename).toHaveBeenCalledTimes(1);
   });
 
-  it.each(["EPERM", "EEXIST", "EACCES", "ENOTEMPTY"])(
-    "does not delete the destination when configuration rename fails with %s",
-    async (code) => {
-      const fs = await import("fs/promises");
-      const { writeJsonAtomic } = await import("../src/lib/atomic-json.js");
-      const renameError = Object.assign(new Error("rename denied"), { code });
-      (fs.rename as any).mockRejectedValueOnce(renameError);
+  it.each([
+    "EPERM",
+    "EEXIST",
+    "EACCES",
+    "ENOTEMPTY",
+  ])("does not delete the destination when configuration rename fails with %s", async (code) => {
+    const fs = await import("node:fs/promises");
+    const { writeJsonAtomic } = await import("../src/lib/atomic-json.js");
+    const renameError = Object.assign(new Error("rename denied"), { code });
+    (fs.rename as any).mockRejectedValueOnce(renameError);
 
-      await expect(
-        writeJsonAtomic("/tmp/opencode/opencode.json", { ok: true }, { policy: "configuration" }),
-      ).rejects.toThrow("rename denied");
+    await expect(
+      writeJsonAtomic("/tmp/opencode/opencode.json", { ok: true }, { policy: "configuration" }),
+    ).rejects.toThrow("rename denied");
 
-      const [tmpPath] = (fs.writeFile as any).mock.calls[0];
-      expect(fs.rm).toHaveBeenCalledWith(tmpPath, { force: true });
-      expect(fs.rm).not.toHaveBeenCalledWith("/tmp/opencode/opencode.json", { force: true });
-      expect(fs.rename).toHaveBeenCalledTimes(1);
-      expect(fs.chmod).not.toHaveBeenCalled();
-    },
-  );
+    const [tmpPath] = (fs.writeFile as any).mock.calls[0];
+    expect(fs.rm).toHaveBeenCalledWith(tmpPath, { force: true });
+    expect(fs.rm).not.toHaveBeenCalledWith("/tmp/opencode/opencode.json", { force: true });
+    expect(fs.rename).toHaveBeenCalledTimes(1);
+    expect(fs.chmod).not.toHaveBeenCalled();
+  });
 
   it("applies configuration fileMode with chmod", async () => {
-    const fs = await import("fs/promises");
+    const fs = await import("node:fs/promises");
     const { writeTextAtomic } = await import("../src/lib/atomic-json.js");
 
     await writeTextAtomic("/tmp/opencode/opencode.json", "{}\n", {

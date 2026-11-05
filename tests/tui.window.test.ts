@@ -1,5 +1,5 @@
 import { createRoot } from "solid-js";
-import { describe, expect, it, vi } from "vite-plus/test";
+import { describe, expect, it, vi } from "vitest";
 import type { ProviderSnapshot, QuotaRow, QuotaSnapshot } from "../src/core/types.js";
 import { USAGE_RANGES, type UsageReport } from "../src/core/usage.js";
 import { defaultSettings } from "../src/settings/schema.js";
@@ -14,7 +14,6 @@ import {
 } from "../src/tui/window/settings.tsx";
 import { hintLines, keyHintLines, tabStrip, windowHint } from "../src/tui/window/shell.tsx";
 import { createUsageTab } from "../src/tui/window/usage.tsx";
-import { noticeItems, statusLines } from "../src/tui/window/views.tsx";
 import { columnsOf } from "../src/view/columns.js";
 import { lineText } from "../src/view/text.js";
 import { createFakeTuiHost, stubJsx } from "./helpers/fake-tui-host.js";
@@ -204,13 +203,13 @@ describe("quota window: Limits", () => {
     { width: 90, cells: 31 },
     { width: 110, cells: 51 },
     { width: 300, cells: 80 },
-  ])(
-    "gives the bar the room the other columns leave, at most 80 cells ($width wide)",
-    ({ width, cells }) => {
-      const fable = limits([CLAUDE], width).find((line) => line.includes("Fable"));
-      expect(fable?.match(/[█░]+/u)?.[0]).toHaveLength(cells);
-    },
-  );
+  ])("gives the bar the room the other columns leave, at most 80 cells ($width wide)", ({
+    width,
+    cells,
+  }) => {
+    const fable = limits([CLAUDE], width).find((line) => line.includes("Fable"));
+    expect(fable?.match(/[█░]+/u)?.[0]).toHaveLength(cells);
+  });
 
   it("shortens the reset to its first unit before the bar gets too short (80 columns)", () => {
     // 80 columns leave 72 inside the window: the session's padding, the border and the padding.
@@ -238,22 +237,21 @@ describe("quota window: Limits", () => {
     ]);
   });
 
-  it.each([24, 30, 36, 44, 56, 64, 72, 80, 96, 120, 160, 240])(
-    "keeps every line inside a window %i wide",
-    (width) => {
-      const long = provider("copilot", "Copilot", [
-        row("copilot.premium", {
-          label: "Premium interactions",
-          window: "month",
-          percentRemaining: 80,
-          resetsAt: at(30_000),
-        }),
-      ]);
-      for (const line of limits([CLAUDE, ZEN, long], width)) {
-        expect(line.length).toBeLessThanOrEqual(width);
-      }
-    },
-  );
+  it.each([
+    24, 30, 36, 44, 56, 64, 72, 80, 96, 120, 160, 240,
+  ])("keeps every line inside a window %i wide", (width) => {
+    const long = provider("copilot", "Copilot", [
+      row("copilot.premium", {
+        label: "Premium interactions",
+        window: "month",
+        percentRemaining: 80,
+        resetsAt: at(30_000),
+      }),
+    ]);
+    for (const line of limits([CLAUDE, ZEN, long], width)) {
+      expect(line.length).toBeLessThanOrEqual(width);
+    }
+  });
 
   it("puts a provider's error on its own line under its name", () => {
     const failed = provider("anthropic", "Claude", [], { error: { code: "login_expired" } });
@@ -292,48 +290,21 @@ describe("quota window: Limits", () => {
   });
 
   it("says where to look when no provider is found", () => {
-    expect(limits([])).toEqual(["   No quota providers found. The Plugin tab says why."]);
-  });
-});
-
-describe("quota window: Notices", () => {
-  it("says why there is no notice", () => {
-    expect(noticeItems({ notices: [] }).empty).toBe("No notices right now.");
-  });
-});
-
-describe("quota window: Status", () => {
-  it("makes the title and section titles headings", () => {
-    const text = "# Quota Status (opencode-quota)\n\nproviders:\n- copilot: ok\n  detail:";
-    expect(
-      statusLines(text)
-        .filter((line) => line.heading)
-        .map((line) => line.text),
-    ).toEqual(["# Quota Status (opencode-quota)", "providers:"]);
-  });
-
-  it("breaks a long id list between ids, lined up after its key", () => {
-    const text = "- providers.off: anthropic | xai | google-gemini-cli | kimi-code-plan-global";
-    expect(statusLines(text, 44).map((line) => line.text)).toEqual([
-      "- providers.off: anthropic | xai |",
-      "                 google-gemini-cli |",
-      "                 kimi-code-plan-global",
-    ]);
-    expect(statusLines(text, 200).map((line) => line.text)).toEqual([text]);
+    expect(limits([])).toEqual(["   No quota providers found."]);
   });
 });
 
 describe("quota window: tab bar", () => {
-  const TITLES = ["Usage", "Limits", "Notices", "Status", "Sidebar", "Collapsed", "Status line"];
-  /** The view tabs, then the Settings tabs from "Sidebar" on. */
-  const SETTINGS_FROM = 4;
-  // 5+6+7+6+7+9+11 titles, 6 gaps of 2, "Settings" and its gap.
-  const FULL = 51 + 12 + 10;
+  const TITLES = ["Usage", "Limits", "Layout", "Colors", "Providers"];
+  /** The view tabs, then the Settings tabs from "Layout" on. */
+  const SETTINGS_FROM = 2;
+  // 5+6+6+6+9 titles, 4 gaps of 2, "Settings" and its gap.
+  const FULL = 32 + 8 + 10;
 
   it("shows every tab and the Settings label when they fit", () => {
     expect(tabStrip(TITLES, SETTINGS_FROM, 0, FULL)).toEqual({
       first: 0,
-      last: 6,
+      last: 4,
       settingsLabel: true,
     });
   });
@@ -341,27 +312,28 @@ describe("quota window: tab bar", () => {
   it("drops the Settings label (a │ stays) before it hides a tab", () => {
     expect(tabStrip(TITLES, SETTINGS_FROM, 0, FULL - 1)).toEqual({
       first: 0,
-      last: 6,
+      last: 4,
       settingsLabel: false,
     });
   });
 
-  // In 40 columns: the active tab and as many neighbours as fit between ‹ and ›.
+  // In 20 columns: the active tab and as many neighbours as fit between ‹ and ›.
   it.each([
-    { active: 0, first: 0, last: 3 },
-    { active: 3, first: 2, last: 4 },
-    { active: 4, first: 3, last: 5 },
-    { active: 6, first: 4, last: 6 },
-  ])(
-    "shows tabs $first to $last around tab $active when they don't all fit",
-    ({ active, first, last }) => {
-      expect(tabStrip(TITLES, SETTINGS_FROM, active, 40)).toEqual({
-        first,
-        last,
-        settingsLabel: false,
-      });
-    },
-  );
+    { active: 0, first: 0, last: 1 },
+    { active: 1, first: 0, last: 1 },
+    { active: 2, first: 2, last: 3 },
+    { active: 4, first: 3, last: 4 },
+  ])("shows tabs $first to $last around tab $active when they don't all fit", ({
+    active,
+    first,
+    last,
+  }) => {
+    expect(tabStrip(TITLES, SETTINGS_FROM, active, 20)).toEqual({
+      first,
+      last,
+      settingsLabel: false,
+    });
+  });
 });
 
 describe("quota window: the lists left of the body", () => {

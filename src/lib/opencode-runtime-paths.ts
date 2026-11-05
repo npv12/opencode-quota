@@ -1,5 +1,5 @@
-import { homedir } from "os";
-import { join, resolve } from "path";
+import { homedir } from "node:os";
+import { join, resolve } from "node:path";
 
 export interface OpencodeRuntimeDirs {
   dataDir: string;

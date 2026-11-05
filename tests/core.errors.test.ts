@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it, vi } from "vite-plus/test";
+import { describe, expect, it, vi } from "vitest";
 
 import { classifyError, describeError, providerError } from "../src/core/errors.js";
 import type { QuotaErrorCode } from "../src/core/types.js";
@@ -348,14 +348,13 @@ const PRODUCED: ReadonlyArray<{
 ];
 
 describe("classifyError", () => {
-  it.each(PRODUCED.map((row) => [row.message ?? row.text, row.code, row.from, row.text] as const))(
-    'classifies "%s" as %s',
-    (message, code, from, text) => {
-      expect(message).toContain(text.split("${")[0]);
-      if (from !== "node") expect(readFileSync(from, "utf8")).toContain(text);
-      expect(classifyError(message, NOW_MS).code).toBe(code);
-    },
-  );
+  it.each(
+    PRODUCED.map((row) => [row.message ?? row.text, row.code, row.from, row.text] as const),
+  )('classifies "%s" as %s', (message, code, from, text) => {
+    expect(message).toContain(text.split("${")[0]);
+    if (from !== "node") expect(readFileSync(from, "utf8")).toContain(text);
+    expect(classifyError(message, NOW_MS).code).toBe(code);
+  });
 
   it("keeps the scrubbed message as the detail", () => {
     expect(classifyError("HTTP 503\u001b[31m\nbusy", NOW_MS)).toEqual({

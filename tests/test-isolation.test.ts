@@ -1,7 +1,7 @@
 import { realpathSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vite-plus/test";
+import { describe, expect, it, vi } from "vitest";
 import { getOpencodeRuntimeDirs } from "../src/lib/opencode-runtime-paths.js";
 import { oldSettingsFolders } from "../src/settings/convert.js";
 

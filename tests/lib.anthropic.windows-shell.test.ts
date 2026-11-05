@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildClaudeCommandInvocation } from "../src/lib/anthropic.js";
 
@@ -52,7 +52,7 @@ describe.runIf(process.platform === "win32")("Claude commands through a real cmd
 
   it("runs the bare command name found on PATH", async () => {
     await shim("claude.cmd");
-    vi.stubEnv("PATH", `${dir};${process.env["PATH"] ?? ""}`);
+    vi.stubEnv("PATH", `${dir};${process.env.PATH ?? ""}`);
 
     await expect(run("claude", ["--version"])).resolves.toBe("2.1.0 (Claude Code) --version");
   });

@@ -3,7 +3,7 @@
 // OpenCode's package cache, and fake HTTP.
 import crypto from "node:crypto";
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fsMocks = vi.hoisted(() => ({ readFile: vi.fn() }));
 
@@ -406,36 +406,30 @@ describe("logins under the shared google integration id", () => {
       "an earlier token hash",
       { refreshToken: "newer", refreshTokenHashes: [tokenHash("refresh-migrated")] },
     ],
-  ])(
-    "reads an OpenCode 1 import whose account pool has %s for Google AGY only",
-    async (_case, account) => {
-      installCompanion(agy);
-      installCompanion(geminiCli);
-      writeAntigravityPool([
-        { email: "other@example.com", refreshToken: "refresh-other" },
-        account,
-      ]);
-      world.storeLogins([sharedGoogleLogin("migrated", "oauth")]);
-      const http = fakeHttp(() => agy.quota());
+  ])("reads an OpenCode 1 import whose account pool has %s for Google AGY only", async (_case, account) => {
+    installCompanion(agy);
+    installCompanion(geminiCli);
+    writeAntigravityPool([{ email: "other@example.com", refreshToken: "refresh-other" }, account]);
+    world.storeLogins([sharedGoogleLogin("migrated", "oauth")]);
+    const http = fakeHttp(() => agy.quota());
 
-      await expect(isAvailable(googleAgyProvider)).resolves.toBe(true);
-      const fetched = await fetchRows(googleAgyProvider);
+    await expect(isAvailable(googleAgyProvider)).resolves.toBe(true);
+    const fetched = await fetchRows(googleAgyProvider);
 
-      expect(fetched.rows.map((row) => [row.id, row.account])).toEqual([[agy.rowId, "migrated"]]);
-      expect(http).toHaveBeenCalledOnce();
-      expect(http.mock.calls[0]?.[0]).toBe(
-        "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary",
-      );
+    expect(fetched.rows.map((row) => [row.id, row.account])).toEqual([[agy.rowId, "migrated"]]);
+    expect(http).toHaveBeenCalledOnce();
+    expect(http.mock.calls[0]?.[0]).toBe(
+      "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary",
+    );
 
-      http.mockClear();
-      await expect(isAvailable(googleGeminiCliProvider)).resolves.toBe(false);
-      await expect(fetchRows(googleGeminiCliProvider)).resolves.toMatchObject({
-        rows: [],
-        error: { code: "not_configured" },
-      });
-      expect(http).not.toHaveBeenCalled();
-    },
-  );
+    http.mockClear();
+    await expect(isAvailable(googleGeminiCliProvider)).resolves.toBe(false);
+    await expect(fetchRows(googleGeminiCliProvider)).resolves.toMatchObject({
+      rows: [],
+      error: { code: "not_configured" },
+    });
+    expect(http).not.toHaveBeenCalled();
+  });
 
   it.each([
     ["no account pool", undefined],
@@ -486,41 +480,38 @@ describe("logins under the shared google integration id", () => {
   it.each([
     ["an opencode-antigravity-auth login", "antigravity", false],
     ["an OpenCode 1 import in the account pool", "oauth", true],
-  ])(
-    "keeps %s from Gemini CLI once OpenCode can no longer return it",
-    async (_case, methodID, inPool) => {
-      installCompanion(agy);
-      installCompanion(geminiCli);
-      if (inPool) writeAntigravityPool([{ refreshToken: "refresh-agy" }]);
-      const credential = sharedGoogleConnection("agy", methodID);
-      const integration = createFakeIntegration([credential]);
-      const unbind = bindCredentialSource(createIntegrationCredentialSource(integration as never));
-      const http = fakeHttp(() => agy.quota());
+  ])("keeps %s from Gemini CLI once OpenCode can no longer return it", async (_case, methodID, inPool) => {
+    installCompanion(agy);
+    installCompanion(geminiCli);
+    if (inPool) writeAntigravityPool([{ refreshToken: "refresh-agy" }]);
+    const credential = sharedGoogleConnection("agy", methodID);
+    const integration = createFakeIntegration([credential]);
+    const unbind = bindCredentialSource(createIntegrationCredentialSource(integration as never));
+    const http = fakeHttp(() => agy.quota());
 
-      try {
-        const healthy = await fetchRows(googleAgyProvider);
-        expect(healthy.rows.map((row) => [row.id, row.account])).toEqual([
-          [agy.rowId, "agy@example.com"],
-        ]);
+    try {
+      const healthy = await fetchRows(googleAgyProvider);
+      expect(healthy.rows.map((row) => [row.id, row.account])).toEqual([
+        [agy.rowId, "agy@example.com"],
+      ]);
 
-        credential.resolveError = "HTTP 400";
-        notifyCredentialsChanged();
-        http.mockClear();
+      credential.resolveError = "HTTP 400";
+      notifyCredentialsChanged();
+      http.mockClear();
 
-        await expect(isAvailable(googleGeminiCliProvider)).resolves.toBe(false);
-        await expect(fetchRows(googleGeminiCliProvider)).resolves.toMatchObject({
-          rows: [],
-          error: { code: "not_configured" },
-        });
-        const failed = await fetchRows(googleAgyProvider);
-        expect(failed.rows).toEqual([]);
-        expect(errorDebug(failed).join("\n")).not.toContain("Gemini CLI");
-        expect(http).not.toHaveBeenCalled();
-      } finally {
-        unbind();
-      }
-    },
-  );
+      await expect(isAvailable(googleGeminiCliProvider)).resolves.toBe(false);
+      await expect(fetchRows(googleGeminiCliProvider)).resolves.toMatchObject({
+        rows: [],
+        error: { code: "not_configured" },
+      });
+      const failed = await fetchRows(googleAgyProvider);
+      expect(failed.rows).toEqual([]);
+      expect(errorDebug(failed).join("\n")).not.toContain("Gemini CLI");
+      expect(http).not.toHaveBeenCalled();
+    } finally {
+      unbind();
+    }
+  });
 
   it("still shows an opencode-gemini-auth login OpenCode can no longer return as a Gemini CLI error", async () => {
     installCompanion(agy);

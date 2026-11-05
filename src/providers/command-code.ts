@@ -6,14 +6,14 @@ import { clampPercent } from "../lib/format-utils.js";
 import {
   errorWords,
   failureFacts,
-  requestJson,
   RequestFailedError,
+  requestJson,
   thrownFacts,
 } from "../lib/http.js";
 import { finiteNumber, isRecord, nonEmptyString } from "../lib/json-guards.js";
 import { modelProviderMatchesRuntimeId } from "../lib/provider-model-matching.js";
 import { vendorKeysPolicy } from "./cache-policies.js";
-import { fetchError, FIVE_HOUR, type LoginFetch, quotaRow, WEEKLY } from "./contract.js";
+import { FIVE_HOUR, fetchError, type LoginFetch, quotaRow, WEEKLY } from "./contract.js";
 import { fetchStoredKeys, isKeyVendorAvailable } from "./key-vendor.js";
 import { vendorKeyDetails } from "./result-helpers.js";
 

@@ -16,7 +16,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { parse } from "jsonc-parser";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clientSettings,
   defaultSettings,
@@ -140,7 +140,6 @@ describe("loadSettings", () => {
     ["providers.cursor.billingCycleStartDay", 29],
     ["words.resetDecimals", 1.5],
     ["providers.anthropic.binaryPath", "  "],
-    ["system.exportPath", "../quota.json"],
     ["providers.off", ["nope"]],
     ["version", 7],
   ])("an invalid %s keeps its default and is reported", async (key, value) => {
@@ -190,33 +189,36 @@ describe("loadSettings", () => {
   });
 
   // Built-in providers of 4.x and 5.x that this version does not have.
-  it.each(["chutes", "kilo", "nanogpt", "nano-gpt", "synthetic"])(
-    "loads and saves settings naming the former provider %s without an issue",
-    async (id) => {
-      const row = `${id}.daily`;
-      writeSettings(
-        JSON.stringify({
-          providers: { off: [id, "copilot"] },
-          sidebar: {
-            hidden: [row],
-            providerOrder: [id, "copilot"],
-            rowOrder: { [id]: [row] },
-            names: { [row]: "Mine" },
-          },
-          collapsed: { window: { [id]: "day" } },
-        }),
-      );
+  it.each([
+    "chutes",
+    "kilo",
+    "nanogpt",
+    "nano-gpt",
+    "synthetic",
+  ])("loads and saves settings naming the former provider %s without an issue", async (id) => {
+    const row = `${id}.daily`;
+    writeSettings(
+      JSON.stringify({
+        providers: { off: [id, "copilot"] },
+        sidebar: {
+          hidden: [row],
+          providerOrder: [id, "copilot"],
+          rowOrder: { [id]: [row] },
+          names: { [row]: "Mine" },
+        },
+        collapsed: { window: { [id]: "day" } },
+      }),
+    );
 
-      const loaded = await loadSettings();
-      const saved = await saveSettings({ providers: { off: [id, "openai"] } });
+    const loaded = await loadSettings();
+    const saved = await saveSettings({ providers: { off: [id, "openai"] } });
 
-      expect(loaded.issues).toEqual([]);
-      expect(loaded.settings.providers.off).toEqual(["copilot"]);
-      expect(loaded.settings.sidebar.names).toEqual({ [row]: "Mine" });
-      expect(saved).toMatchObject({ ok: true, issues: [] });
-      expect((await loadSettings()).settings.providers.off).toEqual(["openai"]);
-    },
-  );
+    expect(loaded.issues).toEqual([]);
+    expect(loaded.settings.providers.off).toEqual(["copilot"]);
+    expect(loaded.settings.sidebar.names).toEqual({ [row]: "Mine" });
+    expect(saved).toMatchObject({ ok: true, issues: [] });
+    expect((await loadSettings()).settings.providers.off).toEqual(["openai"]);
+  });
 
   it("reports unknown keys with the valid ones, and a group that is not an object", async () => {
     writeSettings('{ "wordz": {}, "words": { "percnt": "used" }, "providers": { "checking": 5 } }');
@@ -227,7 +229,7 @@ describe("loadSettings", () => {
       {
         key: "$top",
         message:
-          "unknown setting (key 1); valid: version, sidebar, collapsed, statusLine, toast, colors, layout, words, providers, system",
+          "unknown setting (key 1); valid: version, sidebar, collapsed, statusLine, toast, colors, layout, words, providers",
       },
       {
         key: "words",
@@ -338,7 +340,7 @@ describe("saveSettings", () => {
     expect(readFileSync(path, "utf8")).toBe(full);
     expect(loaded.settings).toEqual(defaultSettings());
     expect(loaded.fromFile).toContain("layout.evenUse");
-    expect(loaded.fromFile).toContain("system.telemetry");
+    expect(loaded.fromFile).toContain("providers.anthropic.binaryPath");
     await saveSettings({ words: { percent: "used" } });
     expect(readFileSync(path, "utf8")).toBe(full.replace('"percent": "left"', '"percent": "used"'));
   });
@@ -350,10 +352,14 @@ describe("saveSettings", () => {
     { name: "a group set to a value", patch: { words: "short" }, message: /expected an object/ },
     { name: "a patch that is not an object", patch: "words", message: /expected an object/ },
     { name: "a file-only key", patch: { providers: { custom: [] } }, message: /file-only/ },
-    { name: "a group reset with a file-only key", patch: { system: null }, message: /file-only/ },
+    {
+      name: "a group reset with a file-only key",
+      patch: { providers: { custom: null } },
+      message: /file-only/,
+    },
     {
       name: "a relative path, even with allowFileOnly",
-      patch: { system: { exportPath: "../quota.json" } },
+      patch: { providers: { anthropic: { binaryPath: "../claude" } } },
       allowFileOnly: true,
       message: /absolute or ~\/ path without "\.\."/,
     },

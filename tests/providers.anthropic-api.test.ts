@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { rowsFromProviderResult } from "../src/core/rows.js";
 import { createQuotaStore } from "../src/core/store.js";
 import { anthropicApiProvider } from "../src/providers/anthropic-api.js";
@@ -61,27 +61,25 @@ it("opts in only through the manual cookie, retaining sessionKey alone", async (
     expect(init.redirect).toBe("manual");
   }
 });
-it.each(["", "other=value", "sessionKey=x; sessionKey=y", "sessionKey=x\r\nother=y"])(
-  "rejects invalid cookies without a request",
-  async (raw) => {
-    process.env.ANTHROPIC_CONSOLE_COOKIE = raw;
-    const result = await fetchCredits({ amount: 10, currency: "USD" });
-    expect(result.http).not.toHaveBeenCalled();
-    expect(result.error?.code).toBe("not_configured");
-  },
-);
-it.each([302, 401, 403])(
-  "reports rejected sessions (HTTP %s) without exposing the cookie",
-  async (status) => {
-    fakeHttp(() => new Response(cookie, { status }));
-    const result = rowsFromProviderResult(
-      "anthropic-api",
-      await anthropicApiProvider.fetch(context),
-    );
-    expect(result.error?.code).toBe("login_expired");
-    expect(JSON.stringify(result)).not.toContain(cookie);
-  },
-);
+it.each([
+  "",
+  "other=value",
+  "sessionKey=x; sessionKey=y",
+  "sessionKey=x\r\nother=y",
+])("rejects invalid cookies without a request", async (raw) => {
+  process.env.ANTHROPIC_CONSOLE_COOKIE = raw;
+  const result = await fetchCredits({ amount: 10, currency: "USD" });
+  expect(result.http).not.toHaveBeenCalled();
+  expect(result.error?.code).toBe("not_configured");
+});
+it.each([
+  302, 401, 403,
+])("reports rejected sessions (HTTP %s) without exposing the cookie", async (status) => {
+  fakeHttp(() => new Response(cookie, { status }));
+  const result = rowsFromProviderResult("anthropic-api", await anthropicApiProvider.fetch(context));
+  expect(result.error?.code).toBe("login_expired");
+  expect(JSON.stringify(result)).not.toContain(cookie);
+});
 it("redacts transport failures and distinguishes billing access denied", async () => {
   fakeHttp(() => {
     throw new Error(cookie);
@@ -104,19 +102,20 @@ it("selects the sole API organization while ignoring chat organizations", async 
     "https://platform.claude.com/api/organizations/org-one/prepaid/credits",
   ]);
 });
-it.each([undefined, "missing", "Duplicate"])(
-  "asks for an explicit unambiguous organization (%s)",
-  async (selection) => {
-    if (selection === undefined) delete process.env.ANTHROPIC_CONSOLE_ORGANIZATION;
-    else process.env.ANTHROPIC_CONSOLE_ORGANIZATION = selection;
-    const result = await fetchCredits({}, [apiOrg("one", "Duplicate"), apiOrg("two", "Duplicate")]);
-    expect(result.http).toHaveBeenCalledOnce();
-    expect(result.error?.code).toBe("not_configured");
-    expect(errorWords({ name: "Claude API", error: result.error }, 0)).toBe(
-      "Set ANTHROPIC_CONSOLE_ORGANIZATION",
-    );
-  },
-);
+it.each([
+  undefined,
+  "missing",
+  "Duplicate",
+])("asks for an explicit unambiguous organization (%s)", async (selection) => {
+  if (selection === undefined) delete process.env.ANTHROPIC_CONSOLE_ORGANIZATION;
+  else process.env.ANTHROPIC_CONSOLE_ORGANIZATION = selection;
+  const result = await fetchCredits({}, [apiOrg("one", "Duplicate"), apiOrg("two", "Duplicate")]);
+  expect(result.http).toHaveBeenCalledOnce();
+  expect(result.error?.code).toBe("not_configured");
+  expect(errorWords({ name: "Claude API", error: result.error }, 0)).toBe(
+    "Set ANTHROPIC_CONSOLE_ORGANIZATION",
+  );
+});
 it("reports a session without an API organization instead of asking for one", async () => {
   process.env.ANTHROPIC_CONSOLE_ORGANIZATION = "Anything";
   const result = await fetchCredits({}, [{ uuid: "chat", capabilities: ["chat"] }]);
@@ -124,18 +123,18 @@ it("reports a session without an API organization instead of asking for one", as
   expect(result.error?.code).toBe("no_plan");
   expect(errorWords({ name: "Claude API", error: result.error }, 0)).toBe("No active plan");
 });
-it.each(["org-two", "Two"])(
-  "selects an organization by UUID or exact name (%s)",
-  async (selection) => {
-    if (selection === undefined) delete process.env.ANTHROPIC_CONSOLE_ORGANIZATION;
-    else process.env.ANTHROPIC_CONSOLE_ORGANIZATION = selection;
-    const result = await fetchCredits({ amount: 10, currency: "USD" }, [
-      apiOrg(),
-      apiOrg("org-two", "Two"),
-    ]);
-    expect(result.http.mock.calls.at(-1)?.[0]).toContain("/org-two/prepaid/credits");
-  },
-);
+it.each([
+  "org-two",
+  "Two",
+])("selects an organization by UUID or exact name (%s)", async (selection) => {
+  if (selection === undefined) delete process.env.ANTHROPIC_CONSOLE_ORGANIZATION;
+  else process.env.ANTHROPIC_CONSOLE_ORGANIZATION = selection;
+  const result = await fetchCredits({ amount: 10, currency: "USD" }, [
+    apiOrg(),
+    apiOrg("org-two", "Two"),
+  ]);
+  expect(result.http.mock.calls.at(-1)?.[0]).toContain("/org-two/prepaid/credits");
+});
 it("retains last good data on failure but clears balances when cookie or organization changes", async () => {
   let failing = false;
   fakeHttp((url) =>

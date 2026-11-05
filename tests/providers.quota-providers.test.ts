@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readSavedState } from "../src/core/persist.js";
 import { loadProviderSource } from "../src/core/provider-source.js";
@@ -192,24 +192,24 @@ describe("quota-providers aggregate provider", () => {
     runtimeMocks.collectLocalQuotaProviderEstimate.mockReset().mockResolvedValue({ rows: [] });
   });
 
-  it.each(["turn", "poll"] as const)(
-    "keeps rows and check times on skips, then checks at the %s floor",
-    async (dueReason) => {
-      const { store } = scheduled();
-      const first = await store.refresh({ reason: "poll" });
-      clock += 30_000;
-      for (const reason of ["turn", "poll"] as const) {
-        expect((await store.refresh({ reason })).providers).toEqual(first.providers);
-      }
-      expect(runtimeMocks.fetchRemoteQuotaProvider).toHaveBeenCalledTimes(1);
-      clock += 569_999;
-      await store.refresh({ reason: dueReason });
-      expect(runtimeMocks.fetchRemoteQuotaProvider).toHaveBeenCalledTimes(1);
-      clock += 1;
-      await store.refresh({ reason: dueReason });
-      expect(runtimeMocks.fetchRemoteQuotaProvider).toHaveBeenCalledTimes(2);
-    },
-  );
+  it.each([
+    "turn",
+    "poll",
+  ] as const)("keeps rows and check times on skips, then checks at the %s floor", async (dueReason) => {
+    const { store } = scheduled();
+    const first = await store.refresh({ reason: "poll" });
+    clock += 30_000;
+    for (const reason of ["turn", "poll"] as const) {
+      expect((await store.refresh({ reason })).providers).toEqual(first.providers);
+    }
+    expect(runtimeMocks.fetchRemoteQuotaProvider).toHaveBeenCalledTimes(1);
+    clock += 569_999;
+    await store.refresh({ reason: dueReason });
+    expect(runtimeMocks.fetchRemoteQuotaProvider).toHaveBeenCalledTimes(1);
+    clock += 1;
+    await store.refresh({ reason: dueReason });
+    expect(runtimeMocks.fetchRemoteQuotaProvider).toHaveBeenCalledTimes(2);
+  });
 
   it("keeps the last success, error and failed outcome when a definition is skipped", async () => {
     const { store } = scheduled();
@@ -294,65 +294,64 @@ describe("quota-providers aggregate provider", () => {
     expect(snapshot.providers[0]).toMatchObject({ okAtMs: polledAtMs, checkedAtMs: clock });
   });
 
-  it.each([60_000, 700_000])(
-    "does not repeat a skipped rate-limit error and respects a %i ms Retry-After plus the interval",
-    async (retryWait) => {
-      const { store } = scheduled();
-      runtimeMocks.fetchRemoteQuotaProvider.mockResolvedValue(failure(429, clock + retryWait));
-      const heard = vi.fn();
-      store.subscribe(heard);
-      await store.refresh({ reason: "poll" });
-      heard.mockClear();
-      for (const elapsed of [30_000, 60_000, 599_999]) {
-        clock = 1_800_000_000_000 + elapsed;
-        await store.refresh({ reason: "turn" });
-        await store.refresh({ reason: "poll" });
-      }
-      expect(runtimeMocks.fetchRemoteQuotaProvider).toHaveBeenCalledTimes(1);
-      expect(heard).not.toHaveBeenCalled();
-      clock = 1_800_000_000_000 + Math.max(600_000, retryWait);
+  it.each([
+    60_000, 700_000,
+  ])("does not repeat a skipped rate-limit error and respects a %i ms Retry-After plus the interval", async (retryWait) => {
+    const { store } = scheduled();
+    runtimeMocks.fetchRemoteQuotaProvider.mockResolvedValue(failure(429, clock + retryWait));
+    const heard = vi.fn();
+    store.subscribe(heard);
+    await store.refresh({ reason: "poll" });
+    heard.mockClear();
+    for (const elapsed of [30_000, 60_000, 599_999]) {
+      clock = 1_800_000_000_000 + elapsed;
       await store.refresh({ reason: "turn" });
-      expect(runtimeMocks.fetchRemoteQuotaProvider).toHaveBeenCalledTimes(2);
-    },
-  );
-
-  it.each([false, true])(
-    "keeps turn floor, grouping, row ids, exports and custom off (restart=%s)",
-    async (restart) => {
-      const definitions = [
-        { ...remote("tight"), label: "Same", minIntervalMs: 600_000 },
-        { ...remote("plain"), label: "Same" },
-      ];
-      let { store, settings } = scheduled(definitions);
       await store.refresh({ reason: "poll" });
-      if (restart) {
-        await store.dispose();
-        ({ store, settings } = scheduled(definitions));
-      }
-      clock += 30_000;
-      const snapshot = await store.refresh({ reason: "turn" });
-      expect(requested()).toEqual(["tight", "plain", "plain"]);
-      expect(snapshot.providers.map(({ providerId }) => providerId)).toEqual(["quota-providers"]);
-      expect(snapshot.providers[0]?.rows.map(({ id }) => id)).toEqual([
-        "quota-providers.custom.tight.Daily",
-        "quota-providers.custom.plain.Daily",
-      ]);
-      expect(snapshot.providers[0]?.rows.map(({ account }) => account).sort()).toEqual([
-        "Same",
-        "Same 2",
-      ]);
-      const exported = buildQuotaExportFromSnapshot(snapshot).providers["quota-providers"];
-      expect(exported?.sources).toEqual(
-        ["tight", "plain"].map((id) => ({ id, providerId: id, status: "ok", entryCount: 1 })),
-      );
-      if (exported?.status !== "ok") throw new Error("expected checked custom rows");
-      expect(exported.entries.map(({ account }) => account)).toEqual(
-        snapshot.providers[0]?.rows.map(({ account }) => account),
-      );
-      settings.providers.off = ["custom"];
-      expect((await store.refresh({ reason: "manual" })).providers).toEqual([]);
-    },
-  );
+    }
+    expect(runtimeMocks.fetchRemoteQuotaProvider).toHaveBeenCalledTimes(1);
+    expect(heard).not.toHaveBeenCalled();
+    clock = 1_800_000_000_000 + Math.max(600_000, retryWait);
+    await store.refresh({ reason: "turn" });
+    expect(runtimeMocks.fetchRemoteQuotaProvider).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    false,
+    true,
+  ])("keeps turn floor, grouping, row ids, exports and custom off (restart=%s)", async (restart) => {
+    const definitions = [
+      { ...remote("tight"), label: "Same", minIntervalMs: 600_000 },
+      { ...remote("plain"), label: "Same" },
+    ];
+    let { store, settings } = scheduled(definitions);
+    await store.refresh({ reason: "poll" });
+    if (restart) {
+      await store.dispose();
+      ({ store, settings } = scheduled(definitions));
+    }
+    clock += 30_000;
+    const snapshot = await store.refresh({ reason: "turn" });
+    expect(requested()).toEqual(["tight", "plain", "plain"]);
+    expect(snapshot.providers.map(({ providerId }) => providerId)).toEqual(["quota-providers"]);
+    expect(snapshot.providers[0]?.rows.map(({ id }) => id)).toEqual([
+      "quota-providers.custom.tight.Daily",
+      "quota-providers.custom.plain.Daily",
+    ]);
+    expect(snapshot.providers[0]?.rows.map(({ account }) => account).sort()).toEqual([
+      "Same",
+      "Same 2",
+    ]);
+    const exported = buildQuotaExportFromSnapshot(snapshot).providers["quota-providers"];
+    expect(exported?.sources).toEqual(
+      ["tight", "plain"].map((id) => ({ id, providerId: id, status: "ok", entryCount: 1 })),
+    );
+    if (exported?.status !== "ok") throw new Error("expected checked custom rows");
+    expect(exported.entries.map(({ account }) => account)).toEqual(
+      snapshot.providers[0]?.rows.map(({ account }) => account),
+    );
+    settings.providers.off = ["custom"];
+    expect((await store.refresh({ reason: "manual" })).providers).toEqual([]);
+  });
 
   it.each([
     ["no runtime match", [remote("stable", "provider-one", ["model-a"])], ["unrelated"], {}, []],
@@ -401,15 +400,12 @@ describe("quota-providers aggregate provider", () => {
       { onlyCurrentModel: true, currentProviderID: "openrouter", currentModel: "openai/gpt-4o" },
       ["openrouter-usage"],
     ],
-  ] as const)(
-    "selects definitions for %s",
-    async (_name, definitions, ids, overrides, expected) => {
-      const ctx = context([...definitions], [...ids], overrides);
-      await expect(quotaProvidersProvider.isAvailable(ctx)).resolves.toBe(expected.length > 0);
-      const result = await quotaProvidersProvider.fetch(ctx);
-      expect(result.accounts.map((account) => account.login)).toEqual(expected);
-    },
-  );
+  ] as const)("selects definitions for %s", async (_name, definitions, ids, overrides, expected) => {
+    const ctx = context([...definitions], [...ids], overrides);
+    await expect(quotaProvidersProvider.isAvailable(ctx)).resolves.toBe(expected.length > 0);
+    const result = await quotaProvidersProvider.fetch(ctx);
+    expect(result.accounts.map((account) => account.login)).toEqual(expected);
+  });
 
   it("treats a slash-containing current model as opaque when matching the session", () => {
     expect(

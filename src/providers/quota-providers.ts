@@ -5,14 +5,6 @@ import type {
   QuotaProviderContext,
 } from "../lib/entries.js";
 import { mapWithConcurrency } from "../lib/map-with-concurrency.js";
-import { collectLocalQuotaProviderEstimate } from "../lib/quota-providers-local.js";
-import {
-  fetchRemoteQuotaProvider,
-  type QuotaProviderAuthResolution,
-  type QuotaProviderAuthSource,
-  type RemoteQuotaProviderResult,
-  resolveQuotaProviderApiKey,
-} from "../lib/quota-providers-remote.js";
 import type {
   LocalEstimateQuotaProviderDefinition,
   QuotaProviderDefinition,
@@ -24,6 +16,14 @@ import {
   resolveQuotaProviderSessionModelIdentity,
   selectEligibleQuotaProviderDefinitions,
 } from "../lib/quota-providers.js";
+import { collectLocalQuotaProviderEstimate } from "../lib/quota-providers-local.js";
+import {
+  fetchRemoteQuotaProvider,
+  type QuotaProviderAuthResolution,
+  type QuotaProviderAuthSource,
+  type RemoteQuotaProviderResult,
+  resolveQuotaProviderApiKey,
+} from "../lib/quota-providers-remote.js";
 import {
   composeResolvedAuthIdentities,
   deriveResolvedAuthIdentity,
@@ -31,8 +31,8 @@ import {
 } from "../lib/resolved-auth-identity.js";
 import {
   type AccountResult,
-  failedAccount,
   type FetchError,
+  failedAccount,
   fetchError,
   type ProviderFetchResult,
   type ProviderRow,

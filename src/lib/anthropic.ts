@@ -8,12 +8,12 @@
  * own OAuth credentials (macOS Keychain first, then the local credentials file).
  */
 
-import { execFile } from "child_process";
-import { createHash } from "crypto";
-import { existsSync } from "fs";
-import { readFile } from "fs/promises";
-import { homedir } from "os";
-import { join } from "path";
+import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 import type { ErrorFacts } from "../core/errors.js";
 import { sanitizeDisplaySnippet, sanitizeDisplayText } from "./display-sanitize.js";
@@ -192,14 +192,14 @@ interface AnthropicOAuthProbeState {
 
 // OpenCode loads one copy of the plugin per location in the same process, and Anthropic's usage
 // endpoint rate-limits per token, so every copy shares one backoff, request and recent reply.
-const ANTHROPIC_OAUTH_PROBE_STATE = Symbol.for("@slkiser/opencode-quota/anthropic-oauth-probe/v1");
-const anthropicOAuthProbeState = ((globalThis as Record<symbol, unknown>)[
-  ANTHROPIC_OAUTH_PROBE_STATE
-] ??= {
+const ANTHROPIC_OAUTH_PROBE_STATE = Symbol.for("@npv12/opencode-quota/anthropic-oauth-probe/v1");
+const shared = (globalThis as Record<symbol, unknown>)[ANTHROPIC_OAUTH_PROBE_STATE] ?? {
   cooldowns: new Map(),
   inFlight: new Map(),
   recent: new Map(),
-}) as AnthropicOAuthProbeState;
+};
+(globalThis as Record<symbol, unknown>)[ANTHROPIC_OAUTH_PROBE_STATE] = shared;
+const anthropicOAuthProbeState = shared as AnthropicOAuthProbeState;
 const anthropicOAuthCooldowns = anthropicOAuthProbeState.cooldowns;
 const anthropicOAuthInFlight = anthropicOAuthProbeState.inFlight;
 const anthropicOAuthRecent = anthropicOAuthProbeState.recent;
@@ -295,7 +295,7 @@ export function buildClaudeCommandInvocation(
 
   if ((runtime.platform ?? process.platform) === "win32" && needsWindowsShell) {
     return {
-      file: runtime.comspec?.trim() || process.env["ComSpec"]?.trim() || "cmd.exe",
+      file: runtime.comspec?.trim() || process.env.ComSpec?.trim() || "cmd.exe",
       // `/s` strips the first and last quote of what follows `/c`, so the command needs a pair of its own.
       args: [
         "/d",
@@ -338,7 +338,7 @@ function parseQuotaWindow(window: unknown): QuotaWindow | null {
   return {
     percentRemaining: Math.min(100, Math.round(100 - used)),
     resetTimeIso: normalizeResetTimeIso(
-      record["resets_at"] ?? record["resetsAt"] ?? record["reset_at"] ?? record["resetAt"],
+      record.resets_at ?? record.resetsAt ?? record.reset_at ?? record.resetAt,
     ),
   };
 }
@@ -348,10 +348,10 @@ function parseQuotaWindow(window: unknown): QuotaWindow | null {
  * of the same object, which an Enterprise login gets with a null `utilization`.
  */
 function extraUsageUsedPercent(record: Record<string, unknown> | null): number | undefined {
-  const utilization = finiteNumber(record?.["utilization"]);
+  const utilization = finiteNumber(record?.utilization);
   if (utilization !== undefined) return utilization;
-  const usedCredits = finiteNumber(record?.["used_credits"]);
-  const monthlyLimit = finiteNumber(record?.["monthly_limit"]);
+  const usedCredits = finiteNumber(record?.used_credits);
+  const monthlyLimit = finiteNumber(record?.monthly_limit);
   if (usedCredits === undefined || monthlyLimit === undefined || monthlyLimit <= 0) {
     return undefined;
   }
@@ -361,7 +361,7 @@ function extraUsageUsedPercent(record: Record<string, unknown> | null): number |
 function parseExtraUsageQuota(extraUsage: unknown): { percentRemaining: number } | undefined {
   const record = asRecord(extraUsage);
   const used = extraUsageUsedPercent(record);
-  if (record?.["is_enabled"] !== true || used === undefined || used < 0 || used > 100) {
+  if (record?.is_enabled !== true || used === undefined || used < 0 || used > 100) {
     return undefined;
   }
   return { percentRemaining: Math.round(100 - used) };
@@ -373,14 +373,14 @@ function parseFableWeeklyWindow(limits: unknown): QuotaWindow | undefined {
 
   for (const value of limits) {
     const limit = asRecord(value);
-    const model = asRecord(asRecord(limit?.["scope"])?.["model"]);
-    if (!limit || limit["kind"] !== "weekly_scoped" || model?.["display_name"] !== "Fable") {
+    const model = asRecord(asRecord(limit?.scope)?.model);
+    if (!limit || limit.kind !== "weekly_scoped" || model?.display_name !== "Fable") {
       continue;
     }
 
     const window = parseQuotaWindow({
-      utilization: limit["percent"],
-      resets_at: limit["resets_at"],
+      utilization: limit.percent,
+      resets_at: limit.resets_at,
     });
     if (window) return window;
   }
@@ -448,8 +448,8 @@ function parseOAuthUsageResponse(data: unknown): AnthropicQuotaResult | null {
   const windows = findUsageWindows(data);
   if (!windows) return null;
 
-  const extraUsage = parseExtraUsageQuota(windows.root["extra_usage"]);
-  const fableWeekly = parseFableWeeklyWindow(windows.root["limits"]);
+  const extraUsage = parseExtraUsageQuota(windows.root.extra_usage);
+  const fableWeekly = parseFableWeeklyWindow(windows.root.limits);
   return {
     success: true,
     ...(windows.fiveHour ? { five_hour: windows.fiveHour } : {}),
@@ -468,7 +468,7 @@ function buildAnthropicNoQuotaDiagnosticsMessage(detail?: string): string {
 
 function extractClaudeCredentialsAccessToken(data: unknown): string | undefined {
   const root = asRecord(data);
-  for (const candidate of [asRecord(root?.["claudeAiOauth"]), asRecord(root?.["oauth"]), root]) {
+  for (const candidate of [asRecord(root?.claudeAiOauth), asRecord(root?.oauth), root]) {
     for (const key of ["accessToken", "access_token", "token"]) {
       const token = nonEmptyString(candidate?.[key]);
       if (token) return token;
@@ -781,18 +781,18 @@ function extractAuthBoolean(data: unknown): boolean | undefined {
   const record = asRecord(data);
   if (!record) return undefined;
 
-  const auth = asRecord(record["auth"]);
+  const auth = asRecord(record.auth);
   for (const candidate of [
-    record["authenticated"],
-    record["isAuthenticated"],
-    record["loggedIn"],
-    auth?.["authenticated"],
-    auth?.["loggedIn"],
+    record.authenticated,
+    record.isAuthenticated,
+    record.loggedIn,
+    auth?.authenticated,
+    auth?.loggedIn,
   ]) {
     if (typeof candidate === "boolean") return candidate;
   }
 
-  const status = nonEmptyString(record["status"])?.toLowerCase();
+  const status = nonEmptyString(record.status)?.toLowerCase();
   if (status === "authenticated") return true;
   if (status === "unauthenticated") return false;
   return undefined;

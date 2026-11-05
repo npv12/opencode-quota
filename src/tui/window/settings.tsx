@@ -14,7 +14,7 @@ import {
   TextAttributes,
 } from "@opentui/core";
 import type { JSX } from "@opentui/solid";
-import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import type { QuotaSnapshot } from "../../core/types.js";
 import { columnsOf } from "../../view/columns.js";
 import { fit } from "../../view/format.js";
@@ -23,7 +23,6 @@ import { rpcErrorMessage } from "../client.js";
 import { type DisplayStore, isSurfaceTab, type SettingsTab } from "../display.js";
 import { KEY_LAYERS } from "../key-layers.js";
 import type { SurfaceHost } from "../sidebar.js";
-import type { Toasts } from "../toasts.js";
 import { type OptionLine, stepSelection, type Typed } from "./option-line.js";
 import { Rail, railRoom } from "./rail.js";
 import {
@@ -65,24 +64,6 @@ export const SETTINGS_TABS: ReadonlyArray<{
     watchesSidebar: true,
   },
   {
-    tab: "collapsed",
-    title: "Collapsed",
-    switchTitle: "When the panel is collapsed, show one line per provider",
-    watchesSidebar: true,
-  },
-  {
-    tab: "statusLine",
-    title: "Status line",
-    switchTitle: "Show the quota line under the message box",
-    watchesSidebar: false,
-  },
-  {
-    tab: "toast",
-    title: "Toast",
-    switchTitle: "Show quota toasts",
-    watchesSidebar: false,
-  },
-  {
     tab: "colors",
     title: "Colors",
     watchesSidebar: true,
@@ -99,7 +80,7 @@ export const SETTINGS_TABS: ReadonlyArray<{
  * per place; the others are one page each.
  */
 export const SETTINGS_GROUPS: ReadonlyArray<{ title: string; pages: readonly SettingsTab[] }> = [
-  { title: "Layout", pages: ["layout", "sidebar", "collapsed", "statusLine", "toast"] },
+  { title: "Layout", pages: ["layout", "sidebar"] },
   { title: "Colors", pages: ["colors"] },
   { title: "Providers", pages: ["providers"] },
 ];
@@ -311,11 +292,7 @@ export function OptionRow(props: {
 
 export type SettingsEditor = ReturnType<typeof createSettingsEditor>;
 
-export function createSettingsEditor(
-  api: WindowHost,
-  display: DisplayStore,
-  toasts: Pick<Toasts, "preview" | "closePreview">,
-) {
+export function createSettingsEditor(api: WindowHost, display: DisplayStore) {
   const [tab, setTabNow] = createSignal<SettingsTab>();
   const [selected, setSelected] = createSignal("");
   // The input's placeholder comes from its line, so it follows a new label or saved name.
@@ -327,8 +304,6 @@ export function createSettingsEditor(
   const [dragging, setDragging] = createSignal<string>();
   let draggedSincePress = false;
   let lastPress = { id: "", atMs: 0 };
-  /** Windows showing the Toast page: OpenCode can draw the window again before the old one goes. */
-  let toastPages = 0;
   /** The inline input while a line takes typing; its keys work only while it has the keyboard. */
   let typingInput: Renderable | undefined;
   const theme = () => api.theme;
@@ -614,32 +589,6 @@ export function createSettingsEditor(
       display.edit(surfaceEditor(current, snapshot()).drag(id, pointer));
     }
 
-    // On the Toast page the real toast stays open until another toast replaces it, and shows
-    // again after every change of what it shows. Another page or tab, or closing the window,
-    // closes it (`toasts.ts`).
-    createEffect(
-      on(
-        () => {
-          return props.tab === "toast" && JSON.stringify(shown().toast);
-        },
-        (key) => {
-          if (key) toasts.preview(props.sessionID);
-        },
-      ),
-    );
-    createEffect(
-      on(
-        () => props.tab === "toast",
-        (onToastPage) => {
-          if (!onToastPage) return;
-          toastPages += 1;
-          onCleanup(() => {
-            toastPages -= 1;
-            if (toastPages === 0) toasts.closePreview();
-          });
-        },
-      ),
-    );
     // Keep the selected line in view when the list is taller than its room.
     createEffect(
       on(selected, (id) => {
@@ -906,9 +855,6 @@ export function createSettingsEditor(
               <Button label={resetLabel(current())} run={() => resetPage(server, current())} />
             )}
           </Show>
-          <Show when={settingsTab() === "toast" && shown().toast.show}>
-            <Button label="Show toast" run={() => toasts.preview(props.sessionID)} />
-          </Show>
           <Cell fg={warning()}>{dirty() ? " unsaved changes" : ""}</Cell>
         </Show>
       </Show>
@@ -921,10 +867,9 @@ export function createSettingsEditor(
       const id = selected();
       return tab() === surface && id.startsWith("line:") ? id.slice("line:".length) : undefined;
     },
-    /** Sidebar shows the panel expanded and Collapsed collapsed; undefined = as the user left it. */
+    /** Sidebar shows the panel expanded; undefined = as the user left it. */
     panelOpen(): boolean | undefined {
-      if (tab() === "sidebar") return true;
-      return tab() === "collapsed" ? false : undefined;
+      return tab() === "sidebar" ? true : undefined;
     },
     /** A sidebar panel mounts; the returned function unmounts it. */
     sidebarShown(): () => void {
@@ -935,14 +880,6 @@ export function createSettingsEditor(
     tabOpen: (surface: Surface): boolean => tab() === surface,
     /** A line takes typing, so the window's own keys rest. */
     typing: () => typing() !== undefined,
-    /** A Plugin switch's saved value (`system.exportFile`); undefined until the server answers. */
-    savedSwitch(key: string): boolean | undefined {
-      return server.saved() ? server.value(key) === true : undefined;
-    },
-    /** Saves a Plugin switch straight away; Plugin has no draft and no Save. */
-    saveSwitch: (key: string, on: boolean): Promise<void> => server.saveNow(key, on),
-    /** Reads the saved settings again, for Plugin's switches. */
-    loadSaved: (): Promise<void> => server.load(),
     /**
      * The window shows `next`; undefined when it closed, which drops the changes. Any tab
      * change stops typing, so the window gets its keys back.

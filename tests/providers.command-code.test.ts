@@ -1,4 +1,4 @@
-import { expect, it } from "vite-plus/test";
+import { expect, it } from "vitest";
 
 import { commandCodeProvider as provider } from "../src/providers/command-code.js";
 import { NO_PROJECT_DIRECTORY } from "./helpers/opencode-folders.js";
@@ -86,23 +86,23 @@ it.each([undefined, null, 0])("omits a window with cap=%s", async (cap) => {
   expect(fetched.rows.map((row) => row.id)).toEqual(["commandcode.weekly"]);
 });
 
-it.each([undefined, null])(
-  "shows a window without a reset time for resetAt=%s",
-  async (resetAt) => {
-    storedKey();
-    fakeHttp((url) =>
-      url.includes("whoami")
-        ? { success: true, org: null }
-        : { windowLimits: { fiveHour: { ...FIVE, resetAt }, weekly: WEEK } },
-    );
-    const fetched = await fetchRows(provider);
-    expect(fetched.error).toBeUndefined();
-    expect(fetched.rows.map((row) => [row.id, row.resetsAt])).toEqual([
-      ["commandcode.five_hour", undefined],
-      ["commandcode.weekly", "2026-11-20T00:00:00.000Z"],
-    ]);
-  },
-);
+it.each([
+  undefined,
+  null,
+])("shows a window without a reset time for resetAt=%s", async (resetAt) => {
+  storedKey();
+  fakeHttp((url) =>
+    url.includes("whoami")
+      ? { success: true, org: null }
+      : { windowLimits: { fiveHour: { ...FIVE, resetAt }, weekly: WEEK } },
+  );
+  const fetched = await fetchRows(provider);
+  expect(fetched.error).toBeUndefined();
+  expect(fetched.rows.map((row) => [row.id, row.resetsAt])).toEqual([
+    ["commandcode.five_hour", undefined],
+    ["commandcode.weekly", "2026-11-20T00:00:00.000Z"],
+  ]);
+});
 
 it.each([
   { endpoint: "whoami", reply: () => new Response("{broken") },
@@ -122,20 +122,20 @@ it.each([
   expect(fetched.error?.code).toBe("bad_response");
 });
 
-it.each(["whoami", "credits"])(
-  "redacts echoed keys from %s failures and debug",
-  async (endpoint) => {
-    storedKey();
-    fakeHttp((url) =>
-      url.includes(endpoint)
-        ? new Response("rejected fixture-key", { status: 403 })
-        : { success: true, org: null },
-    );
-    const fetched = await fetchRows(provider);
-    expect(JSON.stringify(fetched)).not.toContain("fixture-key");
-    expect(JSON.stringify(fetched.debug)).toContain("[redacted]");
-  },
-);
+it.each([
+  "whoami",
+  "credits",
+])("redacts echoed keys from %s failures and debug", async (endpoint) => {
+  storedKey();
+  fakeHttp((url) =>
+    url.includes(endpoint)
+      ? new Response("rejected fixture-key", { status: 403 })
+      : { success: true, org: null },
+  );
+  const fetched = await fetchRows(provider);
+  expect(JSON.stringify(fetched)).not.toContain("fixture-key");
+  expect(JSON.stringify(fetched.debug)).toContain("[redacted]");
+});
 
 it("uses the environment key before saved logins", async () => {
   storedKey();

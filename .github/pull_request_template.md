@@ -8,10 +8,10 @@ Say what changes on screen, in plain words. If nothing visible changes, write `N
 
 ## Before and after screenshots
 
-For visible changes: matching before and after screenshots. Use the same config, model, theme and window size, and hide credentials, account names and private paths. [Which screens to check](https://github.com/slkiser/opencode-quota/blob/main/.github/CONTRIBUTING.md#before-and-after-screenshots-required)
+For visible changes: matching before and after screenshots. Use the same config, model, theme and window size, and hide credentials, account names and private paths. [Which screens to check](https://github.com/npv12/opencode-quota/blob/main/.github/CONTRIBUTING.md#before-and-after-screenshots-required)
 
 ## Checklist
 
-- [ ] I ran `pnpm verify`
+- [ ] I ran `bun run check`, `bun run typecheck`, `bun run build` and `bun run test`
 - [ ] I tested on released OpenCode version: 
-- [ ] For provider changes, I followed [Provider Changes](https://github.com/slkiser/opencode-quota/blob/main/.github/CONTRIBUTING.md#provider-changes), or this does not apply
+- [ ] For provider changes, I followed [Provider Changes](https://github.com/npv12/opencode-quota/blob/main/.github/CONTRIBUTING.md#provider-changes), or this does not apply

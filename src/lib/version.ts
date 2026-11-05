@@ -1,6 +1,6 @@
-import { readFile } from "fs/promises";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 let cachedVersion: string | undefined;
 let cachedPromise: Promise<string | undefined> | null = null;

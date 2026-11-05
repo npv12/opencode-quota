@@ -4,9 +4,9 @@ import { readFile } from "node:fs/promises";
 import { applyEdits, findNodeAtLocation, modify, parseTree } from "jsonc-parser";
 
 import {
-  configWriteTargetsEqual,
   ConfigWriteTargetError,
   type ConfigWriteTargetSnapshot,
+  configWriteTargetsEqual,
   resolveConfigWriteTarget,
   writeResolvedConfigText,
 } from "./config-write-target.js";
@@ -107,7 +107,7 @@ function addManagedComment(raw: string, comment: ManagedConfigComment): string {
     return raw;
   }
 
-  return raw.slice(0, lineStart) + `${indentation}${comment.text}\n` + raw.slice(lineStart);
+  return `${raw.slice(0, lineStart)}${indentation}${comment.text}\n${raw.slice(lineStart)}`;
 }
 
 function editConfigDocument(params: {
